@@ -1,0 +1,52 @@
+[
+  {
+    "model": "reference.country",
+    "pk": 1,
+    "fields": {
+      "iso2": "FR",
+      "name_fr": "France",
+      "name_en": "France",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 2,
+    "fields": {
+      "iso2": "DE",
+      "name_fr": "Allemagne",
+      "name_en": "Germany",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 3,
+    "fields": {
+      "iso2": "ES",
+      "name_fr": "Espagne",
+      "name_en": "Spain",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 4,
+    "fields": {
+      "iso2": "US",
+      "name_fr": "Etats-Unis",
+      "name_en": "United States",
+      "cti_region": "canada_usa"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 5,
+    "fields": {
+      "iso2": "CA",
+      "name_fr": "Canada",
+      "name_en": "Canada",
+      "cti_region": "canada_usa"
+    }
+  }
+]
