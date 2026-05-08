@@ -11,7 +11,11 @@ services:
     ports:
       - "${POSTGRES_HOST_PORT:-5433}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mobility}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-mobility} -d ${POSTGRES_DB:-mobility_dev}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
