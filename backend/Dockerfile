@@ -2,7 +2,8 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    DJANGO_SETTINGS_MODULE=config.settings.production
 
 WORKDIR /app
 
@@ -16,7 +17,9 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput
+RUN SECRET_KEY=build-time-secret \
+    DATABASE_URL=sqlite:////tmp/build.sqlite3 \
+    python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
