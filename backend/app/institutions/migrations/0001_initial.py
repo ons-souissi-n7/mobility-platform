@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -53,8 +52,12 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "Partner Universities",
                 "ordering": ["name"],
                 "indexes": [
-                    models.Index(fields=["moveon_id"], name="institutio_moveon__6ba91b_idx"),
-                    models.Index(fields=["country"], name="institutio_country_cae0e5_idx"),
+                    models.Index(
+                        fields=["moveon_id"], name="institutio_moveon__6ba91b_idx"
+                    ),
+                    models.Index(
+                        fields=["country"], name="institutio_country_cae0e5_idx"
+                    ),
                 ],
             },
         ),

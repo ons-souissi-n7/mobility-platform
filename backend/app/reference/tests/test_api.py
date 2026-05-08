@@ -35,7 +35,9 @@ class TestDepartmentAPI:
     def setup_method(self):
         self.client = Client()
         Department.objects.create(code="SN", name="Sciences du Numerique")
-        Department.objects.create(code="MF2E", name="Mécanique des Fluides, Énergétique & Environnement")
+        Department.objects.create(
+            code="MF2E", name="Mécanique des Fluides, Énergétique & Environnement"
+        )
 
     def test_list_departments(self):
         response = self.client.get("/api/v1/reference/departments/")

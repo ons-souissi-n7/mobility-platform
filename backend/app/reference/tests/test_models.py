@@ -79,4 +79,3 @@ class TestDepartment:
 
         with pytest.raises(IntegrityError):
             Department.objects.create(code="SN", name="Doublon")
-
