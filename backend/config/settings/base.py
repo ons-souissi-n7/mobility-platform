@@ -1,26 +1,31 @@
 from pathlib import Path
-from urllib.parse import parse_qsl, urlparse
 
+import dj_database_url
 from decouple import Csv, config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = config("SECRET_KEY", default="dev-secret-key-change-me")
+SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = config(
-    "ALLOWED_HOSTS",
-    default="localhost,127.0.0.1,backend,0.0.0.0",
-    cast=Csv(),
-)
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost", cast=Csv())
 
-INSTALLED_APPS = [
+DJANGO_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+]
+
+THIRD_PARTY_APPS = [
+    "ninja",
+    "django_fsm",
+    "auditlog",
     "django_q",
+]
+
+LOCAL_APPS = [
     "app.reference",
     "app.students",
     "app.academic",
@@ -35,6 +40,8 @@ INSTALLED_APPS = [
     "app.rag",
 ]
 
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -42,6 +49,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "auditlog.middleware.AuditlogMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -51,7 +59,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -67,37 +75,13 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-
-def database_from_url(url: str) -> dict[str, object]:
-    parsed = urlparse(url)
-    if parsed.scheme not in {"postgres", "postgresql"}:
-        raise ValueError("DATABASE_URL must use the postgresql:// scheme")
-
-    return {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": parsed.path.lstrip("/"),
-        "USER": parsed.username or "",
-        "PASSWORD": parsed.password or "",
-        "HOST": parsed.hostname or "localhost",
-        "PORT": parsed.port or 5432,
-        "OPTIONS": dict(parse_qsl(parsed.query)),
-    }
-
-
-DATABASE_URL = config("DATABASE_URL", default="")
-if DATABASE_URL:
-    DATABASES = {"default": database_from_url(DATABASE_URL)}
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": config("POSTGRES_DB", default="mobility_dev"),
-            "USER": config("POSTGRES_USER", default="mobility"),
-            "PASSWORD": config("POSTGRES_PASSWORD", default="mobility_secret"),
-            "HOST": config("POSTGRES_HOST", default="localhost"),
-            "PORT": config("POSTGRES_PORT", default="5432"),
-        }
-    }
+DATABASES = {
+    "default": dj_database_url.config(
+        default=config("DATABASE_URL"),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -114,16 +98,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+LANGUAGE_CODE = "fr-fr"
+TIME_ZONE = "Europe/Paris"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-MEDIA_URL = "media/"
+MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -131,9 +115,50 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 Q_CLUSTER = {
     "name": "mobility",
     "workers": 2,
+    "recycle": 500,
     "timeout": 60,
     "retry": 120,
     "queue_limit": 50,
     "bulk": 10,
     "orm": "default",
+}
+
+AUDITLOG_INCLUDE_ALL_MODELS = False
+
+MINIO_ENDPOINT = config("MINIO_ENDPOINT", default="minio:9000")
+MINIO_ACCESS_KEY = config("MINIO_ROOT_USER", default="minio_admin")
+MINIO_SECRET_KEY = config("MINIO_ROOT_PASSWORD", default="minio_secret")
+MINIO_BUCKET_NAME = "mobility-documents"
+MINIO_USE_HTTPS = config("MINIO_USE_HTTPS", default=False, cast=bool)
+
+MOVEON_API_URL = config("MOVEON_API_URL", default="")
+MOVEON_API_KEY = config("MOVEON_API_KEY", default="")
+PEGASE_API_URL = config("PEGASE_API_URL", default="")
+PEGASE_API_KEY = config("PEGASE_API_KEY", default="")
+EUDONET_API_URL = config("EUDONET_API_URL", default="")
+EUDONET_API_KEY = config("EUDONET_API_KEY", default="")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "app": {"handlers": ["console"], "level": "DEBUG", "propagate": False},
+    },
 }
