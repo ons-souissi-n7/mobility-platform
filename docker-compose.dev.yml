@@ -1,9 +1,6 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
-    container_name: mobility_db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-mobility_dev}
@@ -12,7 +9,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mobility}"]
       interval: 10s
@@ -23,7 +20,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
-    container_name: mobility_backend
     restart: unless-stopped
     volumes:
       - ./backend:/app
@@ -37,6 +33,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/', timeout=2)\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     command: >
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
@@ -45,7 +51,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
-    container_name: mobility_worker
     restart: unless-stopped
     volumes:
       - ./backend:/app
@@ -56,13 +61,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      backend:
+        condition: service_healthy
     command: python manage.py qcluster
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    container_name: mobility_frontend
     restart: unless-stopped
     volumes:
       - ./frontend:/app
@@ -76,7 +82,6 @@ services:
 
   minio:
     image: minio/minio
-    container_name: mobility_minio
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_admin}
