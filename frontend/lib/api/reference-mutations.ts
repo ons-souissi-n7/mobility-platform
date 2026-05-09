@@ -1,0 +1,69 @@
+import { browserApi } from "@/lib/api/browser-client";
+import type { Country, Department, PartnerUniversity } from "@/lib/api/types";
+
+export type CountryPayload = Omit<Country, "id">;
+export type DepartmentPayload = Omit<Department, "id">;
+export type PartnerUniversityPayload = Omit<
+  PartnerUniversity,
+  "id" | "created_at" | "updated_at"
+>;
+
+export function createCountry(payload: CountryPayload) {
+  return browserApi<Country>("/reference/countries/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateCountry(id: number, payload: CountryPayload) {
+  return browserApi<Country>(`/reference/countries/${id}/`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+export function deleteCountry(id: number) {
+  return browserApi<void>(`/reference/countries/${id}/`, {
+    method: "DELETE",
+  });
+}
+
+export function createDepartment(payload: DepartmentPayload) {
+  return browserApi<Department>("/reference/departments/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateDepartment(id: number, payload: DepartmentPayload) {
+  return browserApi<Department>(`/reference/departments/${id}/`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+export function deleteDepartment(id: number) {
+  return browserApi<void>(`/reference/departments/${id}/`, {
+    method: "DELETE",
+  });
+}
+
+export function createUniversity(payload: PartnerUniversityPayload) {
+  return browserApi<PartnerUniversity>("/institutions/universities/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateUniversity(id: number, payload: PartnerUniversityPayload) {
+  return browserApi<PartnerUniversity>(`/institutions/universities/${id}/`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+export function deleteUniversity(id: number) {
+  return browserApi<void>(`/institutions/universities/${id}/`, {
+    method: "DELETE",
+  });
+}

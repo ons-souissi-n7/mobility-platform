@@ -1,0 +1,29 @@
+export type Country = {
+  id: number;
+  iso2: string;
+  name_fr: string;
+  name_en: string;
+  cti_region: string;
+};
+
+export type Department = {
+  id: number;
+  code: string;
+  name: string;
+};
+
+export type PartnerUniversity = {
+  id: number;
+  moveon_id: number | null;
+  name: string;
+  short_name: string;
+  translated_name: string;
+  erasmus_code: string;
+  city: string;
+  url: string;
+  email: string;
+  country_id: number;
+  last_sync_moveon: string | null;
+  created_at: string;
+  updated_at: string;
+};

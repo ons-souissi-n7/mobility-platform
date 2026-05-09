@@ -81,8 +81,11 @@ services:
     ports:
       - "3000:3000"
     environment:
+      API_INTERNAL_URL: http://backend:8000/api/v1
       NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
-      NODE_ENV: development
+    depends_on:
+      backend:
+        condition: service_healthy
 
   minio:
     image: minio/minio
