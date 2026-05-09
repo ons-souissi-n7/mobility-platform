@@ -1,0 +1,2462 @@
+[
+  {
+    "model": "reference.country",
+    "pk": 1,
+    "fields": {
+      "iso2": "FR",
+      "name_fr": "France",
+      "name_en": "France",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 2,
+    "fields": {
+      "iso2": "TN",
+      "name_fr": "Tunisie",
+      "name_en": "Tunisia",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 3,
+    "fields": {
+      "iso2": "DE",
+      "name_fr": "Allemagne",
+      "name_en": "Germany",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 4,
+    "fields": {
+      "iso2": "ES",
+      "name_fr": "Espagne",
+      "name_en": "Spain",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 5,
+    "fields": {
+      "iso2": "US",
+      "name_fr": "États-Unis",
+      "name_en": "United States",
+      "cti_region": "canada_usa"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 6,
+    "fields": {
+      "iso2": "CA",
+      "name_fr": "Canada",
+      "name_en": "Canada",
+      "cti_region": "canada_usa"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 7,
+    "fields": {
+      "iso2": "JP",
+      "name_fr": "Japon",
+      "name_en": "Japan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 8,
+    "fields": {
+      "iso2": "BR",
+      "name_fr": "Brésil",
+      "name_en": "Brazil",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 9,
+    "fields": {
+      "iso2": "AU",
+      "name_fr": "Australie",
+      "name_en": "Australia",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 10,
+    "fields": {
+      "iso2": "IT",
+      "name_fr": "Italie",
+      "name_en": "Italy",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 11,
+    "fields": {
+      "iso2": "GB",
+      "name_fr": "Royaume-Uni",
+      "name_en": "United Kingdom",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 12,
+    "fields": {
+      "iso2": "PT",
+      "name_fr": "Portugal",
+      "name_en": "Portugal",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 13,
+    "fields": {
+      "iso2": "NL",
+      "name_fr": "Pays-Bas",
+      "name_en": "Netherlands",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 14,
+    "fields": {
+      "iso2": "BE",
+      "name_fr": "Belgique",
+      "name_en": "Belgium",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 15,
+    "fields": {
+      "iso2": "CH",
+      "name_fr": "Suisse",
+      "name_en": "Switzerland",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 16,
+    "fields": {
+      "iso2": "SE",
+      "name_fr": "Suède",
+      "name_en": "Sweden",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 17,
+    "fields": {
+      "iso2": "NO",
+      "name_fr": "Norvège",
+      "name_en": "Norway",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 18,
+    "fields": {
+      "iso2": "CN",
+      "name_fr": "Chine",
+      "name_en": "China",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 19,
+    "fields": {
+      "iso2": "IN",
+      "name_fr": "Inde",
+      "name_en": "India",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 20,
+    "fields": {
+      "iso2": "KR",
+      "name_fr": "Corée du Sud",
+      "name_en": "South Korea",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 21,
+    "fields": {
+      "iso2": "AE",
+      "name_fr": "Émirats arabes unis",
+      "name_en": "United Arab Emirates",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 22,
+    "fields": {
+      "iso2": "MA",
+      "name_fr": "Maroc",
+      "name_en": "Morocco",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 23,
+    "fields": {
+      "iso2": "DZ",
+      "name_fr": "Algérie",
+      "name_en": "Algeria",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 24,
+    "fields": {
+      "iso2": "SN",
+      "name_fr": "Sénégal",
+      "name_en": "Senegal",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 25,
+    "fields": {
+      "iso2": "MX",
+      "name_fr": "Mexique",
+      "name_en": "Mexico",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 26,
+    "fields": {
+      "iso2": "AR",
+      "name_fr": "Argentine",
+      "name_en": "Argentina",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 27,
+    "fields": {
+      "iso2": "CL",
+      "name_fr": "Chili",
+      "name_en": "Chile",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 28,
+    "fields": {
+      "iso2": "AT",
+      "name_fr": "Autriche",
+      "name_en": "Austria",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 29,
+    "fields": {
+      "iso2": "DK",
+      "name_fr": "Danemark",
+      "name_en": "Denmark",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 30,
+    "fields": {
+      "iso2": "FI",
+      "name_fr": "Finlande",
+      "name_en": "Finland",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 31,
+    "fields": {
+      "iso2": "IE",
+      "name_fr": "Irlande",
+      "name_en": "Ireland",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 32,
+    "fields": {
+      "iso2": "PL",
+      "name_fr": "Pologne",
+      "name_en": "Poland",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 33,
+    "fields": {
+      "iso2": "CZ",
+      "name_fr": "République tchèque",
+      "name_en": "Czech Republic",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 34,
+    "fields": {
+      "iso2": "RO",
+      "name_fr": "Roumanie",
+      "name_en": "Romania",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 35,
+    "fields": {
+      "iso2": "HU",
+      "name_fr": "Hongrie",
+      "name_en": "Hungary",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 36,
+    "fields": {
+      "iso2": "TR",
+      "name_fr": "Turquie",
+      "name_en": "Turkey",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 37,
+    "fields": {
+      "iso2": "SA",
+      "name_fr": "Arabie saoudite",
+      "name_en": "Saudi Arabia",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 38,
+    "fields": {
+      "iso2": "SG",
+      "name_fr": "Singapour",
+      "name_en": "Singapore",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 39,
+    "fields": {
+      "iso2": "TH",
+      "name_fr": "Thaïlande",
+      "name_en": "Thailand",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 40,
+    "fields": {
+      "iso2": "EG",
+      "name_fr": "Égypte",
+      "name_en": "Egypt",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 41,
+    "fields": {
+      "iso2": "CI",
+      "name_fr": "Côte d'Ivoire",
+      "name_en": "Ivory Coast",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 42,
+    "fields": {
+      "iso2": "CM",
+      "name_fr": "Cameroun",
+      "name_en": "Cameroon",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 43,
+    "fields": {
+      "iso2": "PE",
+      "name_fr": "Pérou",
+      "name_en": "Peru",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 44,
+    "fields": {
+      "iso2": "CO",
+      "name_fr": "Colombie",
+      "name_en": "Colombia",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 45,
+    "fields": {
+      "iso2": "NZ",
+      "name_fr": "Nouvelle-Zélande",
+      "name_en": "New Zealand",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 46,
+    "fields": {
+      "iso2": "GR",
+      "name_fr": "Grèce",
+      "name_en": "Greece",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 47,
+    "fields": {
+      "iso2": "BG",
+      "name_fr": "Bulgarie",
+      "name_en": "Bulgaria",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 48,
+    "fields": {
+      "iso2": "SK",
+      "name_fr": "Slovaquie",
+      "name_en": "Slovakia",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 49,
+    "fields": {
+      "iso2": "RS",
+      "name_fr": "Serbie",
+      "name_en": "Serbia",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 50,
+    "fields": {
+      "iso2": "NG",
+      "name_fr": "Nigéria",
+      "name_en": "Nigeria",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 51,
+    "fields": {
+      "iso2": "ZA",
+      "name_fr": "Afrique du Sud",
+      "name_en": "South Africa",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 52,
+    "fields": {
+      "iso2": "KE",
+      "name_fr": "Kenya",
+      "name_en": "Kenya",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 53,
+    "fields": {
+      "iso2": "ID",
+      "name_fr": "Indonésie",
+      "name_en": "Indonesia",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 54,
+    "fields": {
+      "iso2": "VN",
+      "name_fr": "Vietnam",
+      "name_en": "Vietnam",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 55,
+    "fields": {
+      "iso2": "PH",
+      "name_fr": "Philippines",
+      "name_en": "Philippines",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 56,
+    "fields": {
+      "iso2": "BD",
+      "name_fr": "Bangladesh",
+      "name_en": "Bangladesh",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 57,
+    "fields": {
+      "iso2": "PK",
+      "name_fr": "Pakistan",
+      "name_en": "Pakistan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 58,
+    "fields": {
+      "iso2": "FJ",
+      "name_fr": "Fidji",
+      "name_en": "Fiji",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 59,
+    "fields": {
+      "iso2": "UA",
+      "name_fr": "Ukraine",
+      "name_en": "Ukraine",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 60,
+    "fields": {
+      "iso2": "HR",
+      "name_fr": "Croatie",
+      "name_en": "Croatia",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 61,
+    "fields": {
+      "iso2": "SI",
+      "name_fr": "Slovénie",
+      "name_en": "Slovenia",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 62,
+    "fields": {
+      "iso2": "LU",
+      "name_fr": "Luxembourg",
+      "name_en": "Luxembourg",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 63,
+    "fields": {
+      "iso2": "UY",
+      "name_fr": "Uruguay",
+      "name_en": "Uruguay",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 64,
+    "fields": {
+      "iso2": "BO",
+      "name_fr": "Bolivie",
+      "name_en": "Bolivia",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 65,
+    "fields": {
+      "iso2": "EC",
+      "name_fr": "Équateur",
+      "name_en": "Ecuador",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 66,
+    "fields": {
+      "iso2": "CR",
+      "name_fr": "Costa Rica",
+      "name_en": "Costa Rica",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 67,
+    "fields": {
+      "iso2": "DO",
+      "name_fr": "République dominicaine",
+      "name_en": "Dominican Republic",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 68,
+    "fields": {
+      "iso2": "GH",
+      "name_fr": "Ghana",
+      "name_en": "Ghana",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 69,
+    "fields": {
+      "iso2": "ET",
+      "name_fr": "Éthiopie",
+      "name_en": "Ethiopia",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 70,
+    "fields": {
+      "iso2": "TZ",
+      "name_fr": "Tanzanie",
+      "name_en": "Tanzania",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 71,
+    "fields": {
+      "iso2": "UG",
+      "name_fr": "Ouganda",
+      "name_en": "Uganda",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 72,
+    "fields": {
+      "iso2": "MY",
+      "name_fr": "Malaisie",
+      "name_en": "Malaysia",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 73,
+    "fields": {
+      "iso2": "LK",
+      "name_fr": "Sri Lanka",
+      "name_en": "Sri Lanka",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 74,
+    "fields": {
+      "iso2": "PG",
+      "name_fr": "Papouasie-Nouvelle-Guinée",
+      "name_en": "Papua New Guinea",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 75,
+    "fields": {
+      "iso2": "LT",
+      "name_fr": "Lituanie",
+      "name_en": "Lithuania",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 76,
+    "fields": {
+      "iso2": "LV",
+      "name_fr": "Lettonie",
+      "name_en": "Latvia",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 77,
+    "fields": {
+      "iso2": "EE",
+      "name_fr": "Estonie",
+      "name_en": "Estonia",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 78,
+    "fields": {
+      "iso2": "IS",
+      "name_fr": "Islande",
+      "name_en": "Iceland",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 79,
+    "fields": {
+      "iso2": "MT",
+      "name_fr": "Malte",
+      "name_en": "Malta",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 80,
+    "fields": {
+      "iso2": "CY",
+      "name_fr": "Chypre",
+      "name_en": "Cyprus",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 81,
+    "fields": {
+      "iso2": "JO",
+      "name_fr": "Jordanie",
+      "name_en": "Jordan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 82,
+    "fields": {
+      "iso2": "LB",
+      "name_fr": "Liban",
+      "name_en": "Lebanon",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 83,
+    "fields": {
+      "iso2": "IQ",
+      "name_fr": "Irak",
+      "name_en": "Iraq",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 84,
+    "fields": {
+      "iso2": "IR",
+      "name_fr": "Iran",
+      "name_en": "Iran",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 85,
+    "fields": {
+      "iso2": "MM",
+      "name_fr": "Myanmar",
+      "name_en": "Myanmar",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 86,
+    "fields": {
+      "iso2": "KH",
+      "name_fr": "Cambodge",
+      "name_en": "Cambodia",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 87,
+    "fields": {
+      "iso2": "LA",
+      "name_fr": "Laos",
+      "name_en": "Laos",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 88,
+    "fields": {
+      "iso2": "ZW",
+      "name_fr": "Zimbabwe",
+      "name_en": "Zimbabwe",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 89,
+    "fields": {
+      "iso2": "RW",
+      "name_fr": "Rwanda",
+      "name_en": "Rwanda",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 90,
+    "fields": {
+      "iso2": "AD",
+      "name_fr": "Andorre",
+      "name_en": "Andorra",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 91,
+    "fields": {
+      "iso2": "MC",
+      "name_fr": "Monaco",
+      "name_en": "Monaco",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 92,
+    "fields": {
+      "iso2": "SM",
+      "name_fr": "Saint-Marin",
+      "name_en": "San Marino",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 93,
+    "fields": {
+      "iso2": "VA",
+      "name_fr": "Vatican",
+      "name_en": "Vatican City",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 94,
+    "fields": {
+      "iso2": "AL",
+      "name_fr": "Albanie",
+      "name_en": "Albania",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 95,
+    "fields": {
+      "iso2": "MK",
+      "name_fr": "Macédoine du Nord",
+      "name_en": "North Macedonia",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 96,
+    "fields": {
+      "iso2": "MD",
+      "name_fr": "Moldavie",
+      "name_en": "Moldova",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 97,
+    "fields": {
+      "iso2": "BY",
+      "name_fr": "Biélorussie",
+      "name_en": "Belarus",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 98,
+    "fields": {
+      "iso2": "KZ",
+      "name_fr": "Kazakhstan",
+      "name_en": "Kazakhstan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 99,
+    "fields": {
+      "iso2": "UZ",
+      "name_fr": "Ouzbékistan",
+      "name_en": "Uzbekistan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 100,
+    "fields": {
+      "iso2": "AM",
+      "name_fr": "Arménie",
+      "name_en": "Armenia",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 101,
+    "fields": {
+      "iso2": "GE",
+      "name_fr": "Géorgie",
+      "name_en": "Georgia",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 102,
+    "fields": {
+      "iso2": "AZ",
+      "name_fr": "Azerbaïdjan",
+      "name_en": "Azerbaijan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 103,
+    "fields": {
+      "iso2": "NP",
+      "name_fr": "Népal",
+      "name_en": "Nepal",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 104,
+    "fields": {
+      "iso2": "BT",
+      "name_fr": "Bhoutan",
+      "name_en": "Bhutan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 105,
+    "fields": {
+      "iso2": "MN",
+      "name_fr": "Mongolie",
+      "name_en": "Mongolia",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 106,
+    "fields": {
+      "iso2": "SD",
+      "name_fr": "Soudan",
+      "name_en": "Sudan",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 107,
+    "fields": {
+      "iso2": "ML",
+      "name_fr": "Mali",
+      "name_en": "Mali",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 108,
+    "fields": {
+      "iso2": "NE",
+      "name_fr": "Niger",
+      "name_en": "Niger",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 109,
+    "fields": {
+      "iso2": "BJ",
+      "name_fr": "Bénin",
+      "name_en": "Benin",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 110,
+    "fields": {
+      "iso2": "TG",
+      "name_fr": "Togo",
+      "name_en": "Togo",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 111,
+    "fields": {
+      "iso2": "HN",
+      "name_fr": "Honduras",
+      "name_en": "Honduras",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 112,
+    "fields": {
+      "iso2": "NI",
+      "name_fr": "Nicaragua",
+      "name_en": "Nicaragua",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 113,
+    "fields": {
+      "iso2": "GT",
+      "name_fr": "Guatemala",
+      "name_en": "Guatemala",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 114,
+    "fields": {
+      "iso2": "PA",
+      "name_fr": "Panama",
+      "name_en": "Panama",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 115,
+    "fields": {
+      "iso2": "LI",
+      "name_fr": "Liechtenstein",
+      "name_en": "Liechtenstein",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 116,
+    "fields": {
+      "iso2": "LY",
+      "name_fr": "Libye",
+      "name_en": "Libya",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 117,
+    "fields": {
+      "iso2": "MR",
+      "name_fr": "Mauritanie",
+      "name_en": "Mauritania",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 118,
+    "fields": {
+      "iso2": "MG",
+      "name_fr": "Madagascar",
+      "name_en": "Madagascar",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 119,
+    "fields": {
+      "iso2": "MZ",
+      "name_fr": "Mozambique",
+      "name_en": "Mozambique",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 120,
+    "fields": {
+      "iso2": "BW",
+      "name_fr": "Botswana",
+      "name_en": "Botswana",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 121,
+    "fields": {
+      "iso2": "NA",
+      "name_fr": "Namibie",
+      "name_en": "Namibia",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 122,
+    "fields": {
+      "iso2": "JM",
+      "name_fr": "Jamaïque",
+      "name_en": "Jamaica",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 123,
+    "fields": {
+      "iso2": "HT",
+      "name_fr": "Haïti",
+      "name_en": "Haiti",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 124,
+    "fields": {
+      "iso2": "CU",
+      "name_fr": "Cuba",
+      "name_en": "Cuba",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 125,
+    "fields": {
+      "iso2": "TT",
+      "name_fr": "Trinité-et-Tobago",
+      "name_en": "Trinidad and Tobago",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 126,
+    "fields": {
+      "iso2": "YE",
+      "name_fr": "Yémen",
+      "name_en": "Yemen",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 127,
+    "fields": {
+      "iso2": "AF",
+      "name_fr": "Afghanistan",
+      "name_en": "Afghanistan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 128,
+    "fields": {
+      "iso2": "WS",
+      "name_fr": "Samoa",
+      "name_en": "Samoa",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 129,
+    "fields": {
+      "iso2": "TO",
+      "name_fr": "Tonga",
+      "name_en": "Tonga",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 130,
+    "fields": {
+      "iso2": "SB",
+      "name_fr": "Îles Salomon",
+      "name_en": "Solomon Islands",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 131,
+    "fields": {
+      "iso2": "VU",
+      "name_fr": "Vanuatu",
+      "name_en": "Vanuatu",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 132,
+    "fields": {
+      "iso2": "AG",
+      "name_fr": "Antigua-et-Barbuda",
+      "name_en": "Antigua and Barbuda",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 133,
+    "fields": {
+      "iso2": "AO",
+      "name_fr": "Angola",
+      "name_en": "Angola",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 134,
+    "fields": {
+      "iso2": "BS",
+      "name_fr": "Bahamas",
+      "name_en": "Bahamas",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 135,
+    "fields": {
+      "iso2": "BH",
+      "name_fr": "Bahreïn",
+      "name_en": "Bahrain",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 136,
+    "fields": {
+      "iso2": "BB",
+      "name_fr": "Barbade",
+      "name_en": "Barbados",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 137,
+    "fields": {
+      "iso2": "BZ",
+      "name_fr": "Belize",
+      "name_en": "Belize",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 138,
+    "fields": {
+      "iso2": "BA",
+      "name_fr": "Bosnie-Herzégovine",
+      "name_en": "Bosnia and Herzegovina",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 139,
+    "fields": {
+      "iso2": "BN",
+      "name_fr": "Brunei",
+      "name_en": "Brunei",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 140,
+    "fields": {
+      "iso2": "BF",
+      "name_fr": "Burkina Faso",
+      "name_en": "Burkina Faso",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 141,
+    "fields": {
+      "iso2": "BI",
+      "name_fr": "Burundi",
+      "name_en": "Burundi",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 142,
+    "fields": {
+      "iso2": "CV",
+      "name_fr": "Cap-Vert",
+      "name_en": "Cape Verde",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 143,
+    "fields": {
+      "iso2": "CF",
+      "name_fr": "République centrafricaine",
+      "name_en": "Central African Republic",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 144,
+    "fields": {
+      "iso2": "TD",
+      "name_fr": "Tchad",
+      "name_en": "Chad",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 145,
+    "fields": {
+      "iso2": "KM",
+      "name_fr": "Comores",
+      "name_en": "Comoros",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 146,
+    "fields": {
+      "iso2": "CG",
+      "name_fr": "Congo",
+      "name_en": "Republic of the Congo",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 147,
+    "fields": {
+      "iso2": "CD",
+      "name_fr": "République démocratique du Congo",
+      "name_en": "Democratic Republic of the Congo",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 148,
+    "fields": {
+      "iso2": "KP",
+      "name_fr": "Corée du Nord",
+      "name_en": "North Korea",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 149,
+    "fields": {
+      "iso2": "DJ",
+      "name_fr": "Djibouti",
+      "name_en": "Djibouti",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 150,
+    "fields": {
+      "iso2": "DM",
+      "name_fr": "Dominique",
+      "name_en": "Dominica",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 151,
+    "fields": {
+      "iso2": "TL",
+      "name_fr": "Timor oriental",
+      "name_en": "East Timor",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 152,
+    "fields": {
+      "iso2": "SZ",
+      "name_fr": "Eswatini",
+      "name_en": "Eswatini",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 153,
+    "fields": {
+      "iso2": "ER",
+      "name_fr": "Érythrée",
+      "name_en": "Eritrea",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 154,
+    "fields": {
+      "iso2": "GA",
+      "name_fr": "Gabon",
+      "name_en": "Gabon",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 155,
+    "fields": {
+      "iso2": "GM",
+      "name_fr": "Gambie",
+      "name_en": "Gambia",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 156,
+    "fields": {
+      "iso2": "GD",
+      "name_fr": "Grenade",
+      "name_en": "Grenada",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 157,
+    "fields": {
+      "iso2": "GN",
+      "name_fr": "Guinée",
+      "name_en": "Guinea",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 158,
+    "fields": {
+      "iso2": "GW",
+      "name_fr": "Guinée-Bissau",
+      "name_en": "Guinea-Bissau",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 159,
+    "fields": {
+      "iso2": "GQ",
+      "name_fr": "Guinée équatoriale",
+      "name_en": "Equatorial Guinea",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 160,
+    "fields": {
+      "iso2": "GY",
+      "name_fr": "Guyana",
+      "name_en": "Guyana",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 161,
+    "fields": {
+      "iso2": "HK",
+      "name_fr": "Hong Kong",
+      "name_en": "Hong Kong",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 162,
+    "fields": {
+      "iso2": "KI",
+      "name_fr": "Kiribati",
+      "name_en": "Kiribati",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 163,
+    "fields": {
+      "iso2": "XK",
+      "name_fr": "Kosovo",
+      "name_en": "Kosovo",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 164,
+    "fields": {
+      "iso2": "KW",
+      "name_fr": "Koweït",
+      "name_en": "Kuwait",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 165,
+    "fields": {
+      "iso2": "KG",
+      "name_fr": "Kirghizistan",
+      "name_en": "Kyrgyzstan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 166,
+    "fields": {
+      "iso2": "LS",
+      "name_fr": "Lesotho",
+      "name_en": "Lesotho",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 167,
+    "fields": {
+      "iso2": "LR",
+      "name_fr": "Libéria",
+      "name_en": "Liberia",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 168,
+    "fields": {
+      "iso2": "MO",
+      "name_fr": "Macao",
+      "name_en": "Macao",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 169,
+    "fields": {
+      "iso2": "MW",
+      "name_fr": "Malawi",
+      "name_en": "Malawi",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 170,
+    "fields": {
+      "iso2": "MV",
+      "name_fr": "Maldives",
+      "name_en": "Maldives",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 171,
+    "fields": {
+      "iso2": "MH",
+      "name_fr": "Îles Marshall",
+      "name_en": "Marshall Islands",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 172,
+    "fields": {
+      "iso2": "MU",
+      "name_fr": "Maurice",
+      "name_en": "Mauritius",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 173,
+    "fields": {
+      "iso2": "FM",
+      "name_fr": "Micronésie",
+      "name_en": "Micronesia",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 174,
+    "fields": {
+      "iso2": "ME",
+      "name_fr": "Monténégro",
+      "name_en": "Montenegro",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 175,
+    "fields": {
+      "iso2": "NR",
+      "name_fr": "Nauru",
+      "name_en": "Nauru",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 176,
+    "fields": {
+      "iso2": "OM",
+      "name_fr": "Oman",
+      "name_en": "Oman",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 177,
+    "fields": {
+      "iso2": "PW",
+      "name_fr": "Palaos",
+      "name_en": "Palau",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 178,
+    "fields": {
+      "iso2": "PS",
+      "name_fr": "Palestine",
+      "name_en": "Palestine",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 179,
+    "fields": {
+      "iso2": "PY",
+      "name_fr": "Paraguay",
+      "name_en": "Paraguay",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 180,
+    "fields": {
+      "iso2": "QA",
+      "name_fr": "Qatar",
+      "name_en": "Qatar",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 181,
+    "fields": {
+      "iso2": "RU",
+      "name_fr": "Russie",
+      "name_en": "Russia",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 182,
+    "fields": {
+      "iso2": "KN",
+      "name_fr": "Saint-Kitts-et-Nevis",
+      "name_en": "Saint Kitts and Nevis",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 183,
+    "fields": {
+      "iso2": "LC",
+      "name_fr": "Sainte-Lucie",
+      "name_en": "Saint Lucia",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 184,
+    "fields": {
+      "iso2": "VC",
+      "name_fr": "Saint-Vincent-et-les-Grenadines",
+      "name_en": "Saint Vincent and the Grenadines",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 185,
+    "fields": {
+      "iso2": "ST",
+      "name_fr": "Sao Tomé-et-Principe",
+      "name_en": "Sao Tome and Principe",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 186,
+    "fields": {
+      "iso2": "SC",
+      "name_fr": "Seychelles",
+      "name_en": "Seychelles",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 187,
+    "fields": {
+      "iso2": "SL",
+      "name_fr": "Sierra Leone",
+      "name_en": "Sierra Leone",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 188,
+    "fields": {
+      "iso2": "SO",
+      "name_fr": "Somalie",
+      "name_en": "Somalia",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 189,
+    "fields": {
+      "iso2": "SS",
+      "name_fr": "Soudan du Sud",
+      "name_en": "South Sudan",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 190,
+    "fields": {
+      "iso2": "SR",
+      "name_fr": "Suriname",
+      "name_en": "Suriname",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 191,
+    "fields": {
+      "iso2": "SY",
+      "name_fr": "Syrie",
+      "name_en": "Syria",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 192,
+    "fields": {
+      "iso2": "TJ",
+      "name_fr": "Tadjikistan",
+      "name_en": "Tajikistan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 193,
+    "fields": {
+      "iso2": "TW",
+      "name_fr": "Taïwan",
+      "name_en": "Taiwan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 194,
+    "fields": {
+      "iso2": "TM",
+      "name_fr": "Turkménistan",
+      "name_en": "Turkmenistan",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 195,
+    "fields": {
+      "iso2": "TV",
+      "name_fr": "Tuvalu",
+      "name_en": "Tuvalu",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 196,
+    "fields": {
+      "iso2": "VE",
+      "name_fr": "Venezuela",
+      "name_en": "Venezuela",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 197,
+    "fields": {
+      "iso2": "ZM",
+      "name_fr": "Zambie",
+      "name_en": "Zambia",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 198,
+    "fields": {
+      "iso2": "EH",
+      "name_fr": "Sahara occidental",
+      "name_en": "Western Sahara",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 199,
+    "fields": {
+      "iso2": "GF",
+      "name_fr": "Guyane française",
+      "name_en": "French Guiana",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 200,
+    "fields": {
+      "iso2": "GP",
+      "name_fr": "Guadeloupe",
+      "name_en": "Guadeloupe",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 201,
+    "fields": {
+      "iso2": "MQ",
+      "name_fr": "Martinique",
+      "name_en": "Martinique",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 202,
+    "fields": {
+      "iso2": "RE",
+      "name_fr": "La Réunion",
+      "name_en": "Reunion",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 203,
+    "fields": {
+      "iso2": "YT",
+      "name_fr": "Mayotte",
+      "name_en": "Mayotte",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 204,
+    "fields": {
+      "iso2": "NC",
+      "name_fr": "Nouvelle-Calédonie",
+      "name_en": "New Caledonia",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 205,
+    "fields": {
+      "iso2": "PF",
+      "name_fr": "Polynésie française",
+      "name_en": "French Polynesia",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 206,
+    "fields": {
+      "iso2": "PM",
+      "name_fr": "Saint-Pierre-et-Miquelon",
+      "name_en": "Saint Pierre and Miquelon",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 207,
+    "fields": {
+      "iso2": "WF",
+      "name_fr": "Wallis-et-Futuna",
+      "name_en": "Wallis and Futuna",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 208,
+    "fields": {
+      "iso2": "PR",
+      "name_fr": "Porto Rico",
+      "name_en": "Puerto Rico",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 209,
+    "fields": {
+      "iso2": "FO",
+      "name_fr": "Îles Féroé",
+      "name_en": "Faroe Islands",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 210,
+    "fields": {
+      "iso2": "GL",
+      "name_fr": "Groenland",
+      "name_en": "Greenland",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 211,
+    "fields": {
+      "iso2": "GI",
+      "name_fr": "Gibraltar",
+      "name_en": "Gibraltar",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 212,
+    "fields": {
+      "iso2": "AX",
+      "name_fr": "Îles Åland",
+      "name_en": "Aland Islands",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 213,
+    "fields": {
+      "iso2": "JE",
+      "name_fr": "Jersey",
+      "name_en": "Jersey",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 214,
+    "fields": {
+      "iso2": "GG",
+      "name_fr": "Guernesey",
+      "name_en": "Guernsey",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 215,
+    "fields": {
+      "iso2": "IM",
+      "name_fr": "Île de Man",
+      "name_en": "Isle of Man",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 216,
+    "fields": {
+      "iso2": "AW",
+      "name_fr": "Aruba",
+      "name_en": "Aruba",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 217,
+    "fields": {
+      "iso2": "CW",
+      "name_fr": "Curaçao",
+      "name_en": "Curacao",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 218,
+    "fields": {
+      "iso2": "SX",
+      "name_fr": "Saint-Martin (partie néerlandaise)",
+      "name_en": "Sint Maarten",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 219,
+    "fields": {
+      "iso2": "BQ",
+      "name_fr": "Bonaire, Saint-Eustache et Saba",
+      "name_en": "Caribbean Netherlands",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 220,
+    "fields": {
+      "iso2": "BL",
+      "name_fr": "Saint-Barthélemy",
+      "name_en": "Saint Barthelemy",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 221,
+    "fields": {
+      "iso2": "MF",
+      "name_fr": "Saint-Martin (partie française)",
+      "name_en": "Saint Martin",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 222,
+    "fields": {
+      "iso2": "TF",
+      "name_fr": "Terres australes françaises",
+      "name_en": "French Southern Territories",
+      "cti_region": "france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 223,
+    "fields": {
+      "iso2": "AI",
+      "name_fr": "Anguilla",
+      "name_en": "Anguilla",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 224,
+    "fields": {
+      "iso2": "VG",
+      "name_fr": "Îles Vierges britanniques",
+      "name_en": "British Virgin Islands",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 225,
+    "fields": {
+      "iso2": "VI",
+      "name_fr": "Îles Vierges américaines",
+      "name_en": "US Virgin Islands",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 226,
+    "fields": {
+      "iso2": "KY",
+      "name_fr": "Îles Caïmans",
+      "name_en": "Cayman Islands",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 227,
+    "fields": {
+      "iso2": "TC",
+      "name_fr": "Îles Turques-et-Caïques",
+      "name_en": "Turks and Caicos Islands",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 228,
+    "fields": {
+      "iso2": "MS",
+      "name_fr": "Montserrat",
+      "name_en": "Montserrat",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 229,
+    "fields": {
+      "iso2": "FK",
+      "name_fr": "Îles Malouines",
+      "name_en": "Falkland Islands",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 230,
+    "fields": {
+      "iso2": "CK",
+      "name_fr": "Îles Cook",
+      "name_en": "Cook Islands",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 231,
+    "fields": {
+      "iso2": "NU",
+      "name_fr": "Niue",
+      "name_en": "Niue",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 232,
+    "fields": {
+      "iso2": "TK",
+      "name_fr": "Tokelau",
+      "name_en": "Tokelau",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 233,
+    "fields": {
+      "iso2": "AS",
+      "name_fr": "Samoa américaines",
+      "name_en": "American Samoa",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 234,
+    "fields": {
+      "iso2": "GU",
+      "name_fr": "Guam",
+      "name_en": "Guam",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 235,
+    "fields": {
+      "iso2": "MP",
+      "name_fr": "Îles Mariannes du Nord",
+      "name_en": "Northern Mariana Islands",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 236,
+    "fields": {
+      "iso2": "CX",
+      "name_fr": "Île Christmas",
+      "name_en": "Christmas Island",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 237,
+    "fields": {
+      "iso2": "CC",
+      "name_fr": "Îles Cocos",
+      "name_en": "Cocos Islands",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 238,
+    "fields": {
+      "iso2": "NF",
+      "name_fr": "Île Norfolk",
+      "name_en": "Norfolk Island",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 239,
+    "fields": {
+      "iso2": "SH",
+      "name_fr": "Sainte-Hélène",
+      "name_en": "Saint Helena",
+      "cti_region": "afrique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 240,
+    "fields": {
+      "iso2": "IO",
+      "name_fr": "Territoire britannique de l'océan Indien",
+      "name_en": "British Indian Ocean Territory",
+      "cti_region": "asie_moyen_orient"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 241,
+    "fields": {
+      "iso2": "SV",
+      "name_fr": "Salvador",
+      "name_en": "El Salvador",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 242,
+    "fields": {
+      "iso2": "AQ",
+      "name_fr": "Antarctique",
+      "name_en": "Antarctica",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 243,
+    "fields": {
+      "iso2": "BM",
+      "name_fr": "Bermudes",
+      "name_en": "Bermuda",
+      "cti_region": "amerique"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 244,
+    "fields": {
+      "iso2": "PN",
+      "name_fr": "Îles Pitcairn",
+      "name_en": "Pitcairn Islands",
+      "cti_region": "oceanie"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 245,
+    "fields": {
+      "iso2": "SJ",
+      "name_fr": "Svalbard et Jan Mayen",
+      "name_en": "Svalbard and Jan Mayen",
+      "cti_region": "europe_hors_france"
+    }
+  },
+  {
+    "model": "reference.country",
+    "pk": 246,
+    "fields": {
+      "iso2": "UM",
+      "name_fr": "Îles mineures éloignées des États-Unis",
+      "name_en": "United States Minor Outlying Islands",
+      "cti_region": "amerique"
+    }
+  }
+]

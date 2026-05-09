@@ -1,0 +1,26 @@
+[
+  {
+    "model": "reference.department",
+    "pk": 1,
+    "fields": {
+      "code": "SN",
+      "name": "Sciences du Numérique"
+    }
+  },
+  {
+    "model": "reference.department",
+    "pk": 2,
+    "fields": {
+      "code": "3EA",
+      "name": "Electronique, Energie Electrique et Automatique"
+    }
+  },
+  {
+    "model": "reference.department",
+    "pk": 3,
+    "fields": {
+      "code": "MF2E",
+      "name": "Mécanique des Fluides, Énergétique & Environnement"
+    }
+  }
+]
