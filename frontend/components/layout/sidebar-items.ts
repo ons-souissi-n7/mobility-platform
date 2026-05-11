@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CalendarRange,
   ClipboardCheck,
   LayoutDashboard,
   PlaneLanding,
@@ -43,5 +44,10 @@ export const adminNavigation = [
     href: "/references",
     label: "Referentiels",
     icon: Settings,
+  },
+  {
+    href: "/academic-years",
+    label: "Annees universitaires",
+    icon: CalendarRange,
   },
 ];

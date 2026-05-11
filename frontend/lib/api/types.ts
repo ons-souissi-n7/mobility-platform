@@ -27,3 +27,25 @@ export type PartnerUniversity = {
   created_at: string;
   updated_at: string;
 };
+
+export type AcademicYearStatus =
+  | "initialization"
+  | "recommendation"
+  | "consolidation"
+  | "pre_assignment"
+  | "validation"
+  | "closed";
+
+export type AcademicYear = {
+  id: number;
+  label: string;
+  start_date: string;
+  end_date: string;
+  status: AcademicYearStatus;
+  wishes_open_date: string | null;
+  wishes_close_date: string | null;
+  gpa_freeze_date: string | null;
+  results_publication_date: string | null;
+  created_at: string;
+  updated_at: string;
+};

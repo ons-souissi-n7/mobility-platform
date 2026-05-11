@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const protectedRoutes = ["/references"];
+const protectedRoutes = ["/references", "/academic-years"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -19,5 +19,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/references/:path*"],
+  matcher: ["/references/:path*", "/academic-years/:path*"],
 };
