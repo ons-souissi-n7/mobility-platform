@@ -7,6 +7,28 @@ type RequestOptions = {
   body?: unknown;
 };
 
+function formatApiErrorDetail(errorDetail: unknown): string {
+  if (errorDetail == null) {
+    return "Erreur inconnue";
+  }
+
+  if (typeof errorDetail === "string") {
+    return errorDetail;
+  }
+
+  if (Array.isArray(errorDetail)) {
+    return errorDetail.map(formatApiErrorDetail).join(" / ");
+  }
+
+  if (typeof errorDetail === "object") {
+    return Object.entries(errorDetail)
+      .map(([key, value]) => `${key}: ${formatApiErrorDetail(value)}`)
+      .join(" / ");
+  }
+
+  return String(errorDetail);
+}
+
 export async function browserApi<T>(
   path: string,
   { method, body }: RequestOptions,
@@ -26,7 +48,29 @@ export async function browserApi<T>(
   });
 
   if (!response.ok) {
-    const message = await response.text();
+    const text = await response.text();
+    let message = `Erreur API ${response.status}`;
+
+    if (text) {
+      try {
+        const payload = JSON.parse(text);
+
+        if (payload && typeof payload === "object") {
+          if ("detail" in payload) {
+            message = formatApiErrorDetail((payload as { detail: unknown }).detail);
+          } else if ("message" in payload) {
+            message = formatApiErrorDetail((payload as { message: unknown }).message);
+          } else {
+            message = formatApiErrorDetail(payload);
+          }
+        } else {
+          message = String(payload);
+        }
+      } catch {
+        message = text;
+      }
+    }
+
     throw new Error(message || `Erreur API ${response.status}`);
   }
 

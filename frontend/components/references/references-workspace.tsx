@@ -78,56 +78,43 @@ export function ReferencesWorkspace({
   } | null>(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncError, setSyncError] = useState("");
-  const [departmentSyncInProgress, setDepartmentSyncInProgress] = useState(false);
+  const [departmentSyncInProgress, setDepartmentSyncInProgress] =
+    useState(false);
   const [departmentSyncError, setDepartmentSyncError] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
 
   const filteredCountries = useMemo(() => {
-    if (!normalizedQuery) {
-      return countries;
-    }
-
-    return countries.filter((country) =>
-      [country.iso2, country.name_fr, country.name_en, country.cti_region]
+    if (!normalizedQuery) return countries;
+    return countries.filter((c) =>
+      [c.iso2, c.name_fr, c.name_en, c.cti_region]
         .join(" ")
         .toLowerCase()
-        .includes(normalizedQuery),
+        .includes(normalizedQuery)
     );
   }, [countries, normalizedQuery]);
 
   const filteredDepartments = useMemo(() => {
-    if (!normalizedQuery) {
-      return departments;
-    }
-
-    return departments.filter((department) =>
-      [department.code, department.name]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery),
+    if (!normalizedQuery) return departments;
+    return departments.filter((d) =>
+      [d.code, d.name].join(" ").toLowerCase().includes(normalizedQuery)
     );
   }, [departments, normalizedQuery]);
 
   const filteredUniversities = useMemo(() => {
-    if (!normalizedQuery) {
-      return universities;
-    }
-
-    const countriesById = new Map(countries.map((country) => [country.id, country]));
-
-    return universities.filter((university) => {
-      const country = countriesById.get(university.country_id);
-
+    if (!normalizedQuery) return universities;
+    const countriesById = new Map(countries.map((c) => [c.id, c]));
+    return universities.filter((u) => {
+      const c = countriesById.get(u.country_id);
       return [
-        university.name,
-        university.short_name,
-        university.translated_name,
-        university.erasmus_code,
-        university.city,
-        university.email,
-        country?.iso2,
-        country?.name_fr,
-        country?.name_en,
+        u.name,
+        u.short_name,
+        u.translated_name,
+        u.erasmus_code,
+        u.city,
+        u.email,
+        c?.iso2,
+        c?.name_fr,
+        c?.name_en,
       ]
         .join(" ")
         .toLowerCase()
@@ -136,95 +123,69 @@ export function ReferencesWorkspace({
   }, [countries, normalizedQuery, universities]);
 
   async function submitReference(
-    payload: CountryPayload | DepartmentPayload | PartnerUniversityPayload,
+    payload: CountryPayload | DepartmentPayload | PartnerUniversityPayload
   ) {
-    if (!modal) {
-      return;
-    }
-
+    if (!modal) return;
     if (modal.kind === "country") {
-      const countryPayload = payload as CountryPayload;
+      const p = payload as CountryPayload;
       if (modal.item && "iso2" in modal.item) {
-        const updated = await updateCountry(modal.item.id, countryPayload);
-        setCountries((items) =>
-          items.map((item) => (item.id === updated.id ? updated : item)),
-        );
+        const res = await updateCountry(modal.item.id, p);
+        setCountries((prev) => prev.map((i) => (i.id === res.id ? res : i)));
       } else {
-        const created = await createCountry(countryPayload);
-        setCountries((items) => [...items, created]);
+        const res = await createCountry(p);
+        setCountries((prev) => [...prev, res]);
       }
     }
-
     if (modal.kind === "department") {
-      const departmentPayload = payload as DepartmentPayload;
+      const p = payload as DepartmentPayload;
       if (modal.item && "code" in modal.item) {
-        const updated = await updateDepartment(modal.item.id, departmentPayload);
-        setDepartments((items) =>
-          items.map((item) => (item.id === updated.id ? updated : item)),
-        );
+        const res = await updateDepartment(modal.item.id, p);
+        setDepartments((prev) => prev.map((i) => (i.id === res.id ? res : i)));
       } else {
-        const created = await createDepartment(departmentPayload);
-        setDepartments((items) => [...items, created]);
+        const res = await createDepartment(p);
+        setDepartments((prev) => [...prev, res]);
       }
     }
-
     if (modal.kind === "university") {
-      const universityPayload = payload as PartnerUniversityPayload;
+      const p = payload as PartnerUniversityPayload;
       if (modal.item && "country_id" in modal.item) {
-        const updated = await updateUniversity(modal.item.id, universityPayload);
-        setUniversities((items) =>
-          items.map((item) => (item.id === updated.id ? updated : item)),
-        );
+        const res = await updateUniversity(modal.item.id, p);
+        setUniversities((prev) => prev.map((i) => (i.id === res.id ? res : i)));
       } else {
-        const created = await createUniversity(universityPayload);
-        setUniversities((items) => [...items, created]);
+        const res = await createUniversity(p);
+        setUniversities((prev) => [...prev, res]);
       }
     }
-
     setModal(null);
   }
 
   async function removeCountry(country: Country) {
-    if (!window.confirm(`Supprimer le pays ${country.name_fr} ?`)) {
-      return;
-    }
-
+    if (!window.confirm(`Supprimer le pays ${country.name_fr} ?`)) return;
     await deleteCountry(country.id);
-    setCountries((items) => items.filter((item) => item.id !== country.id));
+    setCountries((prev) => prev.filter((i) => i.id !== country.id));
   }
 
   async function removeDepartment(department: Department) {
-    if (!window.confirm(`Supprimer le departement ${department.code} ?`)) {
-      return;
-    }
-
+    if (!window.confirm(`Supprimer le departement ${department.code} ?`)) return;
     await deleteDepartment(department.id);
-    setDepartments((items) => items.filter((item) => item.id !== department.id));
+    setDepartments((prev) => prev.filter((i) => i.id !== department.id));
   }
 
   async function removeUniversity(university: PartnerUniversity) {
-    if (!window.confirm(`Supprimer l'universite ${university.name} ?`)) {
-      return;
-    }
-
+    if (!window.confirm(`Supprimer l'universite ${university.name} ?`)) return;
     await deleteUniversity(university.id);
-    setUniversities((items) => items.filter((item) => item.id !== university.id));
+    setUniversities((prev) => prev.filter((i) => i.id !== university.id));
   }
 
   async function handleSyncUniversities() {
     setSyncError("");
     setSyncInProgress(true);
-    const previousFingerprint = getSyncFingerprint(
-      universities,
-      universityImportErrors,
-    );
-
+    const prev = getSyncFingerprint(universities, universityImportErrors);
     try {
       await syncUniversitiesFromMoveon();
-      await waitForUniversitySyncRefresh(previousFingerprint);
-    } catch (error) {
-      console.error(error);
-      setSyncError("La synchronisation a échoué. Réessayez plus tard.");
+      await waitForUniversitySyncRefresh(prev);
+    } catch (e) {
+      setSyncError("La synchronisation a échoué.");
     } finally {
       setSyncInProgress(false);
     }
@@ -233,112 +194,78 @@ export function ReferencesWorkspace({
   async function handleSyncDepartments() {
     setDepartmentSyncError("");
     setDepartmentSyncInProgress(true);
-    const previousFingerprint = getDepartmentSyncFingerprint(
-      departments,
-      departmentImportErrors,
-    );
-
+    const prev = getDepartmentSyncFingerprint(departments, departmentImportErrors);
     try {
       await syncDepartmentsFromPegase();
-      await waitForDepartmentSyncRefresh(previousFingerprint);
-    } catch (error) {
-      console.error(error);
-      setDepartmentSyncError("La synchronisation a échoué. Réessayez plus tard.");
+      await waitForDepartmentSyncRefresh(prev);
+    } catch (e) {
+      setDepartmentSyncError("La synchronisation a échoué.");
     } finally {
       setDepartmentSyncInProgress(false);
     }
   }
 
   async function refreshDepartmentData() {
-    const [refreshedDepartments, errors] = await Promise.all([
-      getDepartments(),
-      getDepartmentImportErrors(),
-    ]);
-    setDepartments(refreshedDepartments);
-    setDepartmentImportErrors(errors);
-    return {
-      errors,
-      departments: refreshedDepartments,
-    };
+    const [depts, errs] = await Promise.all([getDepartments(), getDepartmentImportErrors()]);
+    setDepartments(depts);
+    setDepartmentImportErrors(errs);
+    return { errors: errs, departments: depts };
   }
 
-  async function waitForDepartmentSyncRefresh(previousFingerprint: string) {
-    for (let attempt = 0; attempt < 12; attempt += 1) {
+  async function waitForDepartmentSyncRefresh(prev: string) {
+    for (let i = 0; i < 12; i++) {
       await delay(700);
-      const refreshed = await refreshDepartmentData();
-      const currentFingerprint = getDepartmentSyncFingerprint(
-        refreshed.departments,
-        refreshed.errors,
-      );
-
-      if (currentFingerprint !== previousFingerprint) {
-        return;
-      }
+      const res = await refreshDepartmentData();
+      if (getDepartmentSyncFingerprint(res.departments, res.errors) !== prev) return;
     }
   }
 
   async function refreshUniversityData() {
-    const [refreshedUniversities, errors] = await Promise.all([
-      getUniversities(),
-      getUniversityImportErrors(),
-    ]);
-    setUniversities(refreshedUniversities);
-    setUniversityImportErrors(errors);
-    return {
-      errors,
-      universities: refreshedUniversities,
-    };
+    const [univs, errs] = await Promise.all([getUniversities(), getUniversityImportErrors()]);
+    setUniversities(univs);
+    setUniversityImportErrors(errs);
+    return { errors: errs, universities: univs };
   }
 
-  async function waitForUniversitySyncRefresh(previousFingerprint: string) {
-    for (let attempt = 0; attempt < 12; attempt += 1) {
+  async function waitForUniversitySyncRefresh(prev: string) {
+    for (let i = 0; i < 12; i++) {
       await delay(700);
-      const refreshed = await refreshUniversityData();
-      const currentFingerprint = getSyncFingerprint(
-        refreshed.universities,
-        refreshed.errors,
-      );
-
-      if (currentFingerprint !== previousFingerprint) {
-        return;
-      }
+      const res = await refreshUniversityData();
+      if (getSyncFingerprint(res.universities, res.errors) !== prev) return;
     }
   }
 
-  async function retryImportError(error: RawImport, countryId?: number) {
-    if (countryId === undefined) {
-      return;
-    }
-
-    await retryUniversityImport(error.id, countryId);
-    const refreshedUniversities = await getUniversities();
-    setUniversities(refreshedUniversities);
-    setUniversityImportErrors((items) =>
-      items.filter((item) => item.id !== error.id),
-    );
+  async function retryImportError(error: RawImport, correction?: number | string) {
+    if (typeof correction !== "number") return;
+    await retryUniversityImport(error.id, correction);
+    const refreshed = await getUniversities();
+    setUniversities(refreshed);
+    setUniversityImportErrors((prev) => prev.filter((i) => i.id !== error.id));
   }
 
   async function ignoreImportError(error: RawImport) {
     await ignoreUniversityImport(error.id);
-    setUniversityImportErrors((items) =>
-      items.filter((item) => item.id !== error.id),
-    );
+    setUniversityImportErrors((prev) => prev.filter((i) => i.id !== error.id));
   }
 
-  async function retryDepartmentImportError(error: RawImport) {
-    await retryDepartmentImport(error.id);
-    const refreshedDepartments = await getDepartments();
-    setDepartments(refreshedDepartments);
-    setDepartmentImportErrors((items) =>
-      items.filter((item) => item.id !== error.id),
-    );
+  /**
+   * CORRECTION : Relancer l'import d'un département
+   */
+  async function retryDepartmentImportError(error: RawImport, correction?: number | string) {
+    // On valide que le code (string) est présent
+    if (typeof correction !== "string" || !correction.trim()) return;
+
+    // Appel de la mutation (qui utilise PUT et envoie { code })
+    await retryDepartmentImport(error.id, correction);
+
+    const refreshed = await getDepartments();
+    setDepartments(refreshed);
+    setDepartmentImportErrors((prev) => prev.filter((i) => i.id !== error.id));
   }
 
   async function ignoreDepartmentImportError(error: RawImport) {
     await ignoreDepartmentImport(error.id);
-    setDepartmentImportErrors((items) =>
-      items.filter((item) => item.id !== error.id),
-    );
+    setDepartmentImportErrors((prev) => prev.filter((i) => i.id !== error.id));
   }
 
   return (
@@ -350,32 +277,24 @@ export function ReferencesWorkspace({
       />
 
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <SearchInput
-            onChange={setQuery}
-            placeholder="Rechercher dans les referentiels..."
-            value={query}
-          />
-          
-        </div>
+        <SearchInput
+          onChange={setQuery}
+          placeholder="Rechercher dans les referentiels..."
+          value={query}
+        />
       </div>
 
       <div className="space-y-10">
         <div id="pays">
           <ReferenceSection
             title="Pays"
-            description="Liste stable des pays et de leur region CTI."
-            toolbar={
-              <AddButton
-                label="Ajouter un pays"
-                onClick={() => setModal({ kind: "country" })}
-              />
-            }
+            description="Liste stable des pays."
+            toolbar={<AddButton label="Ajouter un pays" onClick={() => setModal({ kind: "country" })} />}
           >
             <CountriesTable
               countries={filteredCountries}
               onDelete={removeCountry}
-              onEdit={(country) => setModal({ kind: "country", item: country })}
+              onEdit={(c) => setModal({ kind: "country", item: c })}
             />
           </ReferenceSection>
         </div>
@@ -383,67 +302,46 @@ export function ReferencesWorkspace({
         <div id="departements">
           <ReferenceSection
             title="Departements"
-            description="Departements pedagogiques utilises dans les parcours et mobilites."
+            description="Departements pedagogiques."
             toolbar={
-              <div className="flex flex-wrap items-center gap-2">
-                <AddButton
-                  label="Ajouter un departement"
-                  onClick={() => setModal({ kind: "department" })}
-                />
-                <SyncButton
-                  label="Synchroniser Pegase"
-                  isLoading={departmentSyncInProgress}
-                  onClick={handleSyncDepartments}
-                />
+              <div className="flex gap-2">
+                <AddButton label="Ajouter" onClick={() => setModal({ kind: "department" })} />
+                <SyncButton label="Sync Pegase" isLoading={departmentSyncInProgress} onClick={handleSyncDepartments} />
               </div>
             }
           >
             <DepartmentsTable
               departments={filteredDepartments}
               onDelete={removeDepartment}
-              onEdit={(department) =>
-                setModal({ kind: "department", item: department })
-              }
+              onEdit={(d) => setModal({ kind: "department", item: d })}
             />
             <ImportErrorsPanel
               title="Erreurs Pegase"
-              retryField={undefined}
+              retryField="code"
               countries={countries}
               errors={departmentImportErrors}
               isBusy={departmentSyncInProgress}
               onIgnore={ignoreDepartmentImportError}
               onRetry={retryDepartmentImportError}
             />
-            {departmentSyncError ? (
-              <p className="mt-3 text-sm text-red-600">{departmentSyncError}</p>
-            ) : null}
           </ReferenceSection>
         </div>
 
         <div id="universites">
           <ReferenceSection
-            title="Universites partenaires"
-            description="Etablissements partenaires synchronises ou administres manuellement."
+            title="Universites"
+            description="Etablissements partenaires."
             toolbar={
-              <div className="flex flex-wrap items-center gap-2">
-                <AddButton
-                  label="Ajouter une universite"
-                  onClick={() => setModal({ kind: "university" })}
-                />
-                <SyncButton
-                  isLoading={syncInProgress}
-                  label="Synchroniser MoveON"
-                  onClick={handleSyncUniversities}
-                />
+              <div className="flex gap-2">
+                <AddButton label="Ajouter" onClick={() => setModal({ kind: "university" })} />
+                <SyncButton label="Sync MoveON" isLoading={syncInProgress} onClick={handleSyncUniversities} />
               </div>
             }
           >
             <UniversitiesTable
               countries={countries}
               onDelete={removeUniversity}
-              onEdit={(university) =>
-                setModal({ kind: "university", item: university })
-              }
+              onEdit={(u) => setModal({ kind: "university", item: u })}
               universities={filteredUniversities}
             />
             <ImportErrorsPanel
@@ -455,18 +353,15 @@ export function ReferencesWorkspace({
               onIgnore={ignoreImportError}
               onRetry={retryImportError}
             />
-            {syncError ? (
-              <p className="mt-3 text-sm text-red-600">{syncError}</p>
-            ) : null}
           </ReferenceSection>
         </div>
       </div>
 
-      {modal ? (
+      {modal && (
         <Modal
-          description="Les modifications sont enregistrees dans les referentiels Django."
           onClose={() => setModal(null)}
           title={`${modal.item ? "Modifier" : "Ajouter"} ${getModalLabel(modal.kind)}`}
+          description="Veuillez remplir les informations ci-dessous pour mettre à jour le référentiel."
         >
           <ReferenceForm
             countries={countries}
@@ -476,96 +371,51 @@ export function ReferencesWorkspace({
             onSubmit={submitReference}
           />
         </Modal>
-      ) : null}
+      )}
     </>
   );
 }
 
 function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button
-      className="inline-flex items-center gap-2 rounded-md bg-[#1E3A8A] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-900"
-      onClick={onClick}
-      type="button"
-    >
-      <Plus className="h-4 w-4" aria-hidden="true" />
-      {label}
+    <button className="bg-[#1E3A8A] text-white px-4 py-2 rounded-md text-sm font-medium" onClick={onClick}>
+      <Plus className="inline h-4 w-4 mr-1" /> {label}
     </button>
   );
 }
 
-function SyncButton({
-  isLoading,
-  label,
-  onClick,
-}: {
-  isLoading: boolean;
-  label: string;
-  onClick: () => void;
-}) {
+function SyncButton({ isLoading, label, onClick }: { isLoading: boolean; label: string; onClick: () => void }) {
   return (
     <button
-      className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+      className="border border-gray-300 px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
       onClick={onClick}
-      type="button"
       disabled={isLoading}
     >
-      {isLoading ? "Synchronisation en cours..." : label}
+      {isLoading ? "En cours..." : label}
     </button>
   );
 }
 
 function getModalLabel(kind: ReferenceFormKind) {
-  if (kind === "country") {
-    return "un pays";
-  }
-
-  if (kind === "department") {
-    return "un departement";
-  }
-
+  if (kind === "country") return "un pays";
+  if (kind === "department") return "un departement";
   return "une universite";
 }
 
-function getSyncFingerprint(
-  universities: PartnerUniversity[],
-  errors: RawImport[],
-) {
+function getSyncFingerprint(univs: PartnerUniversity[], errs: RawImport[]) {
   return JSON.stringify({
-    errors: errors.map((error) => ({
-      id: error.id,
-      status: error.status,
-      updated_at: error.updated_at,
-    })),
-    universities: universities.map((university) => ({
-      id: university.id,
-      last_sync_moveon: university.last_sync_moveon,
-      updated_at: university.updated_at,
-    })),
+    errs: errs.map((e) => ({ id: e.id, status: e.status })),
+    univs: univs.map((u) => ({ id: u.id, updated_at: u.updated_at })),
   });
 }
 
-function getDepartmentSyncFingerprint(
-  departments: Department[],
-  errors: RawImport[],
-) {
+function getDepartmentSyncFingerprint(depts: Department[], errs: RawImport[]) {
   return JSON.stringify({
-    errors: errors.map((error) => ({
-      id: error.id,
-      status: error.status,
-      updated_at: error.updated_at,
-    })),
-    departments: departments.map((department) => ({
-      id: department.id,
-      pegase_id: department.pegase_id,
-      last_sync_pegase: department.last_sync_pegase,
-      updated_at: department.updated_at,
-    })),
+    errs: errs.map((e) => ({ id: e.id, status: e.status })),
+    depts: depts.map((d) => ({ id: d.id, updated_at: d.updated_at })),
   });
 }
 
-function delay(milliseconds: number) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, milliseconds);
-  });
+function delay(ms: number) {
+  return new Promise((res) => setTimeout(res, ms));
 }

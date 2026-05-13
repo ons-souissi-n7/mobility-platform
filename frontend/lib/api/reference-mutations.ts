@@ -59,7 +59,7 @@ export function getDepartments() {
 
 export function syncDepartmentsFromPegase() {
   return browserApi<{ task_id: string; message: string }>(
-    "/reference/departments/sync-pegase/",
+    "/reference/departments/sync-pegase/", 
     {
       method: "POST",
     },
@@ -70,10 +70,11 @@ export function getDepartmentImportErrors() {
   return browserApi<RawImport[]>("/reference/departments/import-errors/", {});
 }
 
-export function retryDepartmentImport(id: number) {
+
+export function retryDepartmentImport(id: number, code: string) {
   return browserApi<RawImport>(`/reference/departments/import-errors/${id}/retry/`, {
     method: "PUT",
-    body: {},
+    body: { code },
   });
 }
 
@@ -122,10 +123,8 @@ export function getUniversityImportErrors() {
 
 export function retryUniversityImport(id: number, countryId: number) {
   return browserApi<RawImport>(`/institutions/import-errors/${id}/retry/`, {
-    method: "PUT",
-    body: {
-      country_id: countryId,
-    },
+    method: "POST",
+    body: { country_id: countryId },
   });
 }
 

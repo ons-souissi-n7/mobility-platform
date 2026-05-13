@@ -19,6 +19,7 @@ from .schemas import (
     DepartmentIn,
     DepartmentOut,
 )
+from .services.pegase_transformer import transform_department
 from .services.sync_pegase import (
     upsert_department,
 )
@@ -139,7 +140,8 @@ def retry_department_import(
             corrected_payload[field] = correction[field]
 
     try:
-        upsert_department(corrected_payload)
+        transformed = transform_department(corrected_payload)
+        upsert_department(transformed)
     except (IntegrityError, ValidationError, ValueError, KeyError) as exc:
         raw_import.payload = corrected_payload
         raw_import.error_message = str(exc)

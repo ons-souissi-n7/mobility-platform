@@ -193,11 +193,11 @@ class TestDepartmentAPI:
 
         response = self.client.put(
             f"/api/v1/reference/departments/import-errors/{raw_import.id}/retry/",
-            data=json.dumps({"code": "SN"}),
+            data=json.dumps({"code": "TEST"}),
             content_type="application/json",
         )
 
         assert response.status_code == 200
-        raw_import.refresh_from_db()
-        assert raw_import.status == DepartmentRawImportStatus.IMPORTED
-        assert Department.objects.filter(pegase_id="105").exists()
+        data = response.json()
+        assert data["status"] == DepartmentRawImportStatus.IMPORTED
+        assert Department.objects.filter(code="TEST", pegase_id="105").exists()
