@@ -1,5 +1,10 @@
 import { browserApi } from "@/lib/api/browser-client";
-import type { Country, Department, PartnerUniversity } from "@/lib/api/types";
+import type {
+  Country,
+  Department,
+  PartnerUniversity,
+  RawImport,
+} from "@/lib/api/types";
 
 export type CountryPayload = Omit<Country, "id">;
 export type DepartmentPayload = Omit<Department, "id">;
@@ -65,5 +70,37 @@ export function updateUniversity(id: number, payload: PartnerUniversityPayload) 
 export function deleteUniversity(id: number) {
   return browserApi<void>(`/institutions/universities/${id}/`, {
     method: "DELETE",
+  });
+}
+
+export function getUniversities() {
+  return browserApi<PartnerUniversity[]>("/institutions/universities/", {});
+}
+
+export function syncUniversitiesFromMoveon() {
+  return browserApi<{ task_id: string; message: string }>(
+    "/institutions/sync-moveon/",
+    {
+      method: "POST",
+    },
+  );
+}
+
+export function getUniversityImportErrors() {
+  return browserApi<RawImport[]>("/institutions/import-errors/", {});
+}
+
+export function retryUniversityImport(id: number, countryId: number) {
+  return browserApi<RawImport>(`/institutions/import-errors/${id}/retry/`, {
+    method: "PUT",
+    body: {
+      country_id: countryId,
+    },
+  });
+}
+
+export function ignoreUniversityImport(id: number) {
+  return browserApi<RawImport>(`/institutions/import-errors/${id}/ignore/`, {
+    method: "PUT",
   });
 }

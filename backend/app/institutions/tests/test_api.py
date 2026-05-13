@@ -3,7 +3,11 @@ import json
 import pytest
 from django.test import Client
 
-from app.institutions.models import PartnerUniversity
+from app.institutions.models import (
+    PartnerUniversity,
+    PartnerUniversityRawImport,
+    PartnerUniversityRawImportStatus,
+)
 from app.reference.models import Country, CTIRegion
 
 
@@ -118,3 +122,72 @@ class TestPartnerUniversityAPI:
 
         assert response.status_code == 204
         assert not PartnerUniversity.objects.filter(pk=university.id).exists()
+
+    def test_list_university_import_errors(self):
+        PartnerUniversityRawImport.objects.create(
+            source="moveon_fake_institutions",
+            external_id="3001",
+            payload={"name": "Universita Test", "country": {"name": "Itallie"}},
+            status=PartnerUniversityRawImportStatus.FAILED,
+            error_message="Unknown country name: Itallie",
+        )
+        PartnerUniversityRawImport.objects.create(
+            source="moveon_fake_institutions",
+            external_id="3001",
+            payload={"name": "Universita Test", "country": {"name": "Itallie"}},
+            status=PartnerUniversityRawImportStatus.FAILED,
+            error_message="Unknown country name: Itallie",
+        )
+        PartnerUniversityRawImport.objects.create(
+            source="moveon_fake_institutions",
+            external_id="2001",
+            payload={"name": "Already Fixed", "country": {"name": "Germany"}},
+            status=PartnerUniversityRawImportStatus.FAILED,
+            error_message="Unknown country name: Allemagne",
+        )
+        PartnerUniversityRawImport.objects.create(
+            source="moveon_fake_institutions",
+            external_id="2001",
+            payload={"name": "Already Fixed", "country": {"name": "Germany"}},
+            status=PartnerUniversityRawImportStatus.IMPORTED,
+        )
+
+        response = self.client.get("/api/v1/institutions/import-errors/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["external_id"] == "3001"
+
+    def test_retry_university_import_with_corrected_country(self):
+        country = Country.objects.create(
+            iso2="IT",
+            name_fr="Italie",
+            name_en="Italy",
+            cti_region=CTIRegion.EUROPE_HORS_FRANCE,
+        )
+        raw_import = PartnerUniversityRawImport.objects.create(
+            source="moveon_fake_institutions",
+            external_id="3001",
+            payload={
+                "moveon_id": 3001,
+                "name": "Universita Test",
+                "country": {"name": "Itallie"},
+            },
+            status=PartnerUniversityRawImportStatus.FAILED,
+            error_message="Unknown country name: Itallie",
+        )
+
+        response = self.client.put(
+            f"/api/v1/institutions/import-errors/{raw_import.id}/retry/",
+            data=json.dumps({"country_id": country.id}),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        raw_import.refresh_from_db()
+        assert raw_import.status == PartnerUniversityRawImportStatus.IMPORTED
+        assert PartnerUniversity.objects.filter(
+            moveon_id=3001,
+            country=country,
+        ).exists()

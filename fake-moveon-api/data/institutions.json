@@ -1,0 +1,210 @@
+[
+  {
+    "moveon_id": 1366,
+    "name": "Rusenski Universitet Angel Kunchev",
+    "short_name": "",
+    "translated_name": "",
+    "erasmus_code": "BG ROUSSE01",
+    "city": "Rousse",
+    "url": "http://www.ru.acad.bg",
+    "email": "",
+    "country": {
+      "name": "Bulgarie"
+    }
+  },
+  {
+    "moveon_id": 1359,
+    "name": "University of Trento - Department of Engineering",
+    "short_name": "UNITN",
+    "translated_name": "Universite de Trente",
+    "erasmus_code": "I TRENTO01",
+    "city": "Trento",
+    "url": "https://www.unitn.it/en/engineering",
+    "email": "international.engineering@unitn.it",
+    "country": {
+      "name": "Italie"
+    }
+  },
+  {
+    "moveon_id": 1356,
+    "name": "Universidad Nacional del Chaco Austral",
+    "short_name": "",
+    "translated_name": "",
+    "erasmus_code": "",
+    "city": "Saenz Pena",
+    "url": "https://uncaus.edu.ar/",
+    "email": "",
+    "country": {
+      "name": "Argentine"
+    }
+  },
+  {
+    "moveon_id": 1352,
+    "name": "Chang Gung University",
+    "short_name": "CGU",
+    "translated_name": "",
+    "erasmus_code": "",
+    "city": "Guishan",
+    "url": "http://www.cgu.edu.tw/",
+    "email": "",
+    "country": {
+      "name": "Taiwan"
+    }
+  },
+  {
+    "moveon_id": 1350,
+    "name": "Universite Mohammed VI Polytechnique",
+    "short_name": "UM6P",
+    "translated_name": "Mohammed VI Polytechnic University",
+    "erasmus_code": "",
+    "city": "Benguerir",
+    "url": "https://www.um6p.ma/",
+    "email": "international@um6p.ma",
+    "country": {
+      "name": "Maroc"
+    }
+  },
+  {
+    "moveon_id": 1349,
+    "name": "University of Klagenfurt - Faculty of Technical Sciences",
+    "short_name": "",
+    "translated_name": "Alpen-Adria-Universitat Klagenfurt",
+    "erasmus_code": "A KLAGENF01",
+    "city": "Klagenfurt",
+    "url": "http://www.uni-klu.ac.at",
+    "email": "",
+    "country": {
+      "name": "Autriche"
+    }
+  },
+  {
+    "moveon_id": 2001,
+    "name": "Technical University of Munich",
+    "short_name": "TUM",
+    "translated_name": "Universite technique de Munich",
+    "erasmus_code": "D MUNCHEN02",
+    "city": "Munich",
+    "url": "https://www.tum.de/en/",
+    "email": "internationalcenter@tum.de",
+    "country": {
+      "name": "Allemagne"
+    }
+  },
+  {
+    "moveon_id": 2002,
+    "name": "Universidad Politecnica de Madrid",
+    "short_name": "UPM",
+    "translated_name": "Technical University of Madrid",
+    "erasmus_code": "E MADRID05",
+    "city": "Madrid",
+    "url": "https://www.upm.es/",
+    "email": "international.office@upm.es",
+    "country": {
+      "name": "Espagne"
+    }
+  },
+  {
+    "moveon_id": 2003,
+    "name": "Delft University of Technology",
+    "short_name": "TU Delft",
+    "translated_name": "Universite technologique de Delft",
+    "erasmus_code": "NL DELFT01",
+    "city": "Delft",
+    "url": "https://www.tudelft.nl/en/",
+    "email": "exchange@tudelft.nl",
+    "country": {
+      "name": "Pays-Bas"
+    }
+  },
+  {
+    "moveon_id": 2004,
+    "name": "KTH Royal Institute of Technology",
+    "short_name": "KTH",
+    "translated_name": "Institut royal de technologie",
+    "erasmus_code": "S STOCKHO04",
+    "city": "Stockholm",
+    "url": "https://www.kth.se/en",
+    "email": "exchange@kth.se",
+    "country": {
+      "name": "Suede"
+    }
+  },
+  {
+    "moveon_id": 2005,
+    "name": "Pontificia Universidad Catolica de Chile",
+    "short_name": "UC Chile",
+    "translated_name": "Pontifical Catholic University of Chile",
+    "erasmus_code": "",
+    "city": "Santiago",
+    "url": "https://www.uc.cl/",
+    "email": "international@uc.cl",
+    "country": {
+      "name": "Chili"
+    }
+  },
+  {
+    "moveon_id": 3001,
+    "name": "Politecnico di Torino - Typo Country Test",
+    "short_name": "POLITO",
+    "translated_name": "Polytechnic University of Turin",
+    "erasmus_code": "I TORINO02",
+    "city": "Turin",
+    "url": "https://www.polito.it/",
+    "email": "incoming.students@polito.it",
+    "country": {
+      "name": "Itallie"
+    }
+  },
+  {
+    "moveon_id": 3002,
+    "name": "Universidad de Sevilla - Typo Country Test",
+    "short_name": "US",
+    "translated_name": "University of Seville",
+    "erasmus_code": "E SEVILLA01",
+    "city": "Seville",
+    "url": "https://www.us.es/",
+    "email": "relint@us.es",
+    "country": {
+      "name": "Espane"
+    }
+  },
+  {
+    "moveon_id": 3003,
+    "name": "Eindhoven University of Technology - Separator Country Test",
+    "short_name": "TU/e",
+    "translated_name": "Universite de technologie d'Eindhoven",
+    "erasmus_code": "NL EINDHOV17",
+    "city": "Eindhoven",
+    "url": "https://www.tue.nl/en/",
+    "email": "exchange@tue.nl",
+    "country": {
+      "name": "Pays Bas"
+    }
+  },
+  {
+    "moveon_id": 3004,
+    "name": "Technische Universitat Berlin - Typo Country Test",
+    "short_name": "TU Berlin",
+    "translated_name": "Technical University of Berlin",
+    "erasmus_code": "D BERLIN02",
+    "city": "Berlin",
+    "url": "https://www.tu.berlin/en/",
+    "email": "exchange@tu-berlin.de",
+    "country": {
+      "name": "Allemange"
+    }
+  },
+  {
+    "moveon_id": 9999,
+    "name": "Institute of Atlantis - Manual Resolution Required",
+    "short_name": "IA",
+    "translated_name": "Institut d'Atlantis",
+    "erasmus_code": "AT ATLANTIS01",
+    "city": "Lost City",
+    "url": "https://www.atlantis.edu/",
+    "email": "info@atlantis.edu",
+    "country": {
+      "name": "Xyzlavie"
+    }
+  }
+]
