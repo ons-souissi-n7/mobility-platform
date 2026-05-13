@@ -200,6 +200,7 @@ def get_department_raw_import(raw_import_id: int) -> DepartmentRawImport:
     except DepartmentRawImport.DoesNotExist as exc:
         raise HttpError(404, "Erreur d'import departement introuvable.") from exc
 
+
 @router.get(
     "/departments/",
     response=list[DepartmentOut],

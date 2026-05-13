@@ -4,6 +4,7 @@ Tests pour la couche de transformation et validation Pegase.
 Valide que chaque étape du pipeline (transform -> validate) fonctionne
 indépendamment.
 """
+
 import pytest
 
 from app.reference.services.pegase_schema import validate_raw_payload

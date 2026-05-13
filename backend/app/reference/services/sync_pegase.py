@@ -29,7 +29,7 @@ class SyncResult:
 def sync_pegase_departments(client: PegaseClient | None = None) -> SyncResult:
     """
     Synchronise les départements depuis l'API Pegase.
-    
+
     Orchestre le pipeline :
     1. fetch via client
     2. transform les données brutes
@@ -99,10 +99,10 @@ def mark_raw_import(
 def upsert_department(transformed_data: Any) -> bool:
     """
     Persiste le département transformé et validé en base.
-    
+
     Args:
         transformed_data: TransformedDepartment avec données normalisées
-    
+
     Returns:
         True si créé, False si mis à jour
     """
