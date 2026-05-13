@@ -1,0 +1,22 @@
+[
+  {
+    "pegase_id": 101,
+    "code": "SN",
+    "name": "Sciences du Numerique"
+  },
+  {
+    "pegase_id": 102,
+    "code": "3EA",
+    "name": "Electronique Energie Electrique Automatique"
+  },
+  {
+    "pegase_id": 103,
+    "code": "MF2E",
+    "name": "Mecanique des Fluides, Energetique & Environnement"
+  },
+  {
+    "pegase_id": 104,
+    "code": "",
+    "name": "Departement invalide sans code"
+  }
+]

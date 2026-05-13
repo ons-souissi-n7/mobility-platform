@@ -1,11 +1,29 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db.models import ProtectedError
+from django.utils import timezone
 from ninja import Router
 from ninja.errors import HttpError
 
-from .models import Country, Department
-from .schemas import CountryIn, CountryOut, DepartmentIn, DepartmentOut
+from .models import (
+    Country,
+    Department,
+    DepartmentRawImport,
+    DepartmentRawImportStatus,
+)
+from .schemas import (
+    CountryIn,
+    CountryOut,
+    DepartmentImportOut,
+    DepartmentImportRetryIn,
+    DepartmentIn,
+    DepartmentOut,
+)
+from .services.sync_pegase import (
+    sync_pegase_departments,
+    upsert_department,
+)
+from .tasks import enqueue_sync_pegase_departments
 
 router = Router()
 
@@ -64,6 +82,123 @@ def delete_country(request, country_id: int):
 
     return 204, None
 
+
+@router.get(
+    "/departments/import-errors/",
+    response=list[DepartmentImportOut],
+    summary="Liste des erreurs d'import Pegase des departements",
+)
+def list_department_import_errors(request):
+    raw_imports = DepartmentRawImport.objects.order_by("-created_at")
+    latest_by_external_id = {}
+
+    for raw_import in raw_imports:
+        key = raw_import.external_id or f"raw-{raw_import.id}"
+        if key not in latest_by_external_id:
+            latest_by_external_id[key] = raw_import
+
+    return [
+        raw_import
+        for raw_import in latest_by_external_id.values()
+        if raw_import.status == DepartmentRawImportStatus.FAILED
+    ]
+
+
+@router.get(
+    "/departments/imports/",
+    response=list[DepartmentImportOut],
+    summary="Liste de tous les imports Pegase (erreurs, reussis, etc.)",
+)
+def list_department_imports(request):
+    raw_imports = DepartmentRawImport.objects.order_by("-created_at")
+    latest_by_external_id = {}
+
+    for raw_import in raw_imports:
+        key = raw_import.external_id or f"raw-{raw_import.id}"
+        if key not in latest_by_external_id:
+            latest_by_external_id[key] = raw_import
+
+    return list(latest_by_external_id.values())
+
+
+@router.put(
+    "/departments/import-errors/{raw_import_id}/retry/",
+    response=DepartmentImportOut,
+    summary="Relancer un import Pegase de departement",
+)
+def retry_department_import(
+    request,
+    raw_import_id: int,
+    payload: DepartmentImportRetryIn,
+):
+    raw_import = get_department_raw_import(raw_import_id)
+    corrected_payload = dict(raw_import.payload)
+    correction = payload.model_dump()
+
+    for field in ("code", "name", "pegase_id"):
+        if correction.get(field) is not None:
+            corrected_payload[field] = correction[field]
+
+    try:
+        upsert_department(corrected_payload)
+    except (IntegrityError, ValidationError, ValueError, KeyError) as exc:
+        raw_import.payload = corrected_payload
+        raw_import.error_message = str(exc)
+        raw_import.save(update_fields=["payload", "error_message", "updated_at"])
+        raise HttpError(400, str(exc)) from exc
+
+    raw_import.payload = corrected_payload
+    raw_import.status = DepartmentRawImportStatus.IMPORTED
+    raw_import.error_message = ""
+    raw_import.imported_at = timezone.now()
+    raw_import.save(
+        update_fields=[
+            "payload",
+            "status",
+            "error_message",
+            "imported_at",
+            "updated_at",
+        ]
+    )
+    return raw_import
+
+
+@router.put(
+    "/departments/import-errors/{raw_import_id}/ignore/",
+    response=DepartmentImportOut,
+    summary="Marquer une erreur d'import Pegase de departement comme traitee",
+)
+def ignore_department_import(request, raw_import_id: int):
+    raw_import = get_department_raw_import(raw_import_id)
+    raw_import.status = DepartmentRawImportStatus.IGNORED
+    raw_import.error_message = (
+        f"{raw_import.error_message}\nTraite manuellement par l'administrateur."
+    ).strip()
+    raw_import.save(update_fields=["status", "error_message", "updated_at"])
+    return raw_import
+
+
+@router.post(
+    "/departments/sync-pegase/",
+    response={202: dict},
+    summary="Demander la synchronisation des departements depuis Pegase",
+)
+def sync_departments_from_pegase(request):
+    task_id = enqueue_sync_pegase_departments()
+    return 202, {
+        "task_id": task_id,
+        "message": "Synchronisation Pegase demandée en arrière-plan.",
+    }
+
+
+def get_department_raw_import(raw_import_id: int) -> DepartmentRawImport:
+    try:
+        return DepartmentRawImport.objects.get(
+            pk=raw_import_id,
+            status=DepartmentRawImportStatus.FAILED,
+        )
+    except DepartmentRawImport.DoesNotExist as exc:
+        raise HttpError(404, "Erreur d'import departement introuvable.") from exc
 
 @router.get(
     "/departments/",

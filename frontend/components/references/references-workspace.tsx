@@ -22,10 +22,15 @@ import {
   deleteCountry,
   deleteDepartment,
   deleteUniversity,
+  getDepartments,
   getUniversities,
+  getDepartmentImportErrors,
   getUniversityImportErrors,
+  ignoreDepartmentImport,
   ignoreUniversityImport,
+  retryDepartmentImport,
   retryUniversityImport,
+  syncDepartmentsFromPegase,
   syncUniversitiesFromMoveon,
   updateCountry,
   updateDepartment,
@@ -50,6 +55,8 @@ type ReferencesWorkspaceProps = {
   setUniversities: Dispatch<SetStateAction<PartnerUniversity[]>>;
   universityImportErrors: RawImport[];
   setUniversityImportErrors: Dispatch<SetStateAction<RawImport[]>>;
+  departmentImportErrors: RawImport[];
+  setDepartmentImportErrors: Dispatch<SetStateAction<RawImport[]>>;
 };
 
 export function ReferencesWorkspace({
@@ -61,6 +68,8 @@ export function ReferencesWorkspace({
   setUniversities,
   universityImportErrors,
   setUniversityImportErrors,
+  departmentImportErrors,
+  setDepartmentImportErrors,
 }: ReferencesWorkspaceProps) {
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState<{
@@ -69,6 +78,8 @@ export function ReferencesWorkspace({
   } | null>(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncError, setSyncError] = useState("");
+  const [departmentSyncInProgress, setDepartmentSyncInProgress] = useState(false);
+  const [departmentSyncError, setDepartmentSyncError] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
 
   const filteredCountries = useMemo(() => {
@@ -219,6 +230,53 @@ export function ReferencesWorkspace({
     }
   }
 
+  async function handleSyncDepartments() {
+    setDepartmentSyncError("");
+    setDepartmentSyncInProgress(true);
+    const previousFingerprint = getDepartmentSyncFingerprint(
+      departments,
+      departmentImportErrors,
+    );
+
+    try {
+      await syncDepartmentsFromPegase();
+      await waitForDepartmentSyncRefresh(previousFingerprint);
+    } catch (error) {
+      console.error(error);
+      setDepartmentSyncError("La synchronisation a échoué. Réessayez plus tard.");
+    } finally {
+      setDepartmentSyncInProgress(false);
+    }
+  }
+
+  async function refreshDepartmentData() {
+    const [refreshedDepartments, errors] = await Promise.all([
+      getDepartments(),
+      getDepartmentImportErrors(),
+    ]);
+    setDepartments(refreshedDepartments);
+    setDepartmentImportErrors(errors);
+    return {
+      errors,
+      departments: refreshedDepartments,
+    };
+  }
+
+  async function waitForDepartmentSyncRefresh(previousFingerprint: string) {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      await delay(700);
+      const refreshed = await refreshDepartmentData();
+      const currentFingerprint = getDepartmentSyncFingerprint(
+        refreshed.departments,
+        refreshed.errors,
+      );
+
+      if (currentFingerprint !== previousFingerprint) {
+        return;
+      }
+    }
+  }
+
   async function refreshUniversityData() {
     const [refreshedUniversities, errors] = await Promise.all([
       getUniversities(),
@@ -247,7 +305,11 @@ export function ReferencesWorkspace({
     }
   }
 
-  async function retryImportError(error: RawImport, countryId: number) {
+  async function retryImportError(error: RawImport, countryId?: number) {
+    if (countryId === undefined) {
+      return;
+    }
+
     await retryUniversityImport(error.id, countryId);
     const refreshedUniversities = await getUniversities();
     setUniversities(refreshedUniversities);
@@ -259,6 +321,22 @@ export function ReferencesWorkspace({
   async function ignoreImportError(error: RawImport) {
     await ignoreUniversityImport(error.id);
     setUniversityImportErrors((items) =>
+      items.filter((item) => item.id !== error.id),
+    );
+  }
+
+  async function retryDepartmentImportError(error: RawImport) {
+    await retryDepartmentImport(error.id);
+    const refreshedDepartments = await getDepartments();
+    setDepartments(refreshedDepartments);
+    setDepartmentImportErrors((items) =>
+      items.filter((item) => item.id !== error.id),
+    );
+  }
+
+  async function ignoreDepartmentImportError(error: RawImport) {
+    await ignoreDepartmentImport(error.id);
+    setDepartmentImportErrors((items) =>
       items.filter((item) => item.id !== error.id),
     );
   }
@@ -307,10 +385,17 @@ export function ReferencesWorkspace({
             title="Departements"
             description="Departements pedagogiques utilises dans les parcours et mobilites."
             toolbar={
-              <AddButton
-                label="Ajouter un departement"
-                onClick={() => setModal({ kind: "department" })}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <AddButton
+                  label="Ajouter un departement"
+                  onClick={() => setModal({ kind: "department" })}
+                />
+                <SyncButton
+                  label="Synchroniser Pegase"
+                  isLoading={departmentSyncInProgress}
+                  onClick={handleSyncDepartments}
+                />
+              </div>
             }
           >
             <DepartmentsTable
@@ -320,6 +405,18 @@ export function ReferencesWorkspace({
                 setModal({ kind: "department", item: department })
               }
             />
+            <ImportErrorsPanel
+              title="Erreurs Pegase"
+              retryField={undefined}
+              countries={countries}
+              errors={departmentImportErrors}
+              isBusy={departmentSyncInProgress}
+              onIgnore={ignoreDepartmentImportError}
+              onRetry={retryDepartmentImportError}
+            />
+            {departmentSyncError ? (
+              <p className="mt-3 text-sm text-red-600">{departmentSyncError}</p>
+            ) : null}
           </ReferenceSection>
         </div>
 
@@ -335,6 +432,7 @@ export function ReferencesWorkspace({
                 />
                 <SyncButton
                   isLoading={syncInProgress}
+                  label="Synchroniser MoveON"
                   onClick={handleSyncUniversities}
                 />
               </div>
@@ -349,6 +447,8 @@ export function ReferencesWorkspace({
               universities={filteredUniversities}
             />
             <ImportErrorsPanel
+              title="Erreurs MoveON"
+              retryField="country"
               countries={countries}
               errors={universityImportErrors}
               isBusy={syncInProgress}
@@ -396,9 +496,11 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
 
 function SyncButton({
   isLoading,
+  label,
   onClick,
 }: {
   isLoading: boolean;
+  label: string;
   onClick: () => void;
 }) {
   return (
@@ -408,7 +510,7 @@ function SyncButton({
       type="button"
       disabled={isLoading}
     >
-      {isLoading ? "Synchronisation en cours..." : "Synchroniser MoveON"}
+      {isLoading ? "Synchronisation en cours..." : label}
     </button>
   );
 }
@@ -439,6 +541,25 @@ function getSyncFingerprint(
       id: university.id,
       last_sync_moveon: university.last_sync_moveon,
       updated_at: university.updated_at,
+    })),
+  });
+}
+
+function getDepartmentSyncFingerprint(
+  departments: Department[],
+  errors: RawImport[],
+) {
+  return JSON.stringify({
+    errors: errors.map((error) => ({
+      id: error.id,
+      status: error.status,
+      updated_at: error.updated_at,
+    })),
+    departments: departments.map((department) => ({
+      id: department.id,
+      pegase_id: department.pegase_id,
+      last_sync_pegase: department.last_sync_pegase,
+      updated_at: department.updated_at,
     })),
   });
 }

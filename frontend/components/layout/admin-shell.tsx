@@ -10,7 +10,7 @@ export function AdminShell({ children }: AdminShellProps) {
   return (
     <div className="flex min-h-screen bg-[#F9FAFB]">
       <Sidebar />
-      <main className="min-w-0 flex-1 overflow-x-hidden">
+      <main className="min-w-0 flex-1 overflow-x-hidden ml-64">
         <div className="mx-auto w-full max-w-7xl px-8 py-8">{children}</div>
       </main>
     </div>

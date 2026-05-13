@@ -7,7 +7,7 @@ import type {
 } from "@/lib/api/types";
 
 export type CountryPayload = Omit<Country, "id">;
-export type DepartmentPayload = Omit<Department, "id">;
+export type DepartmentPayload = Omit<Department, "id" | "last_sync_pegase" | "updated_at">;
 export type PartnerUniversityPayload = Omit<
   PartnerUniversity,
   "id" | "created_at" | "updated_at"
@@ -50,6 +50,36 @@ export function updateDepartment(id: number, payload: DepartmentPayload) {
 export function deleteDepartment(id: number) {
   return browserApi<void>(`/reference/departments/${id}/`, {
     method: "DELETE",
+  });
+}
+
+export function getDepartments() {
+  return browserApi<Department[]>("/reference/departments/", {});
+}
+
+export function syncDepartmentsFromPegase() {
+  return browserApi<{ task_id: string; message: string }>(
+    "/reference/departments/sync-pegase/",
+    {
+      method: "POST",
+    },
+  );
+}
+
+export function getDepartmentImportErrors() {
+  return browserApi<RawImport[]>("/reference/departments/import-errors/", {});
+}
+
+export function retryDepartmentImport(id: number) {
+  return browserApi<RawImport>(`/reference/departments/import-errors/${id}/retry/`, {
+    method: "PUT",
+    body: {},
+  });
+}
+
+export function ignoreDepartmentImport(id: number) {
+  return browserApi<RawImport>(`/reference/departments/import-errors/${id}/ignore/`, {
+    method: "PUT",
   });
 }
 

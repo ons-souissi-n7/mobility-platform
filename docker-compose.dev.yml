@@ -33,12 +33,15 @@ services:
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       DEBUG: "True"
       MOVEON_API_URL: http://fake-moveon-api:8080
+      PEGASE_API_URL: http://fake-pegase-api:8080
     ports:
       - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
       fake-moveon-api:
+        condition: service_started
+      fake-pegase-api:
         condition: service_started
     healthcheck:
       test:
@@ -67,6 +70,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       DEBUG: "True"
       MOVEON_API_URL: http://fake-moveon-api:8080
+      PEGASE_API_URL: http://fake-pegase-api:8080
       MOVEON_API_KEY: ${MOVEON_API_KEY:-}
     depends_on:
       db:
@@ -74,6 +78,8 @@ services:
       backend:
         condition: service_healthy
       fake-moveon-api:
+        condition: service_started
+      fake-pegase-api:
         condition: service_started
     command: python manage.py qcluster
 
@@ -87,7 +93,7 @@ services:
       - /app/node_modules
       - /app/.next
     ports:
-      - "3000:3000"
+      - "3003:3000"
     environment:
       API_INTERNAL_URL: http://backend:8000/api/v1
       NEXT_PUBLIC_API_URL: http://localhost:8001/api/v1
@@ -105,7 +111,23 @@ services:
     ports:
       - "8081:8080"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8081/health', timeout=2)\""
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=2)\""
+      ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  fake-pegase-api:
+    build:
+      context: ./fake-pegase-api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./fake-pegase-api:/app
+    ports:
+      - "8082:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=2)\""
       ]
       interval: 10s
       timeout: 5s
@@ -118,11 +140,10 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_secret_123}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9003:9003"
     volumes:
       - minio_data:/data
-    command: server /data --console-address ":9001"
+    command: server /data --console-address ":9003"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 30s

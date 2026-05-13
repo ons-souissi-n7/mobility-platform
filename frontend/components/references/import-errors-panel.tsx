@@ -10,7 +10,9 @@ type ImportErrorsPanelProps = {
   errors: RawImport[];
   isBusy: boolean;
   onIgnore: (error: RawImport) => Promise<void>;
-  onRetry: (error: RawImport, countryId: number) => Promise<void>;
+  onRetry: (error: RawImport, countryId?: number) => Promise<void>;
+  title?: string;
+  retryField?: "country";
 };
 
 export function ImportErrorsPanel({
@@ -19,6 +21,8 @@ export function ImportErrorsPanel({
   isBusy,
   onIgnore,
   onRetry,
+  title,
+  retryField,
 }: ImportErrorsPanelProps) {
   const [selectedCountries, setSelectedCountries] = useState<
     Record<number, string>
@@ -50,7 +54,7 @@ export function ImportErrorsPanel({
       <div className="flex items-center gap-2 text-amber-900">
         <AlertTriangle className="h-5 w-5" aria-hidden="true" />
         <h3 className="text-sm font-semibold">
-          Erreurs MoveON ({errors.length})
+          {title ?? `Erreurs MoveON`} ({errors.length})
         </h3>
       </div>
 
@@ -58,10 +62,10 @@ export function ImportErrorsPanel({
         <table className="min-w-full divide-y divide-amber-100 text-sm">
           <thead className="bg-amber-50 text-left text-xs font-semibold uppercase text-amber-900">
             <tr>
-              <th className="px-3 py-2">MoveON</th>
-              <th className="px-3 py-2">Universite</th>
+              <th className="px-3 py-2">Source</th>
+              <th className="px-3 py-2">Entite</th>
               <th className="px-3 py-2">Erreur</th>
-              <th className="px-3 py-2">Pays corrige</th>
+              <th className="px-3 py-2">Correction</th>
               <th className="px-3 py-2 text-right">Actions</th>
             </tr>
           </thead>
@@ -83,30 +87,32 @@ export function ImportErrorsPanel({
                     {error.error_message || "Import impossible"}
                   </td>
                   <td className="px-3 py-3">
-                    <select
-                      className="w-52 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
-                      disabled={busy}
-                      onChange={(event) =>
-                        setSelectedCountries((values) => ({
-                          ...values,
-                          [error.id]: event.target.value,
-                        }))
-                      }
-                      value={selectedCountries[error.id] ?? ""}
-                    >
-                      <option value="">Choisir un pays</option>
-                      {sortedCountries.map((country) => (
-                        <option key={country.id} value={country.id}>
-                          {country.name_fr} ({country.iso2})
-                        </option>
-                      ))}
-                    </select>
+                    {retryField === "country" ? (
+                      <select
+                        className="w-52 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
+                        disabled={busy}
+                        onChange={(event) =>
+                          setSelectedCountries((values) => ({
+                            ...values,
+                            [error.id]: event.target.value,
+                          }))
+                        }
+                        value={selectedCountries[error.id] ?? ""}
+                      >
+                        <option value="">Choisir un pays</option>
+                        {sortedCountries.map((country) => (
+                          <option key={country.id} value={country.id}>
+                            {country.name_fr} ({country.iso2})
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex justify-end gap-2">
                       <button
                         className="inline-flex h-9 items-center gap-2 rounded-md bg-[#1E3A8A] px-3 text-sm font-medium text-white transition-colors hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={!countryId || busy}
+                        disabled={busy || (retryField === "country" && !countryId)}
                         onClick={() =>
                           runAction(() => onRetry(error, countryId), error.id)
                         }

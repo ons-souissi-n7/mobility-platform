@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from app.core.models import TimeStampedModel
+
 
 class CTIRegion(models.TextChoices):
     FRANCE = "france", "France"
@@ -62,6 +64,18 @@ class Department(models.Model):
         verbose_name="Code departement",
     )
     name = models.CharField(max_length=100, verbose_name="Intitule")
+    pegase_id = models.CharField(
+        max_length=50,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="Identifiant Pegase",
+    )
+    last_sync_pegase = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Date dernier sync Pegase",
+    )
 
     class Meta:
         verbose_name = "Departement"
@@ -70,3 +84,36 @@ class Department(models.Model):
 
     def __str__(self) -> str:
         return f"{self.code} - {self.name}"
+
+
+class DepartmentRawImportStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    IMPORTED = "imported", "Imported"
+    FAILED = "failed", "Failed"
+    IGNORED = "ignored", "Ignored"
+
+
+class DepartmentRawImport(TimeStampedModel):
+    source = models.CharField(max_length=255)
+    source_file = models.CharField(max_length=255, blank=True)
+    external_id = models.CharField(max_length=255)
+    payload = models.JSONField()
+    status = models.CharField(
+        max_length=20,
+        choices=DepartmentRawImportStatus.choices,
+        default=DepartmentRawImportStatus.PENDING,
+    )
+    error_message = models.TextField(blank=True)
+    imported_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Department Raw Import"
+        verbose_name_plural = "Department Raw Imports"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["source", "external_id"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.source} - {self.external_id} ({self.status})"
