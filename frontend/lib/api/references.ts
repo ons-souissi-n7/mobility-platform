@@ -7,12 +7,13 @@ import type {
 } from "@/lib/api/types";
 
 export async function getReferenceData() {
-  const [countries, departments, universities, universityImportErrors] =
+  const [countries, departments, universities, universityImportErrors, departmentImportErrors] =
     await Promise.all([
       getApi<Country[]>("/reference/countries/"),
       getApi<Department[]>("/reference/departments/"),
       getApi<PartnerUniversity[]>("/institutions/universities/"),
       getApi<RawImport[]>("/institutions/import-errors/"),
+      getApi<RawImport[]>("/reference/departments/import-errors/"),
     ]);
 
   return {
@@ -20,5 +21,6 @@ export async function getReferenceData() {
     departments,
     universities,
     universityImportErrors,
+    departmentImportErrors,
   };
 }

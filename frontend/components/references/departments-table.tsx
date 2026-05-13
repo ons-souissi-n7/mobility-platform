@@ -20,6 +20,16 @@ function getColumns(
       render: (department) => department.name,
     },
     {
+      key: "pegase_id",
+      header: "Pegase ID",
+      render: (department) => department.pegase_id ?? "-",
+    },
+    {
+      key: "last_sync_pegase",
+      header: "Dernier sync",
+      render: (department) => department.last_sync_pegase ?? "-",
+    },
+    {
       key: "actions",
       header: "Actions",
       align: "right",

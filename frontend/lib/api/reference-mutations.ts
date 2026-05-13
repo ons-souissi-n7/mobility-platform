@@ -7,7 +7,7 @@ import type {
 } from "@/lib/api/types";
 
 export type CountryPayload = Omit<Country, "id">;
-export type DepartmentPayload = Omit<Department, "id">;
+export type DepartmentPayload = Omit<Department, "id" | "last_sync_pegase" | "updated_at">;
 export type PartnerUniversityPayload = Omit<
   PartnerUniversity,
   "id" | "created_at" | "updated_at"
@@ -53,6 +53,37 @@ export function deleteDepartment(id: number) {
   });
 }
 
+export function getDepartments() {
+  return browserApi<Department[]>("/reference/departments/", {});
+}
+
+export function syncDepartmentsFromPegase() {
+  return browserApi<{ task_id: string; message: string }>(
+    "/reference/departments/sync-pegase/", 
+    {
+      method: "POST",
+    },
+  );
+}
+
+export function getDepartmentImportErrors() {
+  return browserApi<RawImport[]>("/reference/departments/import-errors/", {});
+}
+
+
+export function retryDepartmentImport(id: number, code: string) {
+  return browserApi<RawImport>(`/reference/departments/import-errors/${id}/retry/`, {
+    method: "PUT",
+    body: { code },
+  });
+}
+
+export function ignoreDepartmentImport(id: number) {
+  return browserApi<RawImport>(`/reference/departments/import-errors/${id}/ignore/`, {
+    method: "PUT",
+  });
+}
+
 export function createUniversity(payload: PartnerUniversityPayload) {
   return browserApi<PartnerUniversity>("/institutions/universities/", {
     method: "POST",
@@ -92,10 +123,8 @@ export function getUniversityImportErrors() {
 
 export function retryUniversityImport(id: number, countryId: number) {
   return browserApi<RawImport>(`/institutions/import-errors/${id}/retry/`, {
-    method: "PUT",
-    body: {
-      country_id: countryId,
-    },
+    method: "POST",
+    body: { country_id: countryId },
   });
 }
 

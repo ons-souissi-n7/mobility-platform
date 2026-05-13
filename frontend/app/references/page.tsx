@@ -7,8 +7,13 @@ import { getReferenceData } from "@/lib/api/references";
 export const dynamic = "force-dynamic";
 
 export default async function ReferencesPage() {
-  const { countries, departments, universities, universityImportErrors } =
-    await getReferenceData();
+  const {
+    countries,
+    departments,
+    universities,
+    universityImportErrors,
+    departmentImportErrors,
+  } = await getReferenceData();
 
   return (
     <AdminShell>
@@ -17,6 +22,7 @@ export default async function ReferencesPage() {
         initialDepartments={departments}
         initialUniversities={universities}
         initialUniversityImportErrors={universityImportErrors}
+        initialDepartmentImportErrors={departmentImportErrors}
       />
     </AdminShell>
   );

@@ -18,6 +18,7 @@ type ReferencesContainerProps = {
   initialDepartments: Department[];
   initialUniversities: PartnerUniversity[];
   initialUniversityImportErrors: RawImport[];
+  initialDepartmentImportErrors: RawImport[];
 };
 
 export function ReferencesContainer({
@@ -25,12 +26,16 @@ export function ReferencesContainer({
   initialDepartments,
   initialUniversities,
   initialUniversityImportErrors,
+  initialDepartmentImportErrors,
 }: ReferencesContainerProps) {
   const [countries, setCountries] = useState(initialCountries);
   const [departments, setDepartments] = useState(initialDepartments);
   const [universities, setUniversities] = useState(initialUniversities);
   const [universityImportErrors, setUniversityImportErrors] = useState(
     initialUniversityImportErrors,
+  );
+  const [departmentImportErrors, setDepartmentImportErrors] = useState(
+    initialDepartmentImportErrors,
   );
 
   return (
@@ -84,6 +89,8 @@ export function ReferencesContainer({
         setUniversities={setUniversities}
         universityImportErrors={universityImportErrors}
         setUniversityImportErrors={setUniversityImportErrors}
+        departmentImportErrors={departmentImportErrors}
+        setDepartmentImportErrors={setDepartmentImportErrors}
       />
     </div>
   );

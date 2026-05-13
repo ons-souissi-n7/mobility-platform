@@ -16,7 +16,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="z-10 flex min-h-screen w-64 flex-shrink-0 flex-col bg-[#1E3A8A]">
+    <aside className="fixed left-0 top-0 z-10 flex h-screen w-64 flex-shrink-0 flex-col bg-[#1E3A8A]">
       <div className="flex h-20 items-center px-6">
         <Link href="/references" className="text-xl font-bold tracking-wider text-white">
           N7 MOBILITE

@@ -10,6 +10,9 @@ export type Department = {
   id: number;
   code: string;
   name: string;
+  pegase_id: string | null;
+  last_sync_pegase: string | null;
+  updated_at: string;
 };
 
 export type PartnerUniversity = {

@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Any
+
 from ninja import Schema
 
 
@@ -19,9 +22,31 @@ class CountryOut(Schema):
 class DepartmentIn(Schema):
     code: str
     name: str
+    pegase_id: str | None = None
 
 
 class DepartmentOut(Schema):
     id: int
     code: str
     name: str
+    pegase_id: str | None
+    last_sync_pegase: datetime | None
+
+
+class DepartmentImportRetryIn(Schema):
+    code: str | None = None
+    name: str | None = None
+    pegase_id: str | None = None
+
+
+class DepartmentImportOut(Schema):
+    id: int
+    source: str
+    source_file: str
+    external_id: str
+    payload: dict[str, Any]
+    status: str
+    error_message: str
+    imported_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
