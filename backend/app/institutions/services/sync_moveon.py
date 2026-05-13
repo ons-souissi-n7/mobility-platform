@@ -83,9 +83,7 @@ def mark_raw_import(
     raw_import.status = status
     raw_import.error_message = error_message
     raw_import.imported_at = (
-        timezone.now()
-        if status == PartnerUniversityRawImportStatus.IMPORTED
-        else None
+        timezone.now() if status == PartnerUniversityRawImportStatus.IMPORTED else None
     )
     raw_import.save(
         update_fields=["status", "error_message", "imported_at", "updated_at"]
@@ -185,9 +183,7 @@ def get_country_name(payload: dict[str, Any]) -> str:
 
 def normalize_text(value: str) -> str:
     normalized = normalize("NFKD", value.casefold().strip())
-    without_accents = "".join(
-        char for char in normalized if category(char) != "Mn"
-    )
+    without_accents = "".join(char for char in normalized if category(char) != "Mn")
     return "".join(char for char in without_accents if char.isalnum())
 
 
@@ -206,12 +202,8 @@ def find_fuzzy_country_match(
     normalized_name: str,
     countries: list[Country],
 ) -> Country | None:
-    lookup = {
-        normalize_text(country.name_fr): country
-        for country in countries
-    } | {
-        normalize_text(country.name_en): country
-        for country in countries
+    lookup = {normalize_text(country.name_fr): country for country in countries} | {
+        normalize_text(country.name_en): country for country in countries
     }
     matches = get_close_matches(
         normalized_name,

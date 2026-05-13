@@ -2,9 +2,11 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ("institutions", "0002_rename_institutio_moveon__6ba91b_idx_institution_moveon__3f8703_idx_and_more"),
+        (
+            "institutions",
+            "0002_rename_institutio_moveon__6ba91b_idx_institution_moveon__3f8703_idx_and_more",
+        ),
     ]
 
     operations = [
