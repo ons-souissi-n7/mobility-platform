@@ -12,7 +12,7 @@ on ajuste seulement ici.
 
 from typing import Any
 
-from .pegase_schema import PegaseDepartmentRaw, validate_raw_payload
+from .pegase_schema import validate_raw_payload
 
 
 class TransformedDepartment:

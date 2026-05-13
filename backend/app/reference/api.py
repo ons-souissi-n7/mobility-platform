@@ -20,7 +20,6 @@ from .schemas import (
     DepartmentOut,
 )
 from .services.sync_pegase import (
-    sync_pegase_departments,
     upsert_department,
 )
 from .tasks import enqueue_sync_pegase_departments
