@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { Plus } from "lucide-react";
 
 import { CountriesTable } from "@/components/references/countries-table";
 import { DepartmentsTable } from "@/components/references/departments-table";
+import { ImportErrorsPanel } from "@/components/references/import-errors-panel";
 import {
   ReferenceForm,
   type ReferenceFormKind,
@@ -21,6 +22,11 @@ import {
   deleteCountry,
   deleteDepartment,
   deleteUniversity,
+  getUniversities,
+  getUniversityImportErrors,
+  ignoreUniversityImport,
+  retryUniversityImport,
+  syncUniversitiesFromMoveon,
   updateCountry,
   updateDepartment,
   updateUniversity,
@@ -28,27 +34,41 @@ import {
   type DepartmentPayload,
   type PartnerUniversityPayload,
 } from "@/lib/api/reference-mutations";
-import type { Country, Department, PartnerUniversity } from "@/lib/api/types";
+import type {
+  Country,
+  Department,
+  PartnerUniversity,
+  RawImport,
+} from "@/lib/api/types";
 
 type ReferencesWorkspaceProps = {
   countries: Country[];
+  setCountries: Dispatch<SetStateAction<Country[]>>;
   departments: Department[];
+  setDepartments: Dispatch<SetStateAction<Department[]>>;
   universities: PartnerUniversity[];
+  setUniversities: Dispatch<SetStateAction<PartnerUniversity[]>>;
+  universityImportErrors: RawImport[];
+  setUniversityImportErrors: Dispatch<SetStateAction<RawImport[]>>;
 };
 
 export function ReferencesWorkspace({
-  countries: initialCountries,
-  departments: initialDepartments,
-  universities: initialUniversities,
+  countries,
+  setCountries,
+  departments,
+  setDepartments,
+  universities,
+  setUniversities,
+  universityImportErrors,
+  setUniversityImportErrors,
 }: ReferencesWorkspaceProps) {
-  const [countries, setCountries] = useState(initialCountries);
-  const [departments, setDepartments] = useState(initialDepartments);
-  const [universities, setUniversities] = useState(initialUniversities);
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState<{
     kind: ReferenceFormKind;
     item?: Country | Department | PartnerUniversity;
   } | null>(null);
+  const [syncInProgress, setSyncInProgress] = useState(false);
+  const [syncError, setSyncError] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
 
   const filteredCountries = useMemo(() => {
@@ -180,6 +200,69 @@ export function ReferencesWorkspace({
     setUniversities((items) => items.filter((item) => item.id !== university.id));
   }
 
+  async function handleSyncUniversities() {
+    setSyncError("");
+    setSyncInProgress(true);
+    const previousFingerprint = getSyncFingerprint(
+      universities,
+      universityImportErrors,
+    );
+
+    try {
+      await syncUniversitiesFromMoveon();
+      await waitForUniversitySyncRefresh(previousFingerprint);
+    } catch (error) {
+      console.error(error);
+      setSyncError("La synchronisation a échoué. Réessayez plus tard.");
+    } finally {
+      setSyncInProgress(false);
+    }
+  }
+
+  async function refreshUniversityData() {
+    const [refreshedUniversities, errors] = await Promise.all([
+      getUniversities(),
+      getUniversityImportErrors(),
+    ]);
+    setUniversities(refreshedUniversities);
+    setUniversityImportErrors(errors);
+    return {
+      errors,
+      universities: refreshedUniversities,
+    };
+  }
+
+  async function waitForUniversitySyncRefresh(previousFingerprint: string) {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      await delay(700);
+      const refreshed = await refreshUniversityData();
+      const currentFingerprint = getSyncFingerprint(
+        refreshed.universities,
+        refreshed.errors,
+      );
+
+      if (currentFingerprint !== previousFingerprint) {
+        return;
+      }
+    }
+  }
+
+  async function retryImportError(error: RawImport, countryId: number) {
+    await retryUniversityImport(error.id, countryId);
+    const refreshedUniversities = await getUniversities();
+    setUniversities(refreshedUniversities);
+    setUniversityImportErrors((items) =>
+      items.filter((item) => item.id !== error.id),
+    );
+  }
+
+  async function ignoreImportError(error: RawImport) {
+    await ignoreUniversityImport(error.id);
+    setUniversityImportErrors((items) =>
+      items.filter((item) => item.id !== error.id),
+    );
+  }
+
   return (
     <>
       <ReferenceTabs
@@ -245,10 +328,16 @@ export function ReferencesWorkspace({
             title="Universites partenaires"
             description="Etablissements partenaires synchronises ou administres manuellement."
             toolbar={
-              <AddButton
-                label="Ajouter une universite"
-                onClick={() => setModal({ kind: "university" })}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <AddButton
+                  label="Ajouter une universite"
+                  onClick={() => setModal({ kind: "university" })}
+                />
+                <SyncButton
+                  isLoading={syncInProgress}
+                  onClick={handleSyncUniversities}
+                />
+              </div>
             }
           >
             <UniversitiesTable
@@ -259,6 +348,16 @@ export function ReferencesWorkspace({
               }
               universities={filteredUniversities}
             />
+            <ImportErrorsPanel
+              countries={countries}
+              errors={universityImportErrors}
+              isBusy={syncInProgress}
+              onIgnore={ignoreImportError}
+              onRetry={retryImportError}
+            />
+            {syncError ? (
+              <p className="mt-3 text-sm text-red-600">{syncError}</p>
+            ) : null}
           </ReferenceSection>
         </div>
       </div>
@@ -295,6 +394,25 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
+function SyncButton({
+  isLoading,
+  onClick,
+}: {
+  isLoading: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+      onClick={onClick}
+      type="button"
+      disabled={isLoading}
+    >
+      {isLoading ? "Synchronisation en cours..." : "Synchroniser MoveON"}
+    </button>
+  );
+}
+
 function getModalLabel(kind: ReferenceFormKind) {
   if (kind === "country") {
     return "un pays";
@@ -305,4 +423,28 @@ function getModalLabel(kind: ReferenceFormKind) {
   }
 
   return "une universite";
+}
+
+function getSyncFingerprint(
+  universities: PartnerUniversity[],
+  errors: RawImport[],
+) {
+  return JSON.stringify({
+    errors: errors.map((error) => ({
+      id: error.id,
+      status: error.status,
+      updated_at: error.updated_at,
+    })),
+    universities: universities.map((university) => ({
+      id: university.id,
+      last_sync_moveon: university.last_sync_moveon,
+      updated_at: university.updated_at,
+    })),
+  });
+}
+
+function delay(milliseconds: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, milliseconds);
+  });
 }

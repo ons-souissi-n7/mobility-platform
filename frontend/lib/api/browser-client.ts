@@ -3,7 +3,7 @@ const publicApiBaseUrl =
   "http://localhost:8000/api/v1";
 
 type RequestOptions = {
-  method: "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
 };
 
@@ -12,7 +12,8 @@ export async function browserApi<T>(
   { method, body }: RequestOptions,
 ): Promise<T> {
   const response = await fetch(`${publicApiBaseUrl}${path}`, {
-    method,
+    cache: "no-store",
+    method: method ?? "GET",
     headers: body
       ? {
           Accept: "application/json",

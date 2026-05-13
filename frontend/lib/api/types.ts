@@ -28,6 +28,19 @@ export type PartnerUniversity = {
   updated_at: string;
 };
 
+export type RawImport = {
+  id: number;
+  source: string;
+  source_file: string;
+  external_id: string;
+  payload: Record<string, unknown>;
+  status: string;
+  error_message: string;
+  imported_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AcademicYearStatus =
   | "initialization"
   | "recommendation"

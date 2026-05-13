@@ -41,3 +41,36 @@ class PartnerUniversity(TimeStampedModel):
 
     def has_active_agreements(self) -> bool:
         return self.agreements.filter(is_active=True).exists()
+
+
+class PartnerUniversityRawImportStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    IMPORTED = "imported", "Imported"
+    FAILED = "failed", "Failed"
+    IGNORED = "ignored", "Ignored"
+
+
+class PartnerUniversityRawImport(TimeStampedModel):
+    source = models.CharField(max_length=255)
+    source_file = models.CharField(max_length=255, blank=True)
+    external_id = models.CharField(max_length=255)
+    payload = models.JSONField()
+    status = models.CharField(
+        max_length=20,
+        choices=PartnerUniversityRawImportStatus.choices,
+        default=PartnerUniversityRawImportStatus.PENDING,
+    )
+    error_message = models.TextField(blank=True)
+    imported_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Partner University Raw Import"
+        verbose_name_plural = "Partner University Raw Imports"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["source", "external_id"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.source} - {self.external_id} ({self.status})"

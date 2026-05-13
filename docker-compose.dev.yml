@@ -9,7 +9,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${POSTGRES_HOST_PORT:-5433}:5432"
+      - "${POSTGRES_HOST_PORT:-5434}:5432"
     healthcheck:
       test:
         [
@@ -32,11 +32,14 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-mobility}:${POSTGRES_PASSWORD:-mobility_secret}@db:5432/${POSTGRES_DB:-mobility_dev}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
       DEBUG: "True"
+      MOVEON_API_URL: http://fake-moveon-api:8080
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       db:
         condition: service_healthy
+      fake-moveon-api:
+        condition: service_started
     healthcheck:
       test:
         [
@@ -62,11 +65,16 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.development
       DATABASE_URL: postgresql://${POSTGRES_USER:-mobility}:${POSTGRES_PASSWORD:-mobility_secret}@db:5432/${POSTGRES_DB:-mobility_dev}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      DEBUG: "True"
+      MOVEON_API_URL: http://fake-moveon-api:8080
+      MOVEON_API_KEY: ${MOVEON_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
       backend:
         condition: service_healthy
+      fake-moveon-api:
+        condition: service_started
     command: python manage.py qcluster
 
   frontend:
@@ -82,10 +90,26 @@ services:
       - "3000:3000"
     environment:
       API_INTERNAL_URL: http://backend:8000/api/v1
-      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_API_URL: http://localhost:8001/api/v1
     depends_on:
       backend:
         condition: service_healthy
+
+  fake-moveon-api:
+    build:
+      context: ./fake-moveon-api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./fake-moveon-api:/app
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8081/health', timeout=2)\""
+      ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   minio:
     image: minio/minio
