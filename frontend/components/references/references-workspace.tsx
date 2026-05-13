@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { Plus } from "lucide-react";
 
 import { CountriesTable } from "@/components/references/countries-table";
@@ -43,13 +43,13 @@ import type {
 
 type ReferencesWorkspaceProps = {
   countries: Country[];
-  setCountries: (countries: Country[]) => void;
+  setCountries: Dispatch<SetStateAction<Country[]>>;
   departments: Department[];
-  setDepartments: (departments: Department[]) => void;
+  setDepartments: Dispatch<SetStateAction<Department[]>>;
   universities: PartnerUniversity[];
-  setUniversities: (universities: PartnerUniversity[]) => void;
+  setUniversities: Dispatch<SetStateAction<PartnerUniversity[]>>;
   universityImportErrors: RawImport[];
-  setUniversityImportErrors: (errors: RawImport[]) => void;
+  setUniversityImportErrors: Dispatch<SetStateAction<RawImport[]>>;
 };
 
 export function ReferencesWorkspace({
