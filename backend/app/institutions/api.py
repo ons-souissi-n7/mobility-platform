@@ -18,6 +18,13 @@ from .schemas import (
     PartnerUniversityIn,
     PartnerUniversityOut,
 )
+from .services.moveon_transformer import transform_institution
+from .services.moveon_validator import (
+    ValidationError as MoveOnValidationError,
+)
+from .services.moveon_validator import (
+    validate_institution,
+)
 from .services.sync_moveon import upsert_partner_university
 from .tasks import enqueue_sync_moveon_institutions
 
@@ -162,8 +169,16 @@ def retry_university_import(
         }
 
     try:
-        upsert_partner_university(corrected_payload)
-    except (IntegrityError, ValidationError, ValueError, KeyError) as exc:
+        transformed = transform_institution(corrected_payload)
+        validate_institution(transformed)
+        upsert_partner_university(transformed)
+    except (
+        IntegrityError,
+        ValidationError,
+        MoveOnValidationError,
+        ValueError,
+        KeyError,
+    ) as exc:
         raw_import.payload = corrected_payload
         raw_import.error_message = str(exc)
         raw_import.save(update_fields=["payload", "error_message", "updated_at"])

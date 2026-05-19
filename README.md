@@ -40,7 +40,7 @@ docker compose -p mobility-dev -f docker-compose.dev.yml run --rm --no-deps back
 # Check formatting with ruff
 docker compose -p mobility-dev -f docker-compose.dev.yml run --rm --no-deps backend ruff format --check .
 # Run tests
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm --no-deps backend pytest
+docker compose -p mobility-dev -f docker-compose.dev.yml run --rm backend pytest
 ```
 ### Database Migrations
 Apply migrations:
