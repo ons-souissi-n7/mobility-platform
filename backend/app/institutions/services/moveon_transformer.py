@@ -12,7 +12,7 @@ on ajuste seulement ici.
 
 from typing import Any
 
-from .moveon_schema import MoveOnInstitutionRaw, validate_raw_payload
+from .moveon_schema import validate_raw_payload
 
 
 class TransformedInstitution:

@@ -14,9 +14,12 @@ from app.institutions.models import (
 from .moveon_client import MoveOnClient
 from .moveon_country import resolve_country
 from .moveon_transformer import TransformedInstitution, transform_institution
-from .moveon_validator import ValidationError as MoveOnValidationError
-from .moveon_validator import validate_institution
-
+from .moveon_validator import (
+    ValidationError as MoveOnValidationError,
+)
+from .moveon_validator import (
+    validate_institution,
+)
 
 
 @dataclass
@@ -90,7 +93,13 @@ def mark_raw_import(
 
 
 @transaction.atomic
-def upsert_partner_university(transformed_data: TransformedInstitution) -> bool:
+def upsert_partner_university(
+    transformed_data: TransformedInstitution | dict[str, Any],
+) -> bool:
+    if isinstance(transformed_data, dict):
+        transformed_data = transform_institution(transformed_data)
+        validate_institution(transformed_data)
+
     moveon_id = transformed_data.moveon_id
     if moveon_id in (None, ""):
         raise ValueError("Missing moveon_id")
