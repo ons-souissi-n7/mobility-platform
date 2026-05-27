@@ -1,0 +1,13 @@
+[
+  {
+    "moveon_relation_id": "REL-001",
+    "academic_year_label": "2026-2027",
+    "period": "S1",
+    "places_id": "PLC-001",
+    "total_places": 4,
+    "remaining_places": 2,
+    "total_duration": 12,
+    "duration_unit": "months",
+    "is_effective": true
+  }
+]

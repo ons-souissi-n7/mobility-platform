@@ -10,8 +10,8 @@ from app.institutions.models import (
     PartnerUniversityRawImport,
     PartnerUniversityRawImportStatus,
 )
+from app.integrations.moveon import MoveOnClient
 
-from .moveon_client import MoveOnClient
 from .moveon_country import resolve_country
 from .moveon_transformer import TransformedInstitution, transform_institution
 from .moveon_validator import (

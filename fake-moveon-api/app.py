@@ -18,6 +18,18 @@ class FakeMoveOnHandler(BaseHTTPRequestHandler):
             self.respond(load_json("institutions.json"))
             return
 
+        if path == "/api/agreements":
+            self.respond(load_json("agreements.json"))
+            return
+
+        if path == "/api/agreement-frameworks":
+            self.respond(load_json("agreement_frameworks.json"))
+            return
+
+        if path == "/api/agreement-quotas":
+            self.respond(load_json("agreement_quotas.json"))
+            return
+
         self.respond({"detail": "Not found"}, status=404)
 
     def log_message(self, format, *args):

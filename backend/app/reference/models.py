@@ -1,7 +1,12 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from app.core.models import TimeStampedModel
+
+class LevelRawImportStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    IMPORTED = "imported", "Imported"
+    FAILED = "failed", "Failed"
+    IGNORED = "ignored", "Ignored"
 
 
 class CTIRegion(models.TextChoices):
@@ -12,6 +17,13 @@ class CTIRegion(models.TextChoices):
     ASIE_MOYEN_ORIENT = "asie_moyen_orient", "Asie / Moyen-Orient"
     AFRIQUE = "afrique", "Afrique"
     OCEANIE = "oceanie", "Océanie"
+
+
+class DepartmentRawImportStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    IMPORTED = "imported", "Imported"
+    FAILED = "failed", "Failed"
+    IGNORED = "ignored", "Ignored"
 
 
 class Country(models.Model):
@@ -55,7 +67,7 @@ class Department(models.Model):
     """
     Departements pedagogiques de l'ENSEEIHT.
 
-    Codes : SN, 3EA, MF2E
+    Codes : SN, 3EA, MF2Ei
     """
 
     code = models.CharField(
@@ -86,14 +98,9 @@ class Department(models.Model):
         return f"{self.code} - {self.name}"
 
 
-class DepartmentRawImportStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    IMPORTED = "imported", "Imported"
-    FAILED = "failed", "Failed"
-    IGNORED = "ignored", "Ignored"
-
-
-class DepartmentRawImport(TimeStampedModel):
+class DepartmentRawImport(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     source = models.CharField(max_length=255)
     source_file = models.CharField(max_length=255, blank=True)
     external_id = models.CharField(max_length=255)
@@ -109,6 +116,56 @@ class DepartmentRawImport(TimeStampedModel):
     class Meta:
         verbose_name = "Department Raw Import"
         verbose_name_plural = "Department Raw Imports"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["source", "external_id"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.source} - {self.external_id} ({self.status})"
+
+
+class Level(models.Model):
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=255)
+    is_active = models.BooleanField(default=True)
+    pegase_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    last_sync_pegase = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Level"
+        verbose_name_plural = "Levels"
+        ordering = ["code"]
+        indexes = [
+            models.Index(fields=["code"]),
+            models.Index(fields=["is_active"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.code} - {self.name}" if self.name else self.code
+
+
+class LevelRawImport(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    source = models.CharField(max_length=255)
+    source_file = models.CharField(max_length=255, blank=True)
+    external_id = models.CharField(max_length=255)
+    payload = models.JSONField()
+    status = models.CharField(
+        max_length=20,
+        choices=LevelRawImportStatus.choices,
+        default=LevelRawImportStatus.PENDING,
+    )
+    error_message = models.TextField(blank=True)
+    imported_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Level Raw Import"
+        verbose_name_plural = "Level Raw Imports"
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["source", "external_id"]),

@@ -5,8 +5,8 @@ from app.institutions.models import (
     PartnerUniversityRawImport,
     PartnerUniversityRawImportStatus,
 )
-from app.institutions.services.moveon_client import MoveOnInstitution
 from app.institutions.services.sync_moveon import sync_moveon_institutions
+from app.integrations.moveon import MoveOnInstitution
 from app.reference.models import Country, CTIRegion
 
 

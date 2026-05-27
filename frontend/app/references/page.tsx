@@ -1,5 +1,3 @@
-import { Building2, Download, Globe2, University } from "lucide-react";
-
 import { ReferencesContainer } from "@/components/references/references-container";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { getReferenceData } from "@/lib/api/references";
@@ -13,6 +11,8 @@ export default async function ReferencesPage() {
     universities,
     universityImportErrors,
     departmentImportErrors,
+    mobilityLevels,
+    levelImportErrors,
   } = await getReferenceData();
 
   return (
@@ -23,6 +23,8 @@ export default async function ReferencesPage() {
         initialUniversities={universities}
         initialUniversityImportErrors={universityImportErrors}
         initialDepartmentImportErrors={departmentImportErrors}
+        initialMobilityLevels={mobilityLevels}
+        initialLevelImportErrors={levelImportErrors}
       />
     </AdminShell>
   );

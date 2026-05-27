@@ -65,6 +65,12 @@ export function ImportErrorsPanel({
         </h3>
       </div>
 
+      {actionError ? (
+        <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {actionError}
+        </div>
+      ) : null}
+
       <div className="mt-4 overflow-hidden rounded-md border border-amber-200 bg-white">
         <table className="min-w-full divide-y divide-amber-100 text-sm">
           <thead className="bg-amber-50 text-left text-xs font-semibold uppercase text-amber-900">

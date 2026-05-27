@@ -2,6 +2,7 @@ from ninja import NinjaAPI
 
 from app.academic.api import router as academic_router
 from app.institutions.api import router as institutions_router
+from app.mobility.api import router as mobility_router
 from app.reference.api import router as reference_router
 
 api = NinjaAPI(
@@ -14,3 +15,4 @@ api = NinjaAPI(
 api.add_router("/reference/", reference_router, tags=["Referentiels"])
 api.add_router("/institutions/", institutions_router, tags=["Institutions"])
 api.add_router("/academic/", academic_router, tags=["Academic"])
+api.add_router("/mobility/", mobility_router, tags=["Mobility"])

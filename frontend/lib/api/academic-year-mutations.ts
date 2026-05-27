@@ -3,7 +3,7 @@ import type { AcademicYear } from "@/lib/api/types";
 
 export type AcademicYearPayload = Omit<
   AcademicYear,
-  "id" | "status" | "created_at" | "updated_at"
+  "id" | "status" | "closed_at" | "created_at" | "updated_at"
 >;
 
 export type AcademicYearTransition =

@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { AcademicYearForm } from "@/components/academic-years/academic-year-form";
 import { AcademicYearsTable } from "@/components/academic-years/academic-years-table";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import {
   applyAcademicYearTransition,
@@ -25,6 +26,7 @@ export function AcademicYearsWorkspace({
 }: AcademicYearsWorkspaceProps) {
   const [years, setYears] = useState(initialYears);
   const [modalItem, setModalItem] = useState<AcademicYear | null | "new">(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   async function submitYear(payload: AcademicYearPayload) {
     if (modalItem && modalItem !== "new") {
@@ -41,9 +43,7 @@ export function AcademicYearsWorkspace({
   }
 
   async function removeYear(year: AcademicYear) {
-    if (!window.confirm(`Supprimer l'annee universitaire ${year.label} ?`)) {
-      return;
-    }
+    if (!await confirm(`Supprimer l'annee universitaire "${year.label}" ?`)) return;
 
     await deleteAcademicYear(year.id);
     setYears((items) => items.filter((item) => item.id !== year.id));
@@ -96,6 +96,7 @@ export function AcademicYearsWorkspace({
           />
         </Modal>
       ) : null}
+      {confirmDialog}
     </div>
   );
 }

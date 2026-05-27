@@ -1,9 +1,10 @@
-from .moveon_client import (
+from app.integrations.moveon import (
     MoveOnClient as MoveOnClient,
 )
-from .moveon_client import (
+from app.integrations.moveon import (
     MoveOnClientError as MoveOnClientError,
 )
+
 from .moveon_schema import validate_raw_payload as validate_raw_payload
 from .moveon_transformer import (
     TransformedInstitution as TransformedInstitution,

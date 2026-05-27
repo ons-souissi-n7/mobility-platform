@@ -92,11 +92,11 @@ class Migration(migrations.Migration):
                 "indexes": [
                     models.Index(
                         fields=["source", "external_id"],
-                        name="reference_departmentrawimport_source_external_id_idx",
+                        name="reference_d_source_b3c7e3_idx",
                     ),
                     models.Index(
                         fields=["status"],
-                        name="reference_departmentrawimport_status_idx",
+                        name="reference_d_status_792e02_idx",
                     ),
                 ],
             },

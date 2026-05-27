@@ -18,6 +18,22 @@ class FakePegaseHandler(BaseHTTPRequestHandler):
             self.respond(load_json("departments.json"))
             return
 
+        if path in ("/students", "/api/students"):
+            self.respond(load_json("students.json"))
+            return
+
+        if path in ("/enrollments", "/api/enrollments"):
+            self.respond(load_json("enrollments.json"))
+            return
+
+        if path in ("/gpa-records", "/api/gpa-records"):
+            self.respond(load_json("gpa_records.json"))
+            return
+
+        if path in ("/levels", "/api/levels"):
+            self.respond(load_json("levels.json"))
+            return
+
         self.respond({"detail": "Not found"}, status=404)
 
     def log_message(self, format, *args):
@@ -38,5 +54,5 @@ def load_json(filename):
 
 
 if __name__ == "__main__":
-    server = ThreadingHTTPServer(("0.0.0.0", 8080), FakePegaseHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", 8181), FakePegaseHandler)
     server.serve_forever()

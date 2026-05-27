@@ -4,6 +4,8 @@ from django_fsm import TransitionNotAllowed
 from ninja import Router
 from ninja.errors import HttpError
 
+from app.mobility.services.quota_estimator import initialize_new_year_mobility
+
 from .models import AcademicYear
 from .schemas import AcademicYearIn, AcademicYearOut
 
@@ -44,7 +46,9 @@ def get_current_academic_year(request):
 @router.post("/years/", response={201: AcademicYearOut}, summary="Creer une annee")
 def create_academic_year(request, payload: AcademicYearIn):
     academic_year = AcademicYear(**payload.model_dump())
-    return 201, save_validated(academic_year)
+    saved = save_validated(academic_year)
+    initialize_new_year_mobility(saved)
+    return 201, saved
 
 
 @router.put(
@@ -115,7 +119,7 @@ def submit_for_validation(request, year_id: int):
 @router.post(
     "/years/{year_id}/close/",
     response=AcademicYearOut,
-    summary="Close l'annee universitaire",
+    summary="Clote l'annee universitaire",
 )
 def close_academic_year(request, year_id: int):
     academic_year = get_academic_year(year_id)

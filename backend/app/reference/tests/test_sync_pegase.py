@@ -1,11 +1,11 @@
 import pytest
 
+from app.integrations.pegase import PegaseDepartment
 from app.reference.models import (
     Department,
     DepartmentRawImport,
     DepartmentRawImportStatus,
 )
-from app.reference.services.pegase_client import PegaseDepartment
 from app.reference.services.sync_pegase import sync_pegase_departments
 
 
