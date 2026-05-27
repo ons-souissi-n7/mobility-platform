@@ -13,6 +13,19 @@
     }
   },
   {
+    "moveon_id": 1001,
+    "name": "Universidad Test",
+    "short_name": "",
+    "translated_name": "",
+    "erasmus_code": "",
+    "city": "Napoli",
+    "url": "",
+    "email": "",
+    "country": {
+      "name": "Italie"
+    }
+  },
+  {
     "moveon_id": 1359,
     "name": "University of Trento - Department of Engineering",
     "short_name": "UNITN",

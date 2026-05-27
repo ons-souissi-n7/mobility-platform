@@ -43,6 +43,10 @@ docker compose -p mobility-dev -f docker-compose.dev.yml run --rm --no-deps back
 docker compose -p mobility-dev -f docker-compose.dev.yml run --rm backend pytest
 ```
 ### Database Migrations
+Make migrations:
+```bash
+docker compose -p mobility-dev -f docker-compose.dev.yml run --rm backend python manage.py makemigrations
+```
 Apply migrations:
 ```bash
 docker compose -p mobility-dev -f docker-compose.dev.yml run --rm backend python manage.py migrate

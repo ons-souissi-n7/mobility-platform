@@ -18,10 +18,5 @@
     "pegase_id": 104,
     "code": "",
     "name": "Departement invalide sans code"
-  },
-  {
-    "pegase_id": 105,
-    "code": "INVALID",
-    "name": "Departement invalide avec code non reconnu"
   }
 ]
