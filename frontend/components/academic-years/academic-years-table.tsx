@@ -59,7 +59,7 @@ function getColumns({
       key: "milestones",
       header: "Jalons",
       render: (year) => (
-        <div className="min-w-48 text-xs text-gray-600">
+        <div className="text-xs text-gray-600">
           <p>Gel GPA: {formatDate(year.gpa_freeze_date)}</p>
           <p>Resultats: {formatDate(year.results_publication_date)}</p>
         </div>

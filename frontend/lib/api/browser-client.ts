@@ -33,19 +33,27 @@ export async function browserApi<T>(
   path: string,
   { method, body }: RequestOptions,
 ): Promise<T> {
-  const response = await fetch(`${publicApiBaseUrl}${path}`, {
-    cache: "no-store",
-    method: method ?? "GET",
-    headers: body
-      ? {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        }
-      : {
-          Accept: "application/json",
-        },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${publicApiBaseUrl}${path}`, {
+      cache: "no-store",
+      method: method ?? "GET",
+      headers: body
+        ? {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          }
+        : {
+            Accept: "application/json",
+          },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error(
+      `Impossible de joindre l'API (${publicApiBaseUrl}). Verifiez que le backend est demarre et que l'origine du frontend est autorisee.`,
+    );
+  }
 
   if (!response.ok) {
     const text = await response.text();

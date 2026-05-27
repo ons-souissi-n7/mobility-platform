@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export type DataTableColumn<T> = {
@@ -25,11 +25,22 @@ export function DataTable<T>({
   emptyLabel,
   getRowKey,
   maxHeight = "28rem",
-  pageSize,
+  pageSize: initialPageSize,
 }: DataTableProps<T>) {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const pageSizeOptions = useMemo(() => {
+    const defaults = [5, 10, 15, 20];
+    if (initialPageSize !== undefined && !defaults.includes(initialPageSize)) {
+      return [...defaults, initialPageSize].sort((a, b) => a - b);
+    }
+    return defaults;
+  }, [initialPageSize]);
   const totalPages = pageSize ? Math.max(1, Math.ceil(data.length / pageSize)) : 1;
   const currentPage = Math.min(page, totalPages);
+
+  useEffect(() => { setPage(1); }, [data]);
+  useEffect(() => { setPage(1); }, [pageSize]);
 
   const visibleData = useMemo(() => {
     if (!pageSize) {
@@ -47,7 +58,7 @@ export function DataTable<T>({
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="overflow-auto" style={{ maxHeight }}>
+      <div className={pageSize ? "overflow-hidden" : "overflow-auto"} style={pageSize ? undefined : { maxHeight }}>
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 text-xs uppercase text-gray-500">
             <tr>
@@ -93,36 +104,116 @@ export function DataTable<T>({
         </table>
       </div>
 
-      {pageSize && data.length > pageSize ? (
-        <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-gray-500">
-            Affichage {firstItem}-{lastItem} sur {data.length}
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={currentPage === 1}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-              type="button"
+      <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
+        <p className="text-sm text-gray-500">
+          {data.length === 0
+            ? "Aucun element"
+            : pageSize
+            ? `${firstItem}–${lastItem} sur ${data.length}`
+            : `${data.length} element${data.length > 1 ? "s" : ""}`}
+        </p>
+        {pageSize ? (
+          <div className="flex items-center gap-3">
+            <select
+              className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              value={pageSize}
             >
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              Precedent
-            </button>
-            <span className="min-w-20 text-center text-sm font-medium text-gray-700">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={currentPage === totalPages}
-              onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
-              type="button"
-            >
-              Suivant
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </button>
+              {pageSizeOptions.map((size) => (
+                <option key={size} value={size}>{size} / page</option>
+              ))}
+            </select>
+            <div className="flex items-center gap-1">
+              <PaginationBtn
+                disabled={currentPage === 1}
+                onClick={() => setPage(1)}
+                title="Premiere page"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                <ChevronLeft className="-ml-2 h-3.5 w-3.5" />
+              </PaginationBtn>
+              <PaginationBtn
+                disabled={currentPage === 1}
+                onClick={() => setPage((p) => p - 1)}
+                title="Page precedente"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </PaginationBtn>
+
+              {buildPageNumbers(currentPage, totalPages).map((p, i) =>
+                p === "..." ? (
+                  <span key={`e${i}`} className="px-1 text-xs text-gray-400">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    className={`min-w-[2rem] rounded-md border px-2 py-1 text-xs font-medium ${
+                      p === currentPage
+                        ? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
+                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                    }`}
+                    onClick={() => setPage(p as number)}
+                    type="button"
+                  >
+                    {p}
+                  </button>
+                ),
+              )}
+
+              <PaginationBtn
+                disabled={currentPage === totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                title="Page suivante"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </PaginationBtn>
+              <PaginationBtn
+                disabled={currentPage === totalPages}
+                onClick={() => setPage(totalPages)}
+                title="Derniere page"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+                <ChevronRight className="-ml-2 h-3.5 w-3.5" />
+              </PaginationBtn>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
+}
+
+function PaginationBtn({
+  children,
+  disabled,
+  onClick,
+  title,
+}: {
+  children: ReactNode;
+  disabled: boolean;
+  onClick: () => void;
+  title: string;
+}) {
+  return (
+    <button
+      className="flex items-center rounded-md border border-gray-200 bg-white px-1.5 py-1 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+      disabled={disabled}
+      onClick={onClick}
+      title={title}
+      type="button"
+    >
+      {children}
+    </button>
+  );
+}
+
+function buildPageNumbers(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [];
+  const add = (p: number) => { if (!pages.includes(p)) pages.push(p); };
+  add(1);
+  if (current > 4) pages.push("...");
+  for (let p = Math.max(2, current - 2); p <= Math.min(total - 1, current + 2); p++) add(p);
+  if (current < total - 3) pages.push("...");
+  add(total);
+  return pages;
 }

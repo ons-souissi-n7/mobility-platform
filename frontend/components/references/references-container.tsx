@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, Download, Globe2, University } from "lucide-react";
+import { BookOpen, Building2, Globe2, University } from "lucide-react";
 
 import { ReferencesWorkspace } from "@/components/references/references-workspace";
 import { PageHeader } from "@/components/ui/page-header";
@@ -9,6 +9,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import type {
   Country,
   Department,
+  Level,
   PartnerUniversity,
   RawImport,
 } from "@/lib/api/types";
@@ -19,6 +20,8 @@ type ReferencesContainerProps = {
   initialUniversities: PartnerUniversity[];
   initialUniversityImportErrors: RawImport[];
   initialDepartmentImportErrors: RawImport[];
+  initialMobilityLevels: Level[];
+  initialLevelImportErrors: RawImport[];
 };
 
 export function ReferencesContainer({
@@ -27,6 +30,8 @@ export function ReferencesContainer({
   initialUniversities,
   initialUniversityImportErrors,
   initialDepartmentImportErrors,
+  initialMobilityLevels,
+  initialLevelImportErrors,
 }: ReferencesContainerProps) {
   const [countries, setCountries] = useState(initialCountries);
   const [departments, setDepartments] = useState(initialDepartments);
@@ -37,26 +42,17 @@ export function ReferencesContainer({
   const [departmentImportErrors, setDepartmentImportErrors] = useState(
     initialDepartmentImportErrors,
   );
+  const [mobilityLevels, setMobilityLevels] = useState(initialMobilityLevels);
+  const [levelImportErrors, setLevelImportErrors] = useState(initialLevelImportErrors);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Referentiels"
-        description="Administrez les pays, departements et universites partenaires utilises par la plateforme."
-        actions={
-          <>
-            <button
-              className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-              type="button"
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              Exporter
-            </button>
-          </>
-        }
+        description="Administrez les pays, departements, universites partenaires et niveaux de mobilite."
       />
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
         <StatCard
           helper="Referentiel CTI et international"
           icon={Globe2}
@@ -78,11 +74,16 @@ export function ReferencesContainer({
           tone="amber"
           value={universities.length}
         />
+        <StatCard
+          helper="Niveaux d'etude"
+          icon={BookOpen}
+          label="Niveaux"
+          tone="blue"
+          value={mobilityLevels.length}
+        />
       </div>
 
       <ReferencesWorkspace
-        countries={countries}
-        setCountries={setCountries}
         departments={departments}
         setDepartments={setDepartments}
         universities={universities}
@@ -91,6 +92,12 @@ export function ReferencesContainer({
         setUniversityImportErrors={setUniversityImportErrors}
         departmentImportErrors={departmentImportErrors}
         setDepartmentImportErrors={setDepartmentImportErrors}
+        mobilityLevels={mobilityLevels}
+        setMobilityLevels={setMobilityLevels}
+        levelImportErrors={levelImportErrors}
+        setLevelImportErrors={setLevelImportErrors}
+        countries={countries}
+        setCountries={setCountries}
       />
     </div>
   );

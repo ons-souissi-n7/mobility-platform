@@ -2,6 +2,7 @@ import {
   BarChart3,
   CalendarRange,
   ClipboardCheck,
+  FileText,
   LayoutDashboard,
   PlaneLanding,
   PlaneTakeoff,
@@ -34,6 +35,11 @@ export const adminNavigation = [
     href: "/affectations",
     label: "Affectations",
     icon: ClipboardCheck,
+  },
+  {
+    href: "/mobility",
+    label: "Accords et quotas",
+    icon: FileText,
   },
   {
     href: "/statistiques",

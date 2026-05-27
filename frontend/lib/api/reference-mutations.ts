@@ -2,12 +2,14 @@ import { browserApi } from "@/lib/api/browser-client";
 import type {
   Country,
   Department,
+  Level,
   PartnerUniversity,
   RawImport,
 } from "@/lib/api/types";
 
 export type CountryPayload = Omit<Country, "id">;
 export type DepartmentPayload = Omit<Department, "id" | "last_sync_pegase" | "updated_at">;
+export type LevelPayload = Omit<Level, "id" | "created_at" | "updated_at">;
 export type PartnerUniversityPayload = Omit<
   PartnerUniversity,
   "id" | "created_at" | "updated_at"
@@ -130,6 +132,46 @@ export function retryUniversityImport(id: number, countryId: number) {
 
 export function ignoreUniversityImport(id: number) {
   return browserApi<RawImport>(`/institutions/import-errors/${id}/ignore/`, {
+    method: "PUT",
+  });
+}
+
+export function getLevels() {
+  return browserApi<Level[]>("/reference/levels/", {});
+}
+
+export function createLevel(payload: LevelPayload) {
+  return browserApi<Level>("/reference/levels/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateLevel(id: number, payload: LevelPayload) {
+  return browserApi<Level>(`/reference/levels/${id}/`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+export function deleteLevel(id: number) {
+  return browserApi<void>(`/reference/levels/${id}/`, {
+    method: "DELETE",
+  });
+}
+
+export function syncLevelsFromPegase() {
+  return browserApi<{ task_id: string; message: string }>("/reference/levels/sync/", {
+    method: "POST",
+  });
+}
+
+export function getLevelImportErrors() {
+  return browserApi<RawImport[]>("/reference/levels/import-errors/", {});
+}
+
+export function ignoreLevelImport(id: number) {
+  return browserApi<RawImport>(`/reference/levels/import-errors/${id}/ignore/`, {
     method: "PUT",
   });
 }

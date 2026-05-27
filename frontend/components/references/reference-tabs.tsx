@@ -1,18 +1,23 @@
 type ReferenceTabsProps = {
   countriesCount: number;
   departmentsCount: number;
+  levelsCount: number;
   universitiesCount: number;
 };
 
 export function ReferenceTabs({
-  countriesCount,
   departmentsCount,
+  levelsCount,
   universitiesCount,
+  countriesCount,
+
 }: ReferenceTabsProps) {
   const tabs = [
-    { label: "Pays", value: countriesCount },
-    { label: "Departements", value: departmentsCount },
-    { label: "Universites", value: universitiesCount },
+    { label: "Departements", href: "#departements", value: departmentsCount },
+    { label: "Niveaux", href: "#niveaux", value: levelsCount },
+    { label: "Universites", href: "#universites", value: universitiesCount },
+    { label: "Pays", href: "#pays", value: countriesCount },
+
   ];
 
   return (
@@ -25,7 +30,7 @@ export function ReferenceTabs({
               ? "bg-[#1E3A8A] text-white"
               : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
           }`}
-          href={`#${tab.label.toLowerCase()}`}
+          href={tab.href}
         >
           {tab.label}
           <span className="ml-2 text-xs opacity-75">{tab.value}</span>

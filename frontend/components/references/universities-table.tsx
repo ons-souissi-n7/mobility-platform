@@ -5,7 +5,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type { Country, PartnerUniversity } from "@/lib/api/types";
 
 type UniversityRow = PartnerUniversity & {
-  countryIso2: string;
+  countryName: string;
 };
 
 function getColumns(
@@ -17,7 +17,7 @@ function getColumns(
       key: "name",
       header: "Universite",
       render: (university) => (
-        <div className="min-w-64">
+        <div className="min-w-0">
           <p className="font-medium text-gray-900">{university.name}</p>
           <p className="mt-1 text-xs text-gray-500">
             {university.short_name ||
@@ -30,7 +30,7 @@ function getColumns(
     {
       key: "country",
       header: "Pays",
-      render: (university) => university.countryIso2,
+      render: (university) => university.countryName,
     },
     {
       key: "city",
@@ -96,7 +96,7 @@ export function UniversitiesTable({
   const countriesById = new Map(countries.map((country) => [country.id, country]));
   const rows = universities.map((university) => ({
     ...university,
-    countryIso2: countriesById.get(university.country_id)?.iso2 ?? "-",
+    countryName: countriesById.get(university.country_id)?.name_fr ?? "-",
   }));
 
   return (
