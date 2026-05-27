@@ -23,5 +23,6 @@ class AcademicYearOut(Schema):
     wishes_close_date: date | None
     gpa_freeze_date: date | None
     results_publication_date: date | None
+    closed_at: datetime | None
     created_at: datetime
     updated_at: datetime

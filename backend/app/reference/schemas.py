@@ -50,3 +50,30 @@ class DepartmentImportOut(Schema):
     imported_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class LevelIn(Schema):
+    code: str
+    name: str
+    is_active: bool = True
+    pegase_id: str | None = None
+    last_sync_pegase: datetime | None = None
+
+
+class LevelOut(LevelIn):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class LevelImportOut(Schema):
+    id: int
+    source: str
+    source_file: str
+    external_id: str
+    payload: dict[str, Any]
+    status: str
+    error_message: str
+    imported_at: datetime | None
+    created_at: datetime
+    updated_at: datetime

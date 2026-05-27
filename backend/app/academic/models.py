@@ -28,6 +28,7 @@ class AcademicYear(TimeStampedModel):
     wishes_close_date = models.DateField(null=True, blank=True)
     gpa_freeze_date = models.DateField(null=True, blank=True)
     results_publication_date = models.DateField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Academic Year"
@@ -106,7 +107,7 @@ class AcademicYear(TimeStampedModel):
         target=CampaignStatus.CLOSED,
     )
     def close(self) -> None:
-        pass
+        self.closed_at = timezone.now()
 
     def is_active(self) -> bool:
         today = timezone.now().date()
@@ -124,8 +125,11 @@ class AcademicYear(TimeStampedModel):
 
     @classmethod
     def get_current(cls):
-        today = timezone.now().date()
-        return cls.detect_by_date(today)
+        return (
+            cls.objects.exclude(status=cls.CampaignStatus.CLOSED)
+            .order_by("-start_date")
+            .first()
+        )
 
     @classmethod
     def detect_by_date(cls, date):

@@ -5,13 +5,13 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from app.integrations.pegase import PegaseClient
 from app.reference.models import (
     Department,
     DepartmentRawImport,
     DepartmentRawImportStatus,
 )
 
-from .pegase_client import PegaseClient
 from .pegase_transformer import transform_department
 from .pegase_validator import ValidationError as PegaseValidationError
 from .pegase_validator import validate_department

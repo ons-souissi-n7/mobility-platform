@@ -10,6 +10,9 @@ from .models import (
     Department,
     DepartmentRawImport,
     DepartmentRawImportStatus,
+    Level,
+    LevelRawImport,
+    LevelRawImportStatus,
 )
 from .schemas import (
     CountryIn,
@@ -18,12 +21,13 @@ from .schemas import (
     DepartmentImportRetryIn,
     DepartmentIn,
     DepartmentOut,
+    LevelImportOut,
+    LevelIn,
+    LevelOut,
 )
 from .services.pegase_transformer import transform_department
-from .services.sync_pegase import (
-    upsert_department,
-)
-from .tasks import enqueue_sync_pegase_departments
+from .services.sync_pegase import upsert_department
+from .tasks import enqueue_sync_pegase_departments, enqueue_sync_pegase_levels
 
 router = Router()
 
@@ -252,6 +256,97 @@ def delete_department(request, department_id: int):
     except ProtectedError as exc:
         raise HttpError(
             400, "Ce departement est utilise par une autre entite."
+        ) from exc
+
+    return 204, None
+
+
+@router.get("/levels/", response=list[LevelOut], summary="Liste des niveaux")
+def list_levels(request):
+    return Level.objects.all()
+
+
+@router.post("/levels/", response={201: LevelOut}, summary="Creer un niveau")
+def create_level(request, payload: LevelIn):
+    level = Level(**payload.model_dump())
+    return 201, save_validated(level)
+
+
+@router.post(
+    "/levels/sync/",
+    response={202: dict},
+    summary="Synchroniser les niveaux depuis Pegase",
+)
+def sync_levels_from_pegase(request):
+    task_id = enqueue_sync_pegase_levels()
+    return 202, {
+        "task_id": task_id,
+        "message": "Synchronisation des niveaux depuis Pegase lancee.",
+    }
+
+
+@router.get(
+    "/levels/import-errors/",
+    response=list[LevelImportOut],
+    summary="Liste des erreurs d'import Pegase des niveaux",
+)
+def list_level_import_errors(request):
+    raw_imports = LevelRawImport.objects.order_by("-created_at")
+    latest = {}
+    for ri in raw_imports:
+        key = ri.external_id or f"raw-{ri.id}"
+        if key not in latest:
+            latest[key] = ri
+    return [ri for ri in latest.values() if ri.status == LevelRawImportStatus.FAILED]
+
+
+@router.put(
+    "/levels/import-errors/{raw_import_id}/ignore/",
+    response=LevelImportOut,
+    summary="Marquer une erreur d'import niveau comme traitee",
+)
+def ignore_level_import(request, raw_import_id: int):
+    try:
+        raw_import = LevelRawImport.objects.get(
+            pk=raw_import_id, status=LevelRawImportStatus.FAILED
+        )
+    except LevelRawImport.DoesNotExist as exc:
+        raise HttpError(404, "Erreur d'import niveau introuvable.") from exc
+
+    raw_import.status = LevelRawImportStatus.IGNORED
+    raw_import.error_message = (
+        f"{raw_import.error_message}\nTraite manuellement par l'administrateur."
+    ).strip()
+    raw_import.save(update_fields=["status", "error_message", "updated_at"])
+    return raw_import
+
+
+@router.put("/levels/{level_id}/", response=LevelOut, summary="Modifier un niveau")
+def update_level(request, level_id: int, payload: LevelIn):
+    try:
+        level = Level.objects.get(pk=level_id)
+    except Level.DoesNotExist as exc:
+        raise HttpError(404, "Niveau introuvable.") from exc
+
+    for field, value in payload.model_dump().items():
+        setattr(level, field, value)
+
+    return save_validated(level)
+
+
+@router.delete(
+    "/levels/{level_id}/", response={204: None}, summary="Supprimer un niveau"
+)
+def delete_level(request, level_id: int):
+    try:
+        level = Level.objects.get(pk=level_id)
+        level.delete()
+    except Level.DoesNotExist as exc:
+        raise HttpError(404, "Niveau introuvable.") from exc
+    except (IntegrityError, ProtectedError) as exc:
+        raise HttpError(
+            400,
+            "Ce niveau est utilise par un ou plusieurs accords et ne peut pas etre supprime.",
         ) from exc
 
     return 204, None
