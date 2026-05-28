@@ -34,20 +34,33 @@ docker compose -f docker-compose.dev.yml run --rm backend ruff format --check .
 Run checks manually:
 ```bash
 # Django system check
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm --no-deps backend python manage.py check
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend python manage.py check
 # Lint with ruff
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm --no-deps backend ruff check .
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend ruff check .
 # Check formatting with ruff
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm --no-deps backend ruff format --check .
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend ruff format --check .
 # Run tests
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm backend pytest
+docker compose -f docker-compose.dev.yml run --rm backend pytest
 ```
-### Database Migrations
-Make migrations:
+### Git Commit Convention
+Commits follow the [Conventional Commits](https://www.conventionalcommits.org/) format:
+```
+<type>(<scope>): <description>
+
+Closes: #<issue>   # ferme l'issue
+Refs: #<issue>     # reference sans fermer
+```
+Common types: `feat`, `fix`, `chore`, `refactor`, `test`, `docs`
+
+Examples:
 ```bash
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm backend python manage.py makemigrations
+git commit -m "feat(audit): implement audit log API with filtering"
+git commit -m "fix: catch ProtectedError on DELETE endpoints"
+git commit -m "chore: update Docker config and README"
 ```
+
+### Database Migrations
 Apply migrations:
 ```bash
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm backend python manage.py migrate
+docker compose -f docker-compose.dev.yml run --rm backend python manage.py migrate
 ```
