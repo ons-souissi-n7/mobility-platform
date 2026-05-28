@@ -26,6 +26,7 @@ export function AcademicYearsWorkspace({
 }: AcademicYearsWorkspaceProps) {
   const [years, setYears] = useState(initialYears);
   const [modalItem, setModalItem] = useState<AcademicYear | null | "new">(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirm();
 
   async function submitYear(payload: AcademicYearPayload) {
@@ -44,19 +45,32 @@ export function AcademicYearsWorkspace({
 
   async function removeYear(year: AcademicYear) {
     if (!await confirm(`Supprimer l'annee universitaire "${year.label}" ?`)) return;
-
-    await deleteAcademicYear(year.id);
-    setYears((items) => items.filter((item) => item.id !== year.id));
+    setActionError(null);
+    try {
+      await deleteAcademicYear(year.id);
+      setYears((items) => items.filter((item) => item.id !== year.id));
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Impossible de supprimer l'annee universitaire.",
+      );
+    }
   }
 
   async function transitionYear(
     year: AcademicYear,
     transition: AcademicYearTransition,
   ) {
-    const updated = await applyAcademicYearTransition(year.id, transition);
-    setYears((items) =>
-      items.map((item) => (item.id === updated.id ? updated : item)),
-    );
+    setActionError(null);
+    try {
+      const updated = await applyAcademicYearTransition(year.id, transition);
+      setYears((items) =>
+        items.map((item) => (item.id === updated.id ? updated : item)),
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Impossible d'appliquer la transition.",
+      );
+    }
   }
 
   return (
@@ -71,6 +85,19 @@ export function AcademicYearsWorkspace({
           Ajouter une annee
         </button>
       </div>
+
+      {actionError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start justify-between gap-3">
+          <span>{actionError}</span>
+          <button
+            className="shrink-0 text-red-400 hover:text-red-600"
+            onClick={() => setActionError(null)}
+            type="button"
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
 
       <AcademicYearsTable
         onDelete={removeYear}
