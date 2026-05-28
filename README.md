@@ -42,25 +42,13 @@ docker compose -f docker-compose.dev.yml run --rm --no-deps backend ruff format 
 # Run tests
 docker compose -f docker-compose.dev.yml run --rm backend pytest
 ```
-### Git Commit Convention
-Commits follow the [Conventional Commits](https://www.conventionalcommits.org/) format:
-```
-<type>(<scope>): <description>
-
-Closes: #<issue>   # ferme l'issue
-Refs: #<issue>     # reference sans fermer
-```
-Common types: `feat`, `fix`, `chore`, `refactor`, `test`, `docs`
-
-Examples:
-```bash
-git commit -m "feat(audit): implement audit log API with filtering"
-git commit -m "fix: catch ProtectedError on DELETE endpoints"
-git commit -m "chore: update Docker config and README"
-```
 
 ### Database Migrations
-Apply migrations:
+Create migration files after model changes:
+```bash
+docker compose -f docker-compose.dev.yml run --rm backend python manage.py makemigrations
+```
+Apply migrations to the database:
 ```bash
 docker compose -f docker-compose.dev.yml run --rm backend python manage.py migrate
 ```
