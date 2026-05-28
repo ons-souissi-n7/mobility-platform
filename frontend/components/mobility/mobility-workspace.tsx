@@ -37,7 +37,6 @@ import {
   getMoveonMobilityImportErrors,
   ignoreMobilityImport,
   importAgreementsFromExcel,
-  redistributeAgreementQuota,
   retryMobilityImport,
   syncMobilityFromMoveon,
   updateAgreement,
@@ -413,22 +412,32 @@ export function MobilityWorkspace({
 
   async function removeAgreement(agreement: Agreement) {
     if (!await confirm(`Supprimer l'accord "${agreement.name}" ?`)) return;
-    await deleteAgreement(agreement.id!);
-    setAgreements((items) => items.filter((item) => item.id !== agreement.id));
-    setAgreementQuotas((items) => items.filter((item) => item.agreement_id !== agreement.id));
+    setSyncError("");
+    try {
+      await deleteAgreement(agreement.id!);
+      setAgreements((items) => items.filter((item) => item.id !== agreement.id));
+      setAgreementQuotas((items) => items.filter((item) => item.agreement_id !== agreement.id));
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Impossible de supprimer l'accord.");
+    }
   }
 
   async function removeDepartmentQuota(quota: DepartmentQuota) {
     if (!await confirm("Supprimer cette repartition departement ?")) return;
-    await deleteDepartmentQuota(quota.id);
-    const parentQuota = agreementQuotas.find((q) => q.id === quota.agreement_quota_id);
-    const remaining = departmentQuotas.filter(
-      (dq) => dq.id !== quota.id && dq.agreement_quota_id === quota.agreement_quota_id,
-    );
-    if (parentQuota && !parentQuota.is_validated && remaining.length > 0) {
-      await redistributeEqually(quota.agreement_quota_id, parentQuota.total_places, remaining);
-    } else {
-      setDepartmentQuotas((items) => items.filter((item) => item.id !== quota.id));
+    setSyncError("");
+    try {
+      await deleteDepartmentQuota(quota.id);
+      const parentQuota = agreementQuotas.find((q) => q.id === quota.agreement_quota_id);
+      const remaining = departmentQuotas.filter(
+        (dq) => dq.id !== quota.id && dq.agreement_quota_id === quota.agreement_quota_id,
+      );
+      if (parentQuota && !parentQuota.is_validated && remaining.length > 0) {
+        await redistributeEqually(quota.agreement_quota_id, parentQuota.total_places, remaining);
+      } else {
+        setDepartmentQuotas((items) => items.filter((item) => item.id !== quota.id));
+      }
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Impossible de supprimer la repartition.");
     }
   }
 
@@ -439,10 +448,14 @@ export function MobilityWorkspace({
       return;
     }
     setSyncError("");
-    const validated = await validateAgreementQuota(quota.id);
-    setAgreementQuotas((items) =>
-      items.map((item) => (item.id === validated.id ? validated : item)),
-    );
+    try {
+      const validated = await validateAgreementQuota(quota.id);
+      setAgreementQuotas((items) =>
+        items.map((item) => (item.id === validated.id ? validated : item)),
+      );
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Impossible de valider le quota.");
+    }
   }
 
   async function confirmDepartmentQuota(quota: DepartmentQuota) {
@@ -455,18 +468,14 @@ export function MobilityWorkspace({
       }
     }
     setSyncError("");
-    const validated = await validateDepartmentQuota(quota.id);
-    setDepartmentQuotas((items) =>
-      items.map((item) => (item.id === validated.id ? validated : item)),
-    );
-  }
-
-  async function handleRedistribute(quotaId: number) {
-    const newDeptQuotas = await redistributeAgreementQuota(quotaId);
-    setDepartmentQuotas((items) => [
-      ...items.filter((dq) => dq.agreement_quota_id !== quotaId),
-      ...newDeptQuotas,
-    ]);
+    try {
+      const validated = await validateDepartmentQuota(quota.id);
+      setDepartmentQuotas((items) =>
+        items.map((item) => (item.id === validated.id ? validated : item)),
+      );
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Impossible de valider le quota departement.");
+    }
   }
 
   async function submitFramework(payload: MobilityCategoryPayload) {
@@ -485,8 +494,13 @@ export function MobilityWorkspace({
 
   async function removeFramework(framework: MobilityCategory) {
     if (!await confirm(`Supprimer le cadre "${framework.name}" ?`)) return;
-    await deleteMobilityCategory(framework.id);
-    setMobilityCategories((items) => items.filter((item) => item.id !== framework.id));
+    setSyncError("");
+    try {
+      await deleteMobilityCategory(framework.id);
+      setMobilityCategories((items) => items.filter((item) => item.id !== framework.id));
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Impossible de supprimer le cadre.");
+    }
   }
 
   async function submitLevelConstraint(agreementId: number, levelId: number) {
@@ -502,8 +516,13 @@ export function MobilityWorkspace({
   }
 
   async function removeLevelConstraint(constraint: AgreementLevelConstraint) {
-    await deleteAgreementLevelConstraint(constraint.id);
-    setAgreementLvlConstraints((items) => items.filter((c) => c.id !== constraint.id));
+    setSyncError("");
+    try {
+      await deleteAgreementLevelConstraint(constraint.id);
+      setAgreementLvlConstraints((items) => items.filter((c) => c.id !== constraint.id));
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Impossible de supprimer la contrainte niveau.");
+    }
   }
 
   async function submitDepartmentConstraint(agreementId: number, departmentId: number) {
@@ -519,8 +538,13 @@ export function MobilityWorkspace({
   }
 
   async function removeDepartmentConstraint(constraint: AgreementDepartmentConstraint) {
-    await deleteAgreementDepartmentConstraint(constraint.id);
-    setAgreementDeptConstraints((items) => items.filter((c) => c.id !== constraint.id));
+    setSyncError("");
+    try {
+      await deleteAgreementDepartmentConstraint(constraint.id);
+      setAgreementDeptConstraints((items) => items.filter((c) => c.id !== constraint.id));
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Impossible de supprimer la contrainte departement.");
+    }
   }
 
   async function handleExcelImport(file: File) {
@@ -545,6 +569,7 @@ export function MobilityWorkspace({
       setSyncError("Selectionnez une annee pour changer la disponibilite d'un accord.");
       return;
     }
+    setSyncError("");
 
     const existing = agreementAvailabilities.find(
       (item) =>
@@ -560,14 +585,18 @@ export function MobilityWorkspace({
       source: "manual",
     };
 
-    if (existing) {
-      const updated = await updateAgreementAvailability(existing.id, payload);
-      setAgreementAvailabilities((items) =>
-        items.map((item) => (item.id === updated.id ? updated : item)),
-      );
-    } else {
-      const created = await createAgreementAvailability(payload);
-      setAgreementAvailabilities((items) => [...items, created]);
+    try {
+      if (existing) {
+        const updated = await updateAgreementAvailability(existing.id, payload);
+        setAgreementAvailabilities((items) =>
+          items.map((item) => (item.id === updated.id ? updated : item)),
+        );
+      } else {
+        const created = await createAgreementAvailability(payload);
+        setAgreementAvailabilities((items) => [...items, created]);
+      }
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Impossible de modifier la disponibilite.");
     }
   }
 
