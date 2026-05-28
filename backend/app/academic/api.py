@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.db.models.deletion import ProtectedError
 from django_fsm import TransitionNotAllowed
 from ninja import Router
 from ninja.errors import HttpError
@@ -72,7 +73,14 @@ def update_academic_year(request, year_id: int, payload: AcademicYearIn):
 )
 def delete_academic_year(request, year_id: int):
     academic_year = get_academic_year(year_id)
-    academic_year.delete()
+    try:
+        academic_year.delete()
+    except ProtectedError as exc:
+        raise HttpError(
+            409,
+            "Impossible de supprimer cette annee universitaire : "
+            "des donnees y sont rattachees (quotas, accords, inscriptions...).",
+        ) from exc
     return 204, None
 
 

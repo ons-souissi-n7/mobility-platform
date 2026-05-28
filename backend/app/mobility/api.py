@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.db.models.deletion import ProtectedError
 from django.http import HttpResponse
 from django.utils import timezone
 from ninja import File, Router
@@ -63,6 +64,18 @@ from .tasks import (
 )
 
 router = Router()
+
+PROTECTED_DELETE_MSG = (
+    "Impossible de supprimer cet element : des donnees y sont rattachees. "
+    "Supprimez d'abord les elements dependants."
+)
+
+
+def safe_delete(instance) -> None:
+    try:
+        instance.delete()
+    except ProtectedError as exc:
+        raise HttpError(409, PROTECTED_DELETE_MSG) from exc
 
 
 def save_validated(instance):
@@ -158,7 +171,7 @@ def update_agreement(request, agreement_id: int, payload: AgreementSchema):
 )
 def delete_agreement(request, agreement_id: int):
     agreement = get_or_404(Agreement, agreement_id, "Accord introuvable.")
-    agreement.delete()
+    safe_delete(agreement)
     return 204, None
 
 
@@ -209,7 +222,7 @@ def delete_agreement_framework(request, framework_id: int):
     framework = get_or_404(
         MobilityCategory, framework_id, "Cadre d'accord introuvable."
     )
-    framework.delete()
+    safe_delete(framework)
     return 204, None
 
 
@@ -291,7 +304,7 @@ def delete_agreement_availability(request, availability_id: int):
         availability_id,
         "Disponibilite annuelle introuvable.",
     )
-    availability.delete()
+    safe_delete(availability)
     return 204, None
 
 
@@ -360,7 +373,7 @@ def delete_agreement_department(request, constraint_id: int):
         constraint_id,
         "Contrainte departement introuvable.",
     )
-    constraint.delete()
+    safe_delete(constraint)
     return 204, None
 
 
@@ -428,7 +441,7 @@ def delete_agreement_level(request, constraint_id: int):
         constraint_id,
         "Contrainte niveau introuvable.",
     )
-    constraint.delete()
+    safe_delete(constraint)
     return 204, None
 
 
@@ -532,7 +545,7 @@ def redistribute_agreement_quota(request, quota_id: int):
 )
 def delete_agreement_quota(request, quota_id: int):
     quota = get_or_404(AgreementQuota, quota_id, "Quota d'accord introuvable.")
-    quota.delete()
+    safe_delete(quota)
     return 204, None
 
 
@@ -672,7 +685,7 @@ def delete_department_quota(request, department_quota_id: int):
         department_quota_id,
         "Quota departement introuvable.",
     )
-    quota.delete()
+    safe_delete(quota)
     return 204, None
 
 

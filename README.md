@@ -34,20 +34,21 @@ docker compose -f docker-compose.dev.yml run --rm backend ruff format --check .
 Run checks manually:
 ```bash
 # Django system check
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm --no-deps backend python manage.py check
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend python manage.py check
 # Lint with ruff
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm --no-deps backend ruff check .
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend ruff check .
 # Check formatting with ruff
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm --no-deps backend ruff format --check .
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend ruff format --check .
 # Run tests
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm backend pytest
+docker compose -f docker-compose.dev.yml run --rm backend pytest
 ```
+
 ### Database Migrations
-Make migrations:
+Create migration files after model changes:
 ```bash
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm backend python manage.py makemigrations
+docker compose -f docker-compose.dev.yml run --rm backend python manage.py makemigrations
 ```
-Apply migrations:
+Apply migrations to the database:
 ```bash
-docker compose -p mobility-dev -f docker-compose.dev.yml run --rm backend python manage.py migrate
+docker compose -f docker-compose.dev.yml run --rm backend python manage.py migrate
 ```
