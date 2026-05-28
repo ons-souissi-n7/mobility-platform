@@ -31,6 +31,7 @@ LOCAL_APPS = [
     "app.academic",
     "app.institutions",
     "app.mobility",
+    "app.audit",
     "app.outgoing",
     "app.internships",
     "app.complementary",
