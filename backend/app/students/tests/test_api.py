@@ -1,0 +1,605 @@
+from datetime import date
+from io import BytesIO
+
+import openpyxl
+import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client
+
+from app.academic.models import AcademicYear
+from app.imports.models import RawImport, RawImportEntity, RawImportStatus
+from app.reference.models import Department, Level
+from app.students.models import AnnualEnrollment, Student
+from app.students.services.etl import StudentRow
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def make_xlsx(rows: list[list]) -> bytes:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(
+        ["INE", "Nom", "Prenom", "Email", "Genre", "Departement", "Niveau", "GPA"]
+    )
+    for row in rows:
+        ws.append(row)
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def xlsx_file(rows: list[list], name: str = "etudiants.xlsx") -> SimpleUploadedFile:
+    return SimpleUploadedFile(
+        name,
+        make_xlsx(rows),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+def make_year(**kwargs) -> AcademicYear:
+    defaults = {
+        "label": "2026-2027",
+        "start_date": date(2026, 9, 1),
+        "end_date": date(2027, 8, 31),
+    }
+    defaults.update(kwargs)
+    return AcademicYear.objects.create(**defaults)
+
+
+# ---------------------------------------------------------------------------
+# GET /students/students/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestListStudents:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        self.dept = Department.objects.create(code="SN", name="Sciences du Numerique")
+        self.level = Level.objects.create(code="3A", name="Troisieme annee")
+
+    def test_list_students_empty(self):
+        response = self.client.get("/api/v1/students/students/")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_list_students(self):
+        student = Student.objects.create(
+            ine="12345678901", first_name="Jean", last_name="Martin"
+        )
+        AnnualEnrollment.objects.create(
+            student=student,
+            academic_year=self.year,
+            department=self.dept,
+            level=self.level,
+        )
+
+        response = self.client.get("/api/v1/students/students/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["ine"] == "12345678901"
+
+    def test_filter_by_academic_year(self):
+        year2 = make_year(
+            label="2027-2028", start_date=date(2027, 9, 1), end_date=date(2028, 8, 31)
+        )
+        s1 = Student.objects.create(ine="10000000001", first_name="A", last_name="A")
+        s2 = Student.objects.create(ine="10000000002", first_name="B", last_name="B")
+        AnnualEnrollment.objects.create(
+            student=s1, academic_year=self.year, department=self.dept, level=self.level
+        )
+        AnnualEnrollment.objects.create(
+            student=s2, academic_year=year2, department=self.dept, level=self.level
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/?academic_year_id={self.year.id}"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["ine"] == "10000000001"
+
+    def test_filter_by_department(self):
+        dept2 = Department.objects.create(code="TC", name="Tronc Commun")
+        s1 = Student.objects.create(ine="10000000001", first_name="A", last_name="A")
+        s2 = Student.objects.create(ine="10000000002", first_name="B", last_name="B")
+        AnnualEnrollment.objects.create(
+            student=s1, academic_year=self.year, department=self.dept, level=self.level
+        )
+        AnnualEnrollment.objects.create(
+            student=s2, academic_year=self.year, department=dept2, level=self.level
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/?department_id={self.dept.id}"
+        )
+
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["ine"] == "10000000001"
+
+
+# ---------------------------------------------------------------------------
+# GET /students/students/{id}/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestGetStudent:
+    def setup_method(self):
+        self.client = Client()
+        self.student = Student.objects.create(
+            ine="12345678901", first_name="Jean", last_name="Martin"
+        )
+
+    def test_get_student(self):
+        response = self.client.get(f"/api/v1/students/students/{self.student.id}/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ine"] == "12345678901"
+        assert "enrollments" in data
+
+    def test_get_student_not_found(self):
+        response = self.client.get("/api/v1/students/students/99999/")
+
+        assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# GET /students/students/by-year/{year_id}/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestListStudentsByYear:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        self.dept = Department.objects.create(code="SN", name="Sciences du Numerique")
+        self.level = Level.objects.create(code="3A", name="Troisieme annee")
+
+    def test_by_year_empty(self):
+        response = self.client.get(f"/api/v1/students/students/by-year/{self.year.id}/")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_by_year_returns_enrollment_details(self):
+        student = Student.objects.create(
+            ine="12345678901", first_name="Jean", last_name="Martin", gender="M"
+        )
+        AnnualEnrollment.objects.create(
+            student=student,
+            academic_year=self.year,
+            department=self.dept,
+            level=self.level,
+            gpa=15.5,
+        )
+
+        response = self.client.get(f"/api/v1/students/students/by-year/{self.year.id}/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        row = data[0]
+        assert row["ine"] == "12345678901"
+        assert row["department_code"] == "SN"
+        assert row["level_code"] == "3A"
+        assert row["gpa"] is not None
+        assert row["parcours_code"] is None
+
+    def test_by_year_ordered_by_last_name(self):
+        for ine, last_name in [("10000000001", "Zeta"), ("10000000002", "Alpha")]:
+            s = Student.objects.create(ine=ine, first_name="X", last_name=last_name)
+            AnnualEnrollment.objects.create(
+                student=s,
+                academic_year=self.year,
+                department=self.dept,
+                level=self.level,
+            )
+
+        response = self.client.get(f"/api/v1/students/students/by-year/{self.year.id}/")
+
+        data = response.json()
+        assert data[0]["last_name"] == "Alpha"
+        assert data[1]["last_name"] == "Zeta"
+
+
+# ---------------------------------------------------------------------------
+# GET /students/students/stats/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestStudentStats:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        self.dept = Department.objects.create(code="SN", name="Sciences du Numerique")
+        self.level = Level.objects.create(code="3A", name="Troisieme annee")
+
+    def test_stats_empty_year(self):
+        response = self.client.get(
+            f"/api/v1/students/students/stats/?academic_year_id={self.year.id}"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 0
+        assert data["by_level"] == []
+        assert data["by_department"] == []
+        assert data["by_parcours"] == []
+
+    def test_stats_counts_enrollments(self):
+        for i in range(3):
+            s = Student.objects.create(
+                ine=f"1000000000{i}", first_name="A", last_name="B"
+            )
+            AnnualEnrollment.objects.create(
+                student=s,
+                academic_year=self.year,
+                department=self.dept,
+                level=self.level,
+            )
+
+        response = self.client.get(
+            f"/api/v1/students/students/stats/?academic_year_id={self.year.id}"
+        )
+
+        data = response.json()
+        assert data["total"] == 3
+        assert data["by_level"][0]["level_code"] == "3A"
+        assert data["by_level"][0]["count"] == 3
+        assert data["by_department"][0]["department_code"] == "SN"
+        assert data["by_department"][0]["count"] == 3
+
+    def test_stats_cross_breakdown_present(self):
+        student = Student.objects.create(
+            ine="12345678901", first_name="A", last_name="B"
+        )
+        AnnualEnrollment.objects.create(
+            student=student,
+            academic_year=self.year,
+            department=self.dept,
+            level=self.level,
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/stats/?academic_year_id={self.year.id}"
+        )
+
+        data = response.json()
+        assert len(data["cross"]) == 1
+        assert data["cross"][0]["level_code"] == "3A"
+        assert data["cross"][0]["department_code"] == "SN"
+
+
+# ---------------------------------------------------------------------------
+# GET /students/students/import-errors/
+# PUT /students/students/import-errors/{id}/ignore/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestStudentImportErrors:
+    def setup_method(self):
+        self.client = Client()
+
+    def test_list_empty(self):
+        response = self.client.get("/api/v1/students/students/import-errors/")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_list_returns_only_failed(self):
+        RawImport.objects.create(
+            source="pegase",
+            entity=RawImportEntity.STUDENT,
+            external_id="12345678901",
+            payload={"ine": "12345678901"},
+            status=RawImportStatus.FAILED,
+            error_message="Département introuvable: INCONNU",
+        )
+        RawImport.objects.create(
+            source="pegase",
+            entity=RawImportEntity.STUDENT,
+            external_id="12345678902",
+            payload={"ine": "12345678902"},
+            status=RawImportStatus.IMPORTED,
+        )
+
+        response = self.client.get("/api/v1/students/students/import-errors/")
+
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["external_id"] == "12345678901"
+
+    def test_list_deduplicates_by_ine(self):
+        for _ in range(3):
+            RawImport.objects.create(
+                source="pegase",
+                entity=RawImportEntity.STUDENT,
+                external_id="12345678901",
+                payload={"ine": "12345678901"},
+                status=RawImportStatus.FAILED,
+                error_message="Niveau introuvable: X",
+            )
+
+        response = self.client.get("/api/v1/students/students/import-errors/")
+
+        assert len(response.json()) == 1
+
+    def test_list_excludes_other_entities(self):
+        RawImport.objects.create(
+            source="pegase",
+            entity=RawImportEntity.DEPARTMENT,
+            external_id="101",
+            payload={"code": "XX"},
+            status=RawImportStatus.FAILED,
+            error_message="code manquant",
+        )
+
+        response = self.client.get("/api/v1/students/students/import-errors/")
+
+        assert response.json() == []
+
+    def test_ignore_error(self):
+        raw = RawImport.objects.create(
+            source="pegase",
+            entity=RawImportEntity.STUDENT,
+            external_id="12345678901",
+            payload={"ine": "12345678901"},
+            status=RawImportStatus.FAILED,
+            error_message="Département introuvable: INCONNU",
+        )
+
+        response = self.client.put(
+            f"/api/v1/students/students/import-errors/{raw.id}/ignore/"
+        )
+
+        assert response.status_code == 200
+        assert response.json()["status"] == RawImportStatus.IGNORED
+        raw.refresh_from_db()
+        assert raw.status == RawImportStatus.IGNORED
+
+    def test_ignore_nonexistent_returns_404(self):
+        response = self.client.put(
+            "/api/v1/students/students/import-errors/99999/ignore/"
+        )
+
+        assert response.status_code == 404
+
+    def test_ignore_already_imported_returns_404(self):
+        raw = RawImport.objects.create(
+            source="pegase",
+            entity=RawImportEntity.STUDENT,
+            external_id="12345678901",
+            payload={"ine": "12345678901"},
+            status=RawImportStatus.IMPORTED,
+        )
+
+        response = self.client.put(
+            f"/api/v1/students/students/import-errors/{raw.id}/ignore/"
+        )
+
+        assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# POST /students/students/sync-pegase/{year_id}/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestSyncPegase:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        Department.objects.create(code="SN", name="Sciences du Numerique")
+        Level.objects.create(code="3A", name="Troisieme annee")
+
+    def test_sync_creates_students(self, monkeypatch):
+        import app.students.api as students_api
+
+        monkeypatch.setattr(
+            students_api.pegase_adapter,
+            "fetch_enrollments",
+            lambda label: [
+                StudentRow(
+                    ine="12345678901",
+                    first_name="Jean",
+                    last_name="Martin",
+                    email="j@n7.fr",
+                    gender="M",
+                    department_code="SN",
+                    level_code="3A",
+                    gpa=15.5,
+                )
+            ],
+        )
+
+        response = self.client.post(
+            f"/api/v1/students/students/sync-pegase/{self.year.id}/"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["created"] == 1
+        assert data["updated"] == 0
+        assert data["unresolved"] == []
+        assert Student.objects.filter(ine="12345678901").exists()
+
+    def test_sync_unknown_department_returns_unresolved(self, monkeypatch):
+        import app.students.api as students_api
+
+        monkeypatch.setattr(
+            students_api.pegase_adapter,
+            "fetch_enrollments",
+            lambda label: [
+                StudentRow(
+                    ine="12345678901",
+                    first_name="Jean",
+                    last_name="Martin",
+                    email="j@n7.fr",
+                    gender="M",
+                    department_code="INCONNU",
+                    level_code="3A",
+                )
+            ],
+        )
+
+        response = self.client.post(
+            f"/api/v1/students/students/sync-pegase/{self.year.id}/"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["created"] == 0
+        assert len(data["unresolved"]) == 1
+
+    def test_sync_unknown_year_returns_404(self):
+        response = self.client.post("/api/v1/students/students/sync-pegase/99999/")
+
+        assert response.status_code == 404
+
+    def test_sync_empty_source_returns_zero(self, monkeypatch):
+        import app.students.api as students_api
+
+        monkeypatch.setattr(
+            students_api.pegase_adapter,
+            "fetch_enrollments",
+            lambda label: [],
+        )
+
+        response = self.client.post(
+            f"/api/v1/students/students/sync-pegase/{self.year.id}/"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["created"] == 0
+        assert data["updated"] == 0
+
+
+# ---------------------------------------------------------------------------
+# POST /students/students/import-excel/{year_id}/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestImportExcel:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        Department.objects.create(code="SN", name="Sciences du Numerique")
+        Level.objects.create(code="3A", name="Troisieme annee")
+
+    def test_import_creates_student(self):
+        response = self.client.post(
+            f"/api/v1/students/students/import-excel/{self.year.id}/",
+            data={
+                "file": xlsx_file(
+                    [
+                        [
+                            "12345678901",
+                            "Martin",
+                            "Jean",
+                            "j@n7.fr",
+                            "M",
+                            "SN",
+                            "3A",
+                            15.5,
+                        ]
+                    ]
+                )
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["created"] == 1
+        assert Student.objects.filter(ine="12345678901").exists()
+
+    def test_import_unknown_department_returns_unresolved(self):
+        response = self.client.post(
+            f"/api/v1/students/students/import-excel/{self.year.id}/",
+            data={
+                "file": xlsx_file(
+                    [
+                        [
+                            "12345678901",
+                            "Martin",
+                            "Jean",
+                            "j@n7.fr",
+                            "M",
+                            "INCONNU",
+                            "3A",
+                            15.5,
+                        ]
+                    ]
+                )
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["created"] == 0
+        assert len(data["unresolved"]) == 1
+
+    def test_import_unknown_year_returns_404(self):
+        response = self.client.post(
+            "/api/v1/students/students/import-excel/99999/",
+            data={"file": xlsx_file([])},
+        )
+
+        assert response.status_code == 404
+
+    def test_import_empty_file_returns_zero(self):
+        response = self.client.post(
+            f"/api/v1/students/students/import-excel/{self.year.id}/",
+            data={"file": xlsx_file([])},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["created"] == 0
+
+
+# ---------------------------------------------------------------------------
+# GET /students/students/template/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestTemplateDownload:
+    def setup_method(self):
+        self.client = Client()
+        Department.objects.create(code="SN", name="Sciences du Numerique")
+        Level.objects.create(code="3A", name="Troisieme annee")
+
+    def test_download_returns_xlsx(self):
+        response = self.client.get("/api/v1/students/students/template/")
+
+        assert response.status_code == 200
+        assert response["Content-Type"] == (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        assert "template_etudiants.xlsx" in response["Content-Disposition"]
+
+    def test_download_is_valid_workbook(self):
+        response = self.client.get("/api/v1/students/students/template/")
+
+        wb = openpyxl.load_workbook(BytesIO(response.content))
+        ws = wb.active
+        headers = [cell.value for cell in ws[1]]
+        assert "INE" in headers
+        assert "GPA" in headers
