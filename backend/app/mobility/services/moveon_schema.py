@@ -2,7 +2,7 @@ from typing import Any, TypedDict
 
 
 class MoveOnAgreementRaw(TypedDict, total=False):
-    moveon_relation_id: str | int
+    moveon_id: str | int
     relation_id: str | int
     reference: str
     name: str
@@ -28,7 +28,7 @@ class MoveOnAgreementRaw(TypedDict, total=False):
 
 
 class MoveOnAgreementQuotaRaw(TypedDict, total=False):
-    moveon_relation_id: str | int
+    moveon_id: str | int
     agreement_id: int | str
     academic_year_id: int | str
     academic_year_label: str

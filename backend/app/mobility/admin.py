@@ -1,92 +1,131 @@
 from django.contrib import admin
 
-from app.reference.models import Level
+from app.imports.models import RawImport
 
 from .models import (
     Agreement,
-    AgreementDepartmentConstraint,
-    AgreementLevelConstraint,
-    AgreementQuota,
-    AgreementYearAvailability,
-    DepartmentQuota,
+    AgreementYear,
+    AgreementYearDepartment,
     MobilityCategory,
-    RawImport,
 )
 
 
 @admin.register(MobilityCategory)
 class MobilityCategoryAdmin(admin.ModelAdmin):
-    list_display = ("name", "moveon_framework_id", "relation_types", "is_active")
-    search_fields = ("name", "moveon_framework_id", "relation_types")
-    list_filter = ("is_active",)
+    list_display = ["name", "moveon_id", "last_sync_moveon", "created_at"]
+    search_fields = ["name", "moveon_id"]
+
+
+class AgreementYearInline(admin.TabularInline):
+    model = AgreementYear
+    extra = 0
+    fields = ["academic_year", "is_active", "n7_places", "is_validated", "validated_by"]
+    readonly_fields = ["is_validated", "validated_by", "validated_at"]
 
 
 @admin.register(Agreement)
 class AgreementAdmin(admin.ModelAdmin):
-    list_display = ("name", "partner_university", "framework", "status")
-    search_fields = (
+    list_display = [
         "name",
-        "moveon_relation_id",
-        "framework",
-        "partner_university__name",
-    )
-    list_filter = ("status", "framework_ref")
+        "partner_university",
+        "category",
+        "direction",
+        "valid_from",
+        "valid_until",
+        "inp_total_places",
+        "last_sync_moveon",
+    ]
+    list_filter = ["category", "direction"]
+    search_fields = ["name", "partner_university__name", "reference"]
+    filter_horizontal = ["departments", "levels"]
+    readonly_fields = ["moveon_id", "last_sync_moveon", "created_at", "updated_at"]
+    inlines = [AgreementYearInline]
+    fieldsets = [
+        (
+            None,
+            {
+                "fields": [
+                    "name",
+                    "reference",
+                    "moveon_id",
+                    "partner_university",
+                    "category",
+                    "direction",
+                ],
+            },
+        ),
+        (
+            "Validité",
+            {
+                "fields": [
+                    "valid_from",
+                    "valid_until",
+                    "inp_total_places",
+                    "inp_institutions",
+                ],
+            },
+        ),
+        (
+            "Contraintes",
+            {
+                "fields": ["levels", "departments"],
+            },
+        ),
+        (
+            "Informations",
+            {
+                "fields": ["remarks", "last_sync_moveon", "created_at", "updated_at"],
+            },
+        ),
+    ]
 
 
-@admin.register(Level)
-class LevelAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "is_active")
-    search_fields = ("code", "name")
-    list_filter = ("is_active",)
+class AgreementYearDepartmentInline(admin.TabularInline):
+    model = AgreementYearDepartment
+    extra = 0
+    fields = ["department", "estimated_places"]
 
 
-@admin.register(AgreementYearAvailability)
-class AgreementYearAvailabilityAdmin(admin.ModelAdmin):
-    list_display = ("agreement", "academic_year_label", "is_available", "source")
-    search_fields = ("agreement__name", "academic_year_label", "remarks")
-    list_filter = ("academic_year_label", "is_available", "source")
-
-
-@admin.register(AgreementDepartmentConstraint)
-class AgreementDepartmentConstraintAdmin(admin.ModelAdmin):
-    list_display = ("agreement", "department", "is_active", "source")
-    search_fields = (
-        "agreement__name",
-        "department__code",
-        "department__name",
-        "remarks",
-    )
-    list_filter = ("department", "is_active", "source")
-
-
-@admin.register(AgreementLevelConstraint)
-class AgreementLevelConstraintAdmin(admin.ModelAdmin):
-    list_display = ("agreement", "level", "is_active", "source")
-    search_fields = ("agreement__name", "level__code", "level__name", "remarks")
-    list_filter = ("level", "is_active", "source")
-
-
-@admin.register(AgreementQuota)
-class AgreementQuotaAdmin(admin.ModelAdmin):
-    list_display = (
+@admin.register(AgreementYear)
+class AgreementYearAdmin(admin.ModelAdmin):
+    list_display = [
         "agreement",
-        "academic_year_label",
-        "period",
-        "total_places",
-        "is_estimated",
-    )
-    search_fields = ("agreement__name", "academic_year_label", "period")
-    list_filter = ("academic_year_label", "is_estimated", "source_scope")
+        "academic_year",
+        "is_active",
+        "n7_places",
+        "is_validated",
+        "validated_by",
+        "validated_at",
+    ]
+    list_filter = ["is_active", "is_validated", "academic_year"]
+    search_fields = ["agreement__name", "academic_year__label"]
+    readonly_fields = [
+        "is_validated",
+        "validated_by",
+        "validated_at",
+        "created_at",
+        "updated_at",
+    ]
+    inlines = [AgreementYearDepartmentInline]
 
 
-@admin.register(DepartmentQuota)
-class DepartmentQuotaAdmin(admin.ModelAdmin):
-    list_display = ("agreement_quota", "department", "places", "is_estimated")
-    list_filter = ("department", "is_estimated")
+@admin.register(AgreementYearDepartment)
+class AgreementYearDepartmentAdmin(admin.ModelAdmin):
+    list_display = ["agreement_year", "department", "estimated_places"]
+    list_filter = ["department"]
+    search_fields = ["agreement_year__agreement__name", "department__code"]
 
 
 @admin.register(RawImport)
 class RawImportAdmin(admin.ModelAdmin):
-    list_display = ("source", "entity", "external_id", "status", "created_at")
-    search_fields = ("source", "external_id", "error_message")
-    list_filter = ("entity", "status")
+    list_display = [
+        "source",
+        "entity",
+        "external_id",
+        "status",
+        "imported_at",
+        "created_at",
+    ]
+    list_filter = ["status", "entity", "source"]
+    search_fields = ["external_id", "error_message"]
+    readonly_fields = ["created_at", "updated_at"]

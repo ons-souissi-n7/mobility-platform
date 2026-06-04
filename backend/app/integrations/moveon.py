@@ -28,9 +28,7 @@ class MoveOnInstitution(MoveOnRecord):
 class MoveOnAgreement(MoveOnRecord):
     @property
     def relation_id(self) -> str | None:
-        value = self.payload.get("moveon_relation_id") or self.payload.get(
-            "relation_id"
-        )
+        value = self.payload.get("moveon_id") or self.payload.get("relation_id")
         return str(value) if value not in (None, "") else None
 
 

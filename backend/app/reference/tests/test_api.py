@@ -3,12 +3,11 @@ import json
 import pytest
 from django.test import Client
 
+from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.reference.models import (
     Country,
     CTIRegion,
     Department,
-    DepartmentRawImport,
-    DepartmentRawImportStatus,
 )
 
 
@@ -154,25 +153,28 @@ class TestDepartmentAPI:
         assert not Department.objects.filter(pk=department.id).exists()
 
     def test_list_department_import_errors(self):
-        DepartmentRawImport.objects.create(
+        RawImport.objects.create(
             source="pegase_fake_departments",
+            entity=RawImportEntity.DEPARTMENT,
             external_id="101",
             payload={"pegase_id": 101, "code": "SN", "name": "Sciences du Numerique"},
-            status=DepartmentRawImportStatus.FAILED,
+            status=RawImportStatus.FAILED,
             error_message="Missing department name",
         )
-        DepartmentRawImport.objects.create(
+        RawImport.objects.create(
             source="pegase_fake_departments",
+            entity=RawImportEntity.DEPARTMENT,
             external_id="101",
             payload={"pegase_id": 101, "code": "SN", "name": "Sciences du Numerique"},
-            status=DepartmentRawImportStatus.FAILED,
+            status=RawImportStatus.FAILED,
             error_message="Missing department name",
         )
-        DepartmentRawImport.objects.create(
+        RawImport.objects.create(
             source="pegase_fake_departments",
+            entity=RawImportEntity.DEPARTMENT,
             external_id="102",
             payload={"pegase_id": 102, "code": "3EA", "name": "Electronique"},
-            status=DepartmentRawImportStatus.IMPORTED,
+            status=RawImportStatus.IMPORTED,
         )
 
         response = self.client.get("/api/v1/reference/departments/import-errors/")
@@ -183,11 +185,12 @@ class TestDepartmentAPI:
         assert data[0]["external_id"] == "101"
 
     def test_retry_department_import(self):
-        raw_import = DepartmentRawImport.objects.create(
+        raw_import = RawImport.objects.create(
             source="pegase_fake_departments",
+            entity=RawImportEntity.DEPARTMENT,
             external_id="105",
             payload={"pegase_id": 105, "code": "", "name": "Departement Test"},
-            status=DepartmentRawImportStatus.FAILED,
+            status=RawImportStatus.FAILED,
             error_message="Missing department code",
         )
 
@@ -199,5 +202,5 @@ class TestDepartmentAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == DepartmentRawImportStatus.IMPORTED
+        assert data["status"] == RawImportStatus.IMPORTED
         assert Department.objects.filter(code="TEST", pegase_id="105").exists()

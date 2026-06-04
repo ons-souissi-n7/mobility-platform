@@ -23,10 +23,10 @@ def validate_department(data: TransformedDepartment) -> None:
     Lève ValidationError si une règle est violée.
     """
     if not data.pegase_id:
-        raise ValidationError("pegase_id is required")
+        raise ValidationError("Identifiant Pégase manquant — champ obligatoire.")
 
     if not data.code:
-        raise ValidationError("code is required")
+        raise ValidationError("Code du département manquant — champ obligatoire.")
 
     if not data.name:
-        raise ValidationError("name is required")
+        raise ValidationError("Nom du département manquant — champ obligatoire.")

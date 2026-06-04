@@ -2,13 +2,6 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 
-class LevelRawImportStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    IMPORTED = "imported", "Imported"
-    FAILED = "failed", "Failed"
-    IGNORED = "ignored", "Ignored"
-
-
 class CTIRegion(models.TextChoices):
     FRANCE = "france", "France"
     EUROPE_HORS_FRANCE = "europe_hors_france", "Europe (hors France)"
@@ -19,13 +12,6 @@ class CTIRegion(models.TextChoices):
     OCEANIE = "oceanie", "Océanie"
 
 
-class DepartmentRawImportStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    IMPORTED = "imported", "Imported"
-    FAILED = "failed", "Failed"
-    IGNORED = "ignored", "Ignored"
-
-
 class Country(models.Model):
     """
     Referentiel stable des pays.
@@ -33,6 +19,7 @@ class Country(models.Model):
     La region CTI determine si un sejour compte pour le calcul CTI.
     """
 
+    id = models.BigAutoField(primary_key=True)
     iso2 = models.CharField(
         max_length=2,
         unique=True,
@@ -70,6 +57,7 @@ class Department(models.Model):
     Codes : SN, 3EA, MF2Ei
     """
 
+    id = models.BigAutoField(primary_key=True)
     code = models.CharField(
         max_length=10,
         unique=True,
@@ -98,35 +86,28 @@ class Department(models.Model):
         return f"{self.code} - {self.name}"
 
 
-class DepartmentRawImport(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    source = models.CharField(max_length=255)
-    source_file = models.CharField(max_length=255, blank=True)
-    external_id = models.CharField(max_length=255)
-    payload = models.JSONField()
-    status = models.CharField(
-        max_length=20,
-        choices=DepartmentRawImportStatus.choices,
-        default=DepartmentRawImportStatus.PENDING,
+class Parcours(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    department = models.ForeignKey(
+        "Department",
+        on_delete=models.PROTECT,
+        related_name="parcours_list",
     )
-    error_message = models.TextField(blank=True)
-    imported_at = models.DateTimeField(null=True, blank=True)
+    code = models.CharField(max_length=20)
+    label = models.CharField(max_length=100)
 
     class Meta:
-        verbose_name = "Department Raw Import"
-        verbose_name_plural = "Department Raw Imports"
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=["source", "external_id"]),
-            models.Index(fields=["status"]),
-        ]
+        verbose_name = "Parcours"
+        verbose_name_plural = "Parcours"
+        unique_together = [("department", "code")]
+        ordering = ["department", "code"]
 
     def __str__(self) -> str:
-        return f"{self.source} - {self.external_id} ({self.status})"
+        return f"{self.department.code} — {self.label}"
 
 
 class Level(models.Model):
+    id = models.BigAutoField(primary_key=True)
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
@@ -146,31 +127,3 @@ class Level(models.Model):
 
     def __str__(self) -> str:
         return f"{self.code} - {self.name}" if self.name else self.code
-
-
-class LevelRawImport(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    source = models.CharField(max_length=255)
-    source_file = models.CharField(max_length=255, blank=True)
-    external_id = models.CharField(max_length=255)
-    payload = models.JSONField()
-    status = models.CharField(
-        max_length=20,
-        choices=LevelRawImportStatus.choices,
-        default=LevelRawImportStatus.PENDING,
-    )
-    error_message = models.TextField(blank=True)
-    imported_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        verbose_name = "Level Raw Import"
-        verbose_name_plural = "Level Raw Imports"
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=["source", "external_id"]),
-            models.Index(fields=["status"]),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.source} - {self.external_id} ({self.status})"

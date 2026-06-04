@@ -91,6 +91,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - /app/.next
     ports:
       - "3000:3000"
     environment:
@@ -98,6 +99,7 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
       WATCHPACK_POLLING: "true"
       CHOKIDAR_USEPOLLING: "true"
+    command: ["npm", "run", "dev", "--", "--webpack", "--hostname", "0.0.0.0"]
     depends_on:
       backend:
         condition: service_healthy

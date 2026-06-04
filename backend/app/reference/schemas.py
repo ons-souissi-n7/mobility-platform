@@ -39,8 +39,9 @@ class DepartmentImportRetryIn(Schema):
     pegase_id: str | None = None
 
 
-class DepartmentImportOut(Schema):
+class RawImportOut(Schema):
     id: int
+    entity: str
     source: str
     source_file: str
     external_id: str
@@ -66,14 +67,14 @@ class LevelOut(LevelIn):
     updated_at: datetime
 
 
-class LevelImportOut(Schema):
+class ParcoursIn(Schema):
+    department_id: int
+    code: str
+    label: str
+
+
+class ParcoursOut(Schema):
     id: int
-    source: str
-    source_file: str
-    external_id: str
-    payload: dict[str, Any]
-    status: str
-    error_message: str
-    imported_at: datetime | None
-    created_at: datetime
-    updated_at: datetime
+    department_id: int
+    code: str
+    label: str

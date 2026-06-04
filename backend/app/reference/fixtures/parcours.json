@@ -1,0 +1,27 @@
+[
+  {
+    "model": "reference.parcours",
+    "pk": 1,
+    "fields": { "department": 7, "code": "IA",   "label": "Intelligence Artificielle" }
+  },
+  {
+    "model": "reference.parcours",
+    "pk": 2,
+    "fields": { "department": 7, "code": "SESG",  "label": "Systèmes Embarqués et Systèmes Génie Logiciel" }
+  },
+  {
+    "model": "reference.parcours",
+    "pk": 3,
+    "fields": { "department": 8, "code": "EEA",   "label": "Electronique, Energie Electrique et Automatique" }
+  },
+  {
+    "model": "reference.parcours",
+    "pk": 4,
+    "fields": { "department": 8, "code": "RT",    "label": "Réseaux et Télécommunications" }
+  },
+  {
+    "model": "reference.parcours",
+    "pk": 5,
+    "fields": { "department": 9, "code": "EE",    "label": "Energie et Environnement" }
+  }
+]

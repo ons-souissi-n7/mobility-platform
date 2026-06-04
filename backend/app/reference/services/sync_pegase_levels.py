@@ -5,8 +5,15 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from app.imports.models import (
+    ImportReport,
+    ImportSource,
+    RawImport,
+    RawImportEntity,
+    RawImportStatus,
+)
 from app.integrations.pegase import PegaseClient
-from app.reference.models import Level, LevelRawImport, LevelRawImportStatus
+from app.reference.models import Level
 
 
 @dataclass
@@ -17,21 +24,30 @@ class LevelSyncResult:
     total: int = 0
 
 
-def sync_pegase_levels(client: PegaseClient | None = None) -> LevelSyncResult:
+def sync_pegase_levels(
+    client: PegaseClient | None = None,
+    triggered_by: str = "",
+) -> LevelSyncResult:
     client = client or PegaseClient()
     result = LevelSyncResult()
+
+    report = ImportReport.objects.create(
+        source=ImportSource.PEGASE,
+        triggered_by=triggered_by,
+    )
 
     for level in client.fetch_levels():
         result.total += 1
         payload = level.payload
-        raw_import = _create_raw_import(payload)
+        raw_import = _create_raw_import(payload, import_report=report)
 
         try:
             _validate_level_payload(payload)
             created = _upsert_level(payload)
         except (IntegrityError, DjangoValidationError, ValueError, KeyError) as exc:
             result.failed += 1
-            _mark_raw_import(raw_import, LevelRawImportStatus.FAILED, str(exc))
+            _mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
+            report.record_error(raw_import.external_id, str(exc), raw_import.id)
             continue
 
         if created:
@@ -39,18 +55,20 @@ def sync_pegase_levels(client: PegaseClient | None = None) -> LevelSyncResult:
         else:
             result.updated += 1
 
-        _mark_raw_import(raw_import, LevelRawImportStatus.IMPORTED)
+        _mark_raw_import(raw_import, RawImportStatus.IMPORTED)
+        report.record_success()
 
+    report.finalize()
     return result
 
 
 def _validate_level_payload(payload: dict[str, Any]) -> None:
     if not payload.get("pegase_id"):
-        raise ValueError("pegase_id is required")
+        raise ValueError("Identifiant Pégase manquant — champ obligatoire.")
     if not payload.get("code"):
-        raise ValueError("code is required")
+        raise ValueError("Code du niveau manquant — champ obligatoire.")
     if not payload.get("name"):
-        raise ValueError("name is required")
+        raise ValueError("Nom du niveau manquant — champ obligatoire.")
 
 
 @transaction.atomic
@@ -68,22 +86,27 @@ def _upsert_level(payload: dict[str, Any]) -> bool:
     return created
 
 
-def _create_raw_import(payload: dict[str, Any]) -> LevelRawImport:
-    return LevelRawImport.objects.create(
+def _create_raw_import(
+    payload: dict[str, Any],
+    import_report: ImportReport | None = None,
+) -> RawImport:
+    return RawImport.objects.create(
         source="pegase_levels",
         source_file="levels.json",
         external_id=str(payload.get("pegase_id") or ""),
         payload=payload,
+        entity=RawImportEntity.LEVEL,
+        import_report=import_report,
     )
 
 
 def _mark_raw_import(
-    raw_import: LevelRawImport, status: str, error_message: str = ""
+    raw_import: RawImport, status: str, error_message: str = ""
 ) -> None:
     raw_import.status = status
     raw_import.error_message = error_message
     raw_import.imported_at = (
-        timezone.now() if status == LevelRawImportStatus.IMPORTED else None
+        timezone.now() if status == RawImportStatus.IMPORTED else None
     )
     raw_import.save(
         update_fields=["status", "error_message", "imported_at", "updated_at"]

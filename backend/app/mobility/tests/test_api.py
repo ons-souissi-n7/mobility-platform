@@ -5,14 +5,9 @@ import pytest
 from django.test import Client
 
 from app.academic.models import AcademicYear
+from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.institutions.models import PartnerUniversity
-from app.mobility.models import (
-    Agreement,
-    AgreementQuota,
-    RawImport,
-    RawImportEntity,
-    RawImportStatus,
-)
+from app.mobility.models import Agreement, AgreementYear
 from app.reference.models import Country, CTIRegion, Department
 
 
@@ -41,51 +36,35 @@ class TestMobilityAgreementAPI:
             name="Sciences du Numerique",
         )
         self.agreement = Agreement.objects.create(
-            moveon_relation_id="REL-001",
+            moveon_id="REL-001",
             name="Erasmus outgoing agreement",
             partner_university=self.university,
             direction="outgoing",
-            status="active",
+            inp_total_places=10,
         )
-        self.quota = AgreementQuota.objects.create(
+        self.year = AgreementYear.objects.create(
             agreement=self.agreement,
             academic_year=self.academic_year,
-            academic_year_label="2026-2027",
-            period="S1",
-            places_id="PLC-001",
-            total_places=4,
-            remaining_places=2,
+            is_active=True,
+            n7_places=4,
         )
 
     def test_list_agreements(self):
         response = self.client.get("/api/v1/mobility/agreements/")
 
         assert response.status_code == 200
-        assert response.json()[0]["moveon_relation_id"] == "REL-001"
+        assert response.json()[0]["moveon_id"] == "REL-001"
 
     def test_create_agreement(self):
         payload = {
-            "moveon_relation_id": "REL-002",
-            "reference": "REF-002",
             "name": "New Erasmus agreement",
             "partner_university_id": self.university.id,
-            "relation_type": "Erasmus",
-            "framework": "Erasmus Enseignement",
             "direction": "outgoing",
-            "status": "active",
-            "is_active": True,
-            "start_date": "2026-09-01",
-            "end_date": "2027-08-31",
-            "start_academic_year": "2026-2027",
-            "end_academic_year": "2027-2028",
-            "discipline": "Engineering",
-            "isced": "071",
-            "level": "Master",
-            "formation": "SN",
-            "url": "",
-            "restrictions": "",
+            "inp_total_places": 6,
+            "inp_institutions": "N7",
             "remarks": "",
-            "last_sync_moveon": None,
+            "department_ids": [],
+            "level_ids": [],
         }
 
         response = self.client.post(
@@ -99,27 +78,14 @@ class TestMobilityAgreementAPI:
 
     def test_update_agreement(self):
         payload = {
-            "moveon_relation_id": "REL-001",
-            "reference": "",
             "name": "Updated Erasmus agreement",
             "partner_university_id": self.university.id,
-            "relation_type": "",
-            "framework": "",
             "direction": "both",
-            "status": "active",
-            "is_active": True,
-            "start_date": None,
-            "end_date": None,
-            "start_academic_year": "",
-            "end_academic_year": "",
-            "discipline": "",
-            "isced": "",
-            "level": "",
-            "formation": "",
-            "url": "",
-            "restrictions": "",
+            "inp_total_places": 10,
+            "inp_institutions": "N7",
             "remarks": "",
-            "last_sync_moveon": None,
+            "department_ids": [],
+            "level_ids": [],
         }
 
         response = self.client.put(
@@ -133,7 +99,7 @@ class TestMobilityAgreementAPI:
 
     def test_delete_agreement(self):
         agreement = Agreement.objects.create(
-            moveon_relation_id="REL-DELETE",
+            moveon_id="REL-DELETE",
             name="Agreement to delete",
             partner_university=self.university,
         )
@@ -143,100 +109,83 @@ class TestMobilityAgreementAPI:
         assert response.status_code == 204
         assert not Agreement.objects.filter(pk=agreement.id).exists()
 
-    def test_create_agreement_quota(self):
+    def test_create_agreement_year(self):
+        year2 = AcademicYear.objects.create(
+            label="2027-2028",
+            start_date=date(2027, 9, 1),
+            end_date=date(2028, 8, 31),
+        )
         payload = {
             "agreement_id": self.agreement.id,
-            "academic_year_id": self.academic_year.id,
-            "academic_year_label": "2027-2028",
-            "period": "S2",
-            "places_id": "PLC-002",
-            "total_places": 3,
-            "remaining_places": 1,
-            "total_duration": 12,
-            "duration_unit": "months",
-            "is_effective": True,
-            "remarks": "",
+            "academic_year_id": year2.id,
+            "is_active": True,
+            "n7_places": 3,
         }
 
         response = self.client.post(
-            "/api/v1/mobility/agreement-quotas/",
+            "/api/v1/mobility/agreement-years/",
             data=json.dumps(payload),
             content_type="application/json",
         )
 
         assert response.status_code == 201
-        assert response.json()["allocated_places"] == 2
+        assert response.json()["n7_places"] == 3
 
-    def test_create_agreement_quota_invalid_remaining_places(self):
+    def test_create_agreement_year_n7_exceeds_inp_returns_400(self):
+        year2 = AcademicYear.objects.create(
+            label="2027-2028",
+            start_date=date(2027, 9, 1),
+            end_date=date(2028, 8, 31),
+        )
         payload = {
             "agreement_id": self.agreement.id,
-            "academic_year_id": self.academic_year.id,
-            "academic_year_label": "2027-2028",
-            "period": "S2",
-            "places_id": "PLC-002",
-            "total_places": 1,
-            "remaining_places": 2,
-            "total_duration": None,
-            "duration_unit": "",
-            "is_effective": True,
-            "remarks": "",
+            "academic_year_id": year2.id,
+            "is_active": True,
+            "n7_places": 99,  # > inp_total_places=10
         }
 
         response = self.client.post(
-            "/api/v1/mobility/agreement-quotas/",
+            "/api/v1/mobility/agreement-years/",
             data=json.dumps(payload),
             content_type="application/json",
         )
 
         assert response.status_code == 400
 
-    def test_create_department_quota(self):
+    def test_create_agreement_year_department(self):
         payload = {
-            "agreement_quota_id": self.quota.id,
+            "agreement_year_id": self.year.id,
             "department_id": self.department.id,
-            "places": 2,
-            "remarks": "",
+            "estimated_places": 2,
         }
 
         response = self.client.post(
-            "/api/v1/mobility/department-quotas/",
+            "/api/v1/mobility/agreement-year-departments/",
             data=json.dumps(payload),
             content_type="application/json",
         )
 
         assert response.status_code == 201
-        assert response.json()["places"] == 2
-
-    def test_list_raw_imports(self):
-        RawImport.objects.create(
-            source="moveon_fake",
-            source_file="FlowsByInstitutions.xlsx",
-            external_id="PLC-001",
-            payload={"Places: ID": "PLC-001"},
-            status="imported",
-        )
-
-        response = self.client.get("/api/v1/mobility/raw-imports/")
-
-        assert response.status_code == 200
-        assert response.json()[0]["external_id"] == "PLC-001"
+        assert response.json()["estimated_places"] == 2
 
     def test_list_moveon_import_errors(self):
         RawImport.objects.create(
-            source="moveon_fake_institutions",
+            source="moveon_partner_university",
+            entity=RawImportEntity.PARTNER_UNIVERSITY,
             external_id="3001",
             payload={"country": {"name": "Itallie"}},
             status=RawImportStatus.FAILED,
             error_message="Unknown country name: Itallie",
         )
         RawImport.objects.create(
-            source="moveon_fake_agreement",
+            source="moveon_agreement",
             entity=RawImportEntity.AGREEMENT,
             external_id="REL-ERR",
-            payload={"moveon_relation_id": "REL-ERR", "name": "Broken agreement"},
+            payload={"moveon_id": "REL-ERR", "name": "Broken agreement"},
             status=RawImportStatus.FAILED,
             error_message="partner_university_moveon_id is required",
         )
+
         response = self.client.get("/api/v1/mobility/raw-imports/moveon-errors/")
 
         assert response.status_code == 200
@@ -246,10 +195,10 @@ class TestMobilityAgreementAPI:
 
     def test_retry_agreement_import_with_partner_university_correction(self):
         raw_import = RawImport.objects.create(
-            source="moveon_fake_agreement",
+            source="moveon_agreement",
             entity=RawImportEntity.AGREEMENT,
             external_id="REL-RETRY",
-            payload={"moveon_relation_id": "REL-RETRY", "name": "Retry agreement"},
+            payload={"moveon_id": "REL-RETRY", "name": "Retry agreement"},
             status=RawImportStatus.FAILED,
             error_message="partner_university_moveon_id is required",
         )
@@ -263,11 +212,12 @@ class TestMobilityAgreementAPI:
         assert response.status_code == 200
         raw_import.refresh_from_db()
         assert raw_import.status == RawImportStatus.IMPORTED
-        assert Agreement.objects.filter(moveon_relation_id="REL-RETRY").exists()
+        assert Agreement.objects.filter(moveon_id="REL-RETRY").exists()
 
     def test_ignore_raw_import(self):
         raw_import = RawImport.objects.create(
-            source="moveon_fake_institutions",
+            source="moveon_partner_university",
+            entity=RawImportEntity.PARTNER_UNIVERSITY,
             external_id="3001",
             payload={"country": {"name": "Itallie"}},
             status=RawImportStatus.FAILED,
@@ -281,4 +231,4 @@ class TestMobilityAgreementAPI:
         assert response.status_code == 200
         raw_import.refresh_from_db()
         assert raw_import.status == RawImportStatus.IGNORED
-        assert "Traite manuellement" in raw_import.error_message
+        assert "Traité manuellement" in raw_import.error_message

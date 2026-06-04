@@ -23,6 +23,8 @@ def validate_raw_payload(payload: dict[str, Any]) -> PegaseDepartmentRaw:
     Lève ValueError si la structure est invalide.
     """
     if not isinstance(payload, dict):
-        raise ValueError(f"Payload must be a dict, got {type(payload)}")
+        raise ValueError(
+            f"Format de données invalide — un objet JSON est attendu, reçu : {type(payload).__name__}."
+        )
 
     return payload  # type: ignore

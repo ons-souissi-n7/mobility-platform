@@ -8,9 +8,45 @@ class AuditConfig(AppConfig):
     def ready(self) -> None:
         from auditlog.registry import auditlog
 
+        # -- Référentiels -------------------------------------------------------
+        from app.reference.models import Country, Department, Level, Parcours
+
+        auditlog.register(Country)
+        auditlog.register(Department)
+        auditlog.register(Level)
+        auditlog.register(Parcours)
+
+        # -- Institutions -------------------------------------------------------
+        from app.institutions.models import PartnerUniversity
+
+        auditlog.register(PartnerUniversity)
+
+        # -- Années universitaires ----------------------------------------------
         from app.academic.models import AcademicYear
-        from app.mobility.models import Agreement, AgreementQuota
 
         auditlog.register(AcademicYear)
-        auditlog.register(Agreement)
-        auditlog.register(AgreementQuota)
+
+        # -- Mobilité (accords, quotas, catégories) ----------------------------
+        from app.mobility.models import (
+            Agreement,
+            AgreementYear,
+            AgreementYearDepartment,
+            MobilityCategory,
+        )
+
+        auditlog.register(MobilityCategory)
+        auditlog.register(Agreement, m2m_fields={"levels", "departments"})
+        auditlog.register(AgreementYear)
+        auditlog.register(AgreementYearDepartment)
+
+        # -- Imports (rapports de run + erreurs brutes) ------------------------
+        from app.imports.models import ImportReport, RawImport
+
+        auditlog.register(ImportReport)
+        auditlog.register(RawImport)
+
+        # -- Étudiants ----------------------------------------------------------
+        from app.students.models import AnnualEnrollment, Student
+
+        auditlog.register(Student)
+        auditlog.register(AnnualEnrollment)

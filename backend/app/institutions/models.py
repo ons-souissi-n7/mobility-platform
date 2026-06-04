@@ -12,6 +12,7 @@ class TimeStampedModel(models.Model):
 
 
 class PartnerUniversity(TimeStampedModel):
+    id = models.BigAutoField(primary_key=True)
     moveon_id = models.IntegerField(unique=True, null=True, blank=True)
     name = models.CharField(max_length=255)
     short_name = models.CharField(max_length=100, blank=True)
@@ -51,6 +52,7 @@ class PartnerUniversityRawImportStatus(models.TextChoices):
 
 
 class PartnerUniversityRawImport(TimeStampedModel):
+    id = models.BigAutoField(primary_key=True)
     source = models.CharField(max_length=255)
     source_file = models.CharField(max_length=255, blank=True)
     external_id = models.CharField(max_length=255)

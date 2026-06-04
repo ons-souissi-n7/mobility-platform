@@ -6,7 +6,7 @@ from django.db import IntegrityError
 
 from app.academic.models import AcademicYear
 from app.institutions.models import PartnerUniversity
-from app.mobility.models import Agreement, AgreementQuota, DepartmentQuota
+from app.mobility.models import Agreement, AgreementYear, AgreementYearDepartment
 from app.reference.models import Country, CTIRegion, Department
 
 
@@ -16,112 +16,135 @@ class TestAgreement:
         university = create_university()
 
         agreement = Agreement.objects.create(
-            moveon_relation_id="REL-001",
+            moveon_id="REL-001",
             name="Erasmus outgoing agreement",
             partner_university=university,
             direction="outgoing",
-            status="active",
-            start_date=date(2026, 9, 1),
-            end_date=date(2027, 8, 31),
         )
 
         assert agreement.pk is not None
         assert str(agreement) == "Erasmus outgoing agreement - Universidad Test"
 
-    def test_start_date_must_be_before_end_date(self):
+    def test_valid_from_must_be_before_valid_until(self):
         agreement = Agreement(
             name="Invalid agreement",
             partner_university=create_university(),
-            start_date=date(2027, 8, 31),
-            end_date=date(2026, 9, 1),
+            valid_from=date(2027, 8, 31),
+            valid_until=date(2026, 9, 1),
         )
 
         with pytest.raises(ValidationError):
             agreement.full_clean()
 
-    def test_moveon_relation_id_unique(self):
+    def test_moveon_id_unique(self):
         university = create_university()
         Agreement.objects.create(
-            moveon_relation_id="REL-001",
+            moveon_id="REL-001",
             name="First agreement",
             partner_university=university,
         )
 
         with pytest.raises(IntegrityError):
             Agreement.objects.create(
-                moveon_relation_id="REL-001",
+                moveon_id="REL-001",
                 name="Duplicate agreement",
                 partner_university=university,
             )
 
 
 @pytest.mark.django_db
-class TestAgreementQuota:
-    def test_create_agreement_quota(self):
-        quota = create_agreement_quota()
+class TestAgreementYear:
+    def test_create_agreement_year(self):
+        year = create_agreement_year()
 
-        assert quota.allocated_places == 2
-        assert str(quota).endswith("(2026-2027)")
+        assert year.pk is not None
+        assert "actif" in str(year)
 
-    def test_remaining_places_cannot_exceed_total_places(self):
-        quota = AgreementQuota(
-            agreement=create_agreement(),
-            academic_year_label="2026-2027",
-            total_places=2,
-            remaining_places=3,
+    def test_str_shows_inactive(self):
+        agreement = create_agreement()
+        academic_year = create_academic_year()
+        year = AgreementYear.objects.create(
+            agreement=agreement,
+            academic_year=academic_year,
+            is_active=False,
+            n7_places=0,
+        )
+
+        assert "inactif" in str(year)
+
+    def test_n7_places_cannot_exceed_inp_total(self):
+        agreement = create_agreement()
+        agreement.inp_total_places = 2
+        agreement.save()
+
+        year = AgreementYear(
+            agreement=agreement,
+            academic_year=create_academic_year(),
+            n7_places=3,
         )
 
         with pytest.raises(ValidationError):
-            quota.full_clean()
+            year.full_clean()
 
-    def test_unique_quota_period(self):
+    def test_n7_places_negative_raises(self):
         agreement = create_agreement()
-        AgreementQuota.objects.create(
+        agreement.inp_total_places = 10
+        agreement.save()
+
+        year = AgreementYear(
             agreement=agreement,
-            academic_year_label="2026-2027",
-            period="S1",
-            total_places=2,
-            remaining_places=1,
+            academic_year=create_academic_year(),
+            n7_places=-1,
+        )
+
+        with pytest.raises(ValidationError):
+            year.full_clean()
+
+    def test_unique_agreement_academic_year(self):
+        agreement = create_agreement()
+        academic_year = create_academic_year()
+        AgreementYear.objects.create(
+            agreement=agreement,
+            academic_year=academic_year,
+            n7_places=2,
         )
 
         with pytest.raises(IntegrityError):
-            AgreementQuota.objects.create(
+            AgreementYear.objects.create(
                 agreement=agreement,
-                academic_year_label="2026-2027",
-                period="S1",
-                total_places=3,
-                remaining_places=2,
+                academic_year=academic_year,
+                n7_places=3,
             )
 
 
 @pytest.mark.django_db
-class TestDepartmentQuota:
+class TestAgreementYearDepartment:
     def test_create_department_quota(self):
         department = Department.objects.create(code="SN", name="Sciences du Numerique")
-        quota = create_agreement_quota()
+        year = create_agreement_year()
 
-        department_quota = DepartmentQuota.objects.create(
-            agreement_quota=quota,
+        dept_quota = AgreementYearDepartment.objects.create(
+            agreement_year=year,
             department=department,
-            places=2,
+            estimated_places=2,
         )
 
-        assert str(department_quota) == "SN: 2"
+        assert str(dept_quota) == "SN: 2"
 
-    def test_department_quota_unique_per_quota(self):
+    def test_department_quota_unique_per_year(self):
         department = Department.objects.create(code="SN", name="Sciences du Numerique")
-        quota = create_agreement_quota()
-        DepartmentQuota.objects.create(
-            agreement_quota=quota,
+        year = create_agreement_year()
+        AgreementYearDepartment.objects.create(
+            agreement_year=year,
             department=department,
-            places=2,
+            estimated_places=2,
         )
 
         with pytest.raises(IntegrityError):
-            DepartmentQuota.objects.create(
-                agreement_quota=quota,
+            AgreementYearDepartment.objects.create(
+                agreement_year=year,
                 department=department,
-                places=1,
+                estimated_places=1,
             )
 
 
@@ -152,18 +175,17 @@ def create_academic_year():
 
 def create_agreement():
     return Agreement.objects.create(
-        moveon_relation_id="REL-001",
+        moveon_id="REL-001",
         name="Erasmus outgoing agreement",
         partner_university=create_university(),
+        inp_total_places=10,
     )
 
 
-def create_agreement_quota():
-    return AgreementQuota.objects.create(
+def create_agreement_year():
+    return AgreementYear.objects.create(
         agreement=create_agreement(),
         academic_year=create_academic_year(),
-        academic_year_label="2026-2027",
-        period="S1",
-        total_places=4,
-        remaining_places=2,
+        is_active=True,
+        n7_places=2,
     )

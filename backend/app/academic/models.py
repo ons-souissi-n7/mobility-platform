@@ -7,6 +7,8 @@ from app.core.models import TimeStampedModel
 
 
 class AcademicYear(TimeStampedModel):
+    id = models.BigAutoField(primary_key=True)
+
     class CampaignStatus(models.TextChoices):
         INITIALIZATION = "initialization", "Initialization"
         RECOMMENDATION = "recommendation", "Recommendation"
