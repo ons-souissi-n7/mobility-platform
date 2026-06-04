@@ -2,20 +2,20 @@ import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type {
   Agreement,
-  AgreementQuota,
+  AgreementYear,
+  AgreementYearDepartment,
   Department,
-  DepartmentQuota,
 } from "@/lib/api/types";
 
-type DepartmentQuotaRow = DepartmentQuota & {
+type DepartmentQuotaRow = AgreementYearDepartment & {
   agreementName: string;
   departmentLabel: string;
   quotaLabel: string;
 };
 
 function getColumns(
-  onDelete: (quota: DepartmentQuota) => void,
-  onEdit: (quota: DepartmentQuota) => void,
+  onDelete: (quota: AgreementYearDepartment) => void,
+  onEdit: (quota: AgreementYearDepartment) => void,
 ): DataTableColumn<DepartmentQuotaRow>[] {
   return [
     {
@@ -35,25 +35,10 @@ function getColumns(
     },
     {
       key: "places",
-      header: "Places",
+      header: "Places estimees",
       render: (quota) => (
-        <div>
-          <span className="font-medium text-gray-900">{quota.places}</span>
-          {quota.is_estimated ? (
-            <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-              Estime
-            </span>
-          ) : null}
-          {quota.estimation_basis ? (
-            <p className="mt-1 text-xs text-amber-700">{quota.estimation_basis}</p>
-          ) : null}
-        </div>
+        <span className="font-medium text-gray-900">{quota.estimated_places}</span>
       ),
-    },
-    {
-      key: "remarks",
-      header: "Remarques",
-      render: (quota) => quota.remarks || "-",
     },
     {
       key: "actions",
@@ -72,29 +57,29 @@ export function DepartmentQuotasTable({
   departments,
   onDelete,
   onEdit,
-  quotas,
+  yearInstances,
 }: {
   agreements: Agreement[];
-  departmentQuotas: DepartmentQuota[];
+  departmentQuotas: AgreementYearDepartment[];
   departments: Department[];
-  onDelete: (quota: DepartmentQuota) => void;
-  onEdit: (quota: DepartmentQuota) => void;
-  quotas: AgreementQuota[];
+  onDelete: (quota: AgreementYearDepartment) => void;
+  onEdit: (quota: AgreementYearDepartment) => void;
+  yearInstances: AgreementYear[];
 }) {
-  const agreementsById = new Map(agreements.map((agreement) => [agreement.id, agreement]));
-  const departmentsById = new Map(departments.map((department) => [department.id, department]));
-  const quotasById = new Map(quotas.map((quota) => [quota.id, quota]));
+  const agreementsById = new Map(agreements.map((a) => [a.id, a]));
+  const departmentsById = new Map(departments.map((d) => [d.id, d]));
+  const yearInstancesById = new Map(yearInstances.map((y) => [y.id, y]));
 
-  const rows = departmentQuotas.map((departmentQuota) => {
-    const quota = quotasById.get(departmentQuota.agreement_quota_id);
-    const agreement = quota ? agreementsById.get(quota.agreement_id) : undefined;
-    const department = departmentsById.get(departmentQuota.department_id);
+  const rows = departmentQuotas.map((dq) => {
+    const yearInstance = yearInstancesById.get(dq.agreement_year_id);
+    const agreement = yearInstance ? agreementsById.get(yearInstance.agreement_id) : undefined;
+    const department = departmentsById.get(dq.department_id);
 
     return {
-      ...departmentQuota,
+      ...dq,
       agreementName: agreement?.name ?? "Accord inconnu",
       departmentLabel: department ? `${department.code} - ${department.name}` : "Departement inconnu",
-      quotaLabel: quota ? `${quota.academic_year_label}${quota.period ? ` / ${quota.period}` : ""}` : "Quota inconnu",
+      quotaLabel: yearInstance?.academic_year_label ?? "Annee inconnue",
     };
   });
 
@@ -105,7 +90,7 @@ export function DepartmentQuotasTable({
       emptyLabel="Aucun quota departement configure"
       getRowKey={(quota) => quota.id}
       maxHeight="30rem"
-      pageSize={15}
+      pageSize={5}
     />
   );
 }

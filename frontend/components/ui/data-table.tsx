@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export type DataTableColumn<T> = {
@@ -39,8 +39,17 @@ export function DataTable<T>({
   const totalPages = pageSize ? Math.max(1, Math.ceil(data.length / pageSize)) : 1;
   const currentPage = Math.min(page, totalPages);
 
-  useEffect(() => { setPage(1); }, [data]);
-  useEffect(() => { setPage(1); }, [pageSize]);
+  const [prevData, setPrevData] = useState(data);
+  if (prevData !== data) {
+    setPrevData(data);
+    setPage(1);
+  }
+
+  const [prevPageSize, setPrevPageSize] = useState(pageSize);
+  if (prevPageSize !== pageSize) {
+    setPrevPageSize(pageSize);
+    setPage(1);
+  }
 
   const visibleData = useMemo(() => {
     if (!pageSize) {
@@ -58,7 +67,7 @@ export function DataTable<T>({
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className={pageSize ? "overflow-hidden" : "overflow-auto"} style={pageSize ? undefined : { maxHeight }}>
+      <div className={pageSize ? "overflow-x-auto" : "overflow-auto"} style={pageSize ? undefined : { maxHeight }}>
         <table className="w-full text-left text-sm">
           <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 text-xs uppercase text-gray-500">
             <tr>

@@ -3,6 +3,7 @@ import type {
   Country,
   Department,
   Level,
+  Parcours,
   PartnerUniversity,
   RawImport,
 } from "@/lib/api/types";
@@ -16,6 +17,7 @@ export async function getReferenceData() {
     departmentImportErrors,
     mobilityLevels,
     levelImportErrors,
+    parcours,
   ] = await Promise.all([
     getApi<Country[]>("/reference/countries/"),
     getApi<Department[]>("/reference/departments/"),
@@ -24,6 +26,7 @@ export async function getReferenceData() {
     getApi<RawImport[]>("/reference/departments/import-errors/"),
     getApi<Level[]>("/reference/levels/"),
     getApi<RawImport[]>("/reference/levels/import-errors/"),
+    getApi<Parcours[]>("/reference/parcours/"),
   ]);
 
   return {
@@ -34,5 +37,6 @@ export async function getReferenceData() {
     departmentImportErrors,
     mobilityLevels,
     levelImportErrors,
+    parcours,
   };
 }

@@ -3,6 +3,7 @@ import type {
   Country,
   Department,
   Level,
+  Parcours,
   PartnerUniversity,
   RawImport,
 } from "@/lib/api/types";
@@ -10,6 +11,7 @@ import type {
 export type CountryPayload = Omit<Country, "id">;
 export type DepartmentPayload = Omit<Department, "id" | "last_sync_pegase" | "updated_at">;
 export type LevelPayload = Omit<Level, "id" | "created_at" | "updated_at">;
+export type ParcoursPayload = Omit<Parcours, "id">;
 export type PartnerUniversityPayload = Omit<
   PartnerUniversity,
   "id" | "created_at" | "updated_at"
@@ -173,5 +175,31 @@ export function getLevelImportErrors() {
 export function ignoreLevelImport(id: number) {
   return browserApi<RawImport>(`/reference/levels/import-errors/${id}/ignore/`, {
     method: "PUT",
+  });
+}
+export function getParcours(departmentId?: number) {
+  const url = departmentId
+    ? `/reference/parcours/?department_id=${departmentId}`
+    : "/reference/parcours/";
+  return browserApi<Parcours[]>(url, {});
+}
+
+export function createParcours(payload: ParcoursPayload) {
+  return browserApi<Parcours>("/reference/parcours/", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateParcours(id: number, payload: ParcoursPayload) {
+  return browserApi<Parcours>(`/reference/parcours/${id}/`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+export function deleteParcours(id: number) {
+  return browserApi<void>(`/reference/parcours/${id}/`, {
+    method: "DELETE",
   });
 }

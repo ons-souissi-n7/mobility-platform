@@ -60,7 +60,7 @@ export function DepartmentsTable({
       data={departments}
       emptyLabel="Aucun departement reference"
       getRowKey={(department) => department.id}
-      pageSize={15}
+      pageSize={5}
     />
   );
 }

@@ -46,32 +46,52 @@ export type RawImport = {
 };
 
 export type Agreement = {
-  id: number | null;
+  id: number;
+  moveon_id: string | null;
+  reference: string;
   name: string;
   partner_university_id: number;
-  framework_ref_id: number | null;
-  is_active: boolean;
+  category_id: number | null;
+  direction: string;
+  valid_from: string | null;
+  valid_until: string | null;
+  inp_total_places: number;
+  inp_institutions: string;
   remarks: string;
-  // Read-only — server/MoveON managed
-  framework: string;
-  reference: string | null;
-  moveon_relation_id: string | null;
-  direction: string | null;
-  status: string | null;
-  start_date: string | null;
-  end_date: string | null;
+  department_ids: number[];
+  level_ids: number[];
   last_sync_moveon: string | null;
-  created_at: string | null;
-  updated_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgreementYear = {
+  id: number;
+  agreement_id: number;
+  academic_year_id: number;
+  academic_year_label: string;
+  is_active: boolean;
+  n7_places: number;
+  is_validated: boolean;
+  validated_by: string;
+  validated_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgreementYearDepartment = {
+  id: number;
+  agreement_year_id: number;
+  department_id: number;
+  estimated_places: number;
+  created_at: string;
+  updated_at: string;
 };
 
 export type MobilityCategory = {
   id: number;
-  moveon_framework_id: string;
-  external_id: string;
+  moveon_id: string | null;
   name: string;
-  relation_types: string;
-  is_active: boolean;
   last_sync_moveon: string | null;
   created_at: string;
   updated_at: string;
@@ -88,84 +108,6 @@ export type Level = {
   updated_at: string;
 };
 
-export type AgreementYearAvailability = {
-  id: number;
-  agreement_id: number;
-  academic_year_id: number | null;
-  academic_year_label: string;
-  is_available: boolean;
-  source: string;
-  remarks: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type AgreementDepartmentConstraint = {
-  id: number;
-  agreement_id: number;
-  department_id: number;
-  is_active: boolean;
-  source: string;
-  remarks: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type AgreementLevelConstraint = {
-  id: number;
-  agreement_id: number;
-  level_id: number;
-  is_active: boolean;
-  source: string;
-  remarks: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type AgreementQuota = {
-  id: number;
-  agreement_id: number;
-  academic_year_id: number | null;
-  academic_year_label: string;
-  period: string;
-  places_id: string | null;
-  source_total_places: number | null;
-  source_remaining_places: number | null;
-  source_scope: string;
-  source_institutions: string;
-  total_places: number;
-  remaining_places: number;
-  allocated_places: number;
-  total_duration: number | null;
-  duration_unit: string;
-  is_effective: boolean;
-  is_estimated: boolean;
-  estimated_total_places: number | null;
-  is_validated: boolean;
-  validated_by: string;
-  validated_at: string | null;
-  estimation_basis: string;
-  remarks: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type DepartmentQuota = {
-  id: number;
-  agreement_quota_id: number;
-  department_id: number;
-  level_id: number | null;
-  places: number;
-  estimated_places: number | null;
-  is_estimated: boolean;
-  is_validated: boolean;
-  validated_by: string;
-  validated_at: string | null;
-  estimation_basis: string;
-  remarks: string;
-  created_at: string;
-  updated_at: string;
-};
 
 export type AcademicYearStatus =
   | "initialization"
@@ -174,6 +116,107 @@ export type AcademicYearStatus =
   | "pre_assignment"
   | "validation"
   | "closed";
+
+export type Parcours = {
+  id: number;
+  department_id: number;
+  code: string;
+  label: string;
+};
+
+export type AnnualEnrollment = {
+  id: number;
+  academic_year_id: number;
+  department_id: number;
+  level_id: number;
+  parcours_id: number | null;
+  gpa: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Student = {
+  id: number;
+  ine: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  pegase_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StudentDetail = Student & {
+  enrollments: AnnualEnrollment[];
+};
+
+export type ImportReport = {
+  created: number;
+  updated: number;
+  unresolved: Record<string, string>[];
+  errors: string[];
+};
+
+export type LevelStat = {
+  level_id: number;
+  level_code: string;
+  level_name: string;
+  count: number;
+};
+
+export type DepartmentStat = {
+  department_id: number;
+  department_code: string;
+  department_name: string;
+  count: number;
+};
+
+export type ParcoursStat = {
+  parcours_id: number | null;
+  parcours_code: string | null;
+  parcours_label: string | null;
+  count: number;
+};
+
+export type CrossStat = {
+  level_id: number;
+  level_code: string;
+  level_name: string;
+  department_id: number;
+  department_code: string;
+  department_name: string;
+  parcours_id: number | null;
+  parcours_code: string | null;
+  parcours_label: string | null;
+  count: number;
+};
+
+export type StudentStats = {
+  total: number;
+  by_level: LevelStat[];
+  by_department: DepartmentStat[];
+  by_parcours: ParcoursStat[];
+  cross: CrossStat[];
+};
+
+export type StudentWithEnrollment = {
+  student_id: number;
+  ine: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  gender: string;
+  department_id: number;
+  department_code: string;
+  department_name: string;
+  level_id: number;
+  level_code: string;
+  level_name: string;
+  parcours_id: number | null;
+  parcours_code: string | null;
+  parcours_label: string | null;
+  gpa: string | null;
+};
 
 export type AcademicYear = {
   id: number;

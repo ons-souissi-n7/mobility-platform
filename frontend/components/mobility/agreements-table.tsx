@@ -1,996 +1,402 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Lock, Plus } from "lucide-react";
+import { useState } from "react";
+import { Check, Eye, Lock, ToggleLeft, ToggleRight } from "lucide-react";
 
-import { ActionButtons } from "@/components/ui/action-buttons";
+import { AgreementDetailModal } from "@/components/mobility/agreement-detail-modal";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type {
-  AcademicYear,
   Agreement,
-  AgreementDepartmentConstraint,
-  AgreementLevelConstraint,
-  AgreementQuota,
-  AgreementYearAvailability,
+  AgreementYear,
+  AgreementYearDepartment,
   Department,
-  DepartmentQuota,
   Level,
+  MobilityCategory,
   PartnerUniversity,
 } from "@/lib/api/types";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 15, 20];
+type AgreementRow = {
+  agreement: Agreement;
+  yearInstance: AgreementYear | undefined;
+  deptQuotas: AgreementYearDepartment[];
+};
 
 export function AgreementsTable({
   agreements,
-  agreementDepartmentConstraints,
-  agreementLevelConstraints,
-  agreementQuotas,
-  academicYears,
-  departmentQuotas,
+  agreementYears,
+  agreementYearDepartments,
+  categories,
   departments,
   levels,
-  currentYear,
-  onDelete,
-  onAddDepartmentConstraint,
-  onAddDepartmentQuota,
-  onAddLevelConstraint,
-  onDeleteDepartmentConstraint,
-  onDeleteDepartmentQuota,
-  onDeleteLevelConstraint,
-  onEdit,
-  onEditDepartmentQuota,
-  onSaveQuota,
-  onSaveSourceInfo,
-  onToggleAvailability,
-  onValidateAgreementQuota,
-  onValidateDepartmentQuota,
   universities,
   yearFilter,
-  yearAvailabilities,
+  onToggleYearActive,
+  onEditYear,
+  onValidateYear,
+  onSaveDeptQuota,
 }: {
   agreements: Agreement[];
-  agreementDepartmentConstraints: AgreementDepartmentConstraint[];
-  agreementLevelConstraints: AgreementLevelConstraint[];
-  agreementQuotas: AgreementQuota[];
-  academicYears: AcademicYear[];
-  departmentQuotas: DepartmentQuota[];
+  agreementYears: AgreementYear[];
+  agreementYearDepartments: AgreementYearDepartment[];
+  categories: MobilityCategory[];
   departments: Department[];
   levels: Level[];
-  currentYear?: AcademicYear | null;
-  onAddDepartmentConstraint?: (agreement: Agreement) => void;
-  onAddDepartmentQuota: (quota: AgreementQuota) => void;
-  onAddLevelConstraint?: (agreement: Agreement) => void;
-  onDelete: (agreement: Agreement) => void;
-  onDeleteDepartmentConstraint?: (constraint: AgreementDepartmentConstraint) => void;
-  onDeleteDepartmentQuota: (quota: DepartmentQuota) => void;
-  onDeleteLevelConstraint?: (constraint: AgreementLevelConstraint) => void;
-  onEdit: (agreement: Agreement) => void;
-  onEditDepartmentQuota: (quota: DepartmentQuota) => void;
-  onSaveQuota: (agreement: Agreement, places: number, existingQuota: AgreementQuota | null) => Promise<void>;
-  onSaveSourceInfo?: (quota: AgreementQuota, sourceTotalPlaces: number | null, sourceInstitutions: string) => Promise<void>;
-  onToggleAvailability: (agreement: Agreement) => void;
-  onValidateAgreementQuota: (quota: AgreementQuota) => Promise<void>;
-  onValidateDepartmentQuota: (quota: DepartmentQuota) => void;
   universities: PartnerUniversity[];
   yearFilter?: string;
-  yearAvailabilities: AgreementYearAvailability[];
+  onToggleYearActive: (yi: AgreementYear) => Promise<void>;
+  onEditYear: (yi: AgreementYear, n7Places: number) => Promise<void>;
+  onValidateYear: (yi: AgreementYear) => Promise<void>;
+  onSaveDeptQuota: (dq: AgreementYearDepartment, places: number) => Promise<void>;
 }) {
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [editingN7ForId, setEditingN7ForId] = useState<number | null>(null);
+  const [n7EditValue, setN7EditValue] = useState("");
+  const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
+  const [deptEditValue, setDeptEditValue] = useState("");
+  const [viewingRow, setViewingRow] = useState<AgreementRow | null>(null);
 
-  useEffect(() => {
-    setPage(0);
-    setExpandedIds(new Set());
-  }, [agreements]);
+  const universityById  = new Map(universities.map((u) => [u.id, u]));
+  const categoryById    = new Map(categories.map((c) => [c.id, c]));
+  const departmentById  = new Map(departments.map((d) => [d.id, d]));
+  const levelById       = new Map(levels.map((l) => [l.id, l]));
 
-  useEffect(() => { setPage(0); }, [pageSize]);
-
-  const universitiesById = useMemo(
-    () => new Map(universities.map((u) => [u.id, u])),
-    [universities],
-  );
-
-  const agreementQuotasByAgreementId = useMemo(() => {
-    const map = new Map<number, AgreementQuota[]>();
-    for (const q of agreementQuotas) {
-      const items = map.get(q.agreement_id) ?? [];
-      items.push(q);
-      map.set(q.agreement_id, items);
+  const yearInstanceMap = new Map<number, AgreementYear>();
+  for (const yi of agreementYears) {
+    if (!yearFilter || yi.academic_year_label === yearFilter) {
+      yearInstanceMap.set(yi.agreement_id, yi);
     }
-    return map;
-  }, [agreementQuotas]);
-
-  const quotasById = useMemo(
-    () => new Map(agreementQuotas.map((q) => [q.id, q])),
-    [agreementQuotas],
-  );
-
-  const departmentQuotasByAgreementId = useMemo(() => {
-    const map = new Map<number, DepartmentQuota[]>();
-    for (const dq of departmentQuotas) {
-      const quota = quotasById.get(dq.agreement_quota_id);
-      if (!quota) continue;
-      const items = map.get(quota.agreement_id) ?? [];
-      items.push(dq);
-      map.set(quota.agreement_id, items);
-    }
-    return map;
-  }, [departmentQuotas, quotasById]);
-
-  const levelsById = useMemo(
-    () => new Map(levels.map((l) => [l.id, l])),
-    [levels],
-  );
-
-  const departmentsById = useMemo(
-    () => new Map(departments.map((d) => [d.id, d])),
-    [departments],
-  );
-
-  const levelConstraintsByAgreementId = useMemo(() => {
-    const map = new Map<number, AgreementLevelConstraint[]>();
-    for (const c of agreementLevelConstraints) {
-      if (!c.is_active) continue;
-      const items = map.get(c.agreement_id) ?? [];
-      items.push(c);
-      map.set(c.agreement_id, items);
-    }
-    return map;
-  }, [agreementLevelConstraints]);
-
-  const deptConstraintsByAgreementId = useMemo(() => {
-    const map = new Map<number, AgreementDepartmentConstraint[]>();
-    for (const c of agreementDepartmentConstraints) {
-      if (!c.is_active) continue;
-      const items = map.get(c.agreement_id) ?? [];
-      items.push(c);
-      map.set(c.agreement_id, items);
-    }
-    return map;
-  }, [agreementDepartmentConstraints]);
-
-  const isHistoricalView = useMemo(() => {
-    if (!yearFilter) return false;
-    const yr = academicYears.find((y) => y.label === yearFilter);
-    return yr?.status === "closed";
-  }, [yearFilter, academicYears]);
-
-  const totalPages = Math.max(1, Math.ceil(agreements.length / pageSize));
-  const pageAgreements = agreements.slice(page * pageSize, (page + 1) * pageSize);
-
-  function toggleExpand(id: number) {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   }
 
-  if (agreements.length === 0) {
-    return (
-      <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
-        Aucun accord de mobilite reference
-      </div>
-    );
+  const deptQuotasByYearId = new Map<number, AgreementYearDepartment[]>();
+  for (const dq of agreementYearDepartments) {
+    const list = deptQuotasByYearId.get(dq.agreement_year_id) ?? [];
+    list.push(dq);
+    deptQuotasByYearId.set(dq.agreement_year_id, list);
   }
 
-  return (
-    <div className="space-y-3">
-      <div className="divide-y divide-gray-100 rounded-md border border-gray-200 bg-white">
-        {pageAgreements.map((agreement) => {
-          const quotaEntries = filterQuotasForYear(
-            agreementQuotasByAgreementId.get(agreement.id!) ?? [],
-            yearFilter,
-          );
-          const activeQuota = quotaEntries[0] ?? null;
-          const isValidated = activeQuota?.is_validated ?? false;
-          const canEditConstraints = !isHistoricalView && !isValidated;
-          const visibleQuotaIds = new Set(quotaEntries.map((q) => q.id));
-          const deptQuotas = (departmentQuotasByAgreementId.get(agreement.id!) ?? []).filter(
-            (dq) => visibleQuotaIds.has(dq.agreement_quota_id),
-          );
-          const isAvailable = getAgreementAvailabilityForYear(
-            agreement, yearFilter, academicYears, yearAvailabilities, currentYear,
-          );
-          const university = universitiesById.get(agreement.partner_university_id) ?? null;
-          const isExpanded = expandedIds.has(agreement.id!);
-          const levelConstraints = levelConstraintsByAgreementId.get(agreement.id!) ?? [];
-          const deptConstraints = deptConstraintsByAgreementId.get(agreement.id!) ?? [];
+  const rows: AgreementRow[] = agreements.map((a) => {
+    const yi = yearInstanceMap.get(a.id);
+    return {
+      agreement: a,
+      yearInstance: yi,
+      deptQuotas: yi ? (deptQuotasByYearId.get(yi.id) ?? []) : [],
+    };
+  });
 
-          return (
-            <Fragment key={agreement.id}>
-              <div className={isExpanded ? "bg-blue-50/20" : undefined}>
-                {/* ── Card body ─────────────────────────────────────── */}
-                <div className="flex flex-wrap items-start gap-x-6 gap-y-3 px-4 py-3">
+  function startEditN7(yi: AgreementYear) {
+    setEditingN7ForId(yi.id);
+    setN7EditValue(String(yi.n7_places));
+  }
 
-                  {/* Column 1 — Identite */}
-                  <div className="min-w-0 flex-[3] space-y-0.5">
-                    <p className="font-semibold text-gray-900 text-sm leading-snug">
-                      {agreement.name}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {university?.name ?? "—"}
-                      {university?.city ? ` · ${university.city}` : ""}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {agreement.reference || agreement.moveon_relation_id || "—"}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-1 pt-1">
-                      {agreement.framework ? (
-                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
-                          {agreement.framework}
-                        </span>
-                      ) : null}
-                    </div>
-                    {agreement.remarks ? (
-                      <p className="truncate text-xs italic text-gray-400 pt-0.5">
-                        {agreement.remarks}
-                      </p>
-                    ) : null}
-                  </div>
+  async function saveN7(yi: AgreementYear) {
+    const val = parseInt(n7EditValue, 10);
+    if (!isNaN(val) && val !== yi.n7_places) await onEditYear(yi, val);
+    setEditingN7ForId(null);
+  }
 
-                  {/* Column 2 — Niveaux + Departements */}
-                  <div className="flex-[2] space-y-1.5">
-                    {/* Levels */}
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-xs text-gray-400">Niveaux :</span>
-                      {levelConstraints.length === 0 ? (
-                        <span className="text-xs italic text-gray-400">Tous</span>
-                      ) : (
-                        levelConstraints.map((c) => {
-                          const lvl = levelsById.get(c.level_id);
-                          return (
-                            <span
-                              key={c.id}
-                              className="inline-flex items-center gap-0.5 rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700"
-                            >
-                              {lvl?.code ?? c.level_id}
-                              {onDeleteLevelConstraint && canEditConstraints ? (
-                                <button
-                                  className="ml-0.5 flex h-3 w-3 items-center justify-center rounded-full text-purple-300 hover:bg-purple-200 hover:text-purple-700"
-                                  onClick={() => onDeleteLevelConstraint(c)}
-                                  title="Retirer ce niveau"
-                                  type="button"
-                                >
-                                  ×
-                                </button>
-                              ) : null}
-                            </span>
-                          );
-                        })
-                      )}
-                      {onAddLevelConstraint && canEditConstraints ? (
-                        <button
-                          className="flex h-5 w-5 flex-none items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-purple-400 hover:text-purple-600"
-                          onClick={() => onAddLevelConstraint(agreement)}
-                          title="Ajouter un niveau"
-                          type="button"
-                        >
-                          <Plus className="h-3 w-3" aria-hidden="true" />
-                        </button>
-                      ) : null}
-                    </div>
+  function startEditDept(dq: AgreementYearDepartment) {
+    setEditingDeptId(dq.id);
+    setDeptEditValue(String(dq.estimated_places));
+  }
 
-                    {/* Departments — constraints */}
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-xs text-gray-400">Depts :</span>
-                      {deptConstraints.length === 0 ? (
-                        <span className="text-xs italic text-gray-400">Tous</span>
-                      ) : (
-                        deptConstraints.map((c) => {
-                          const dept = departmentsById.get(c.department_id);
-                          return (
-                            <span
-                              key={c.id}
-                              className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-[#1E3A8A]"
-                            >
-                              {dept?.code ?? c.department_id}
-                              {onDeleteDepartmentConstraint && canEditConstraints ? (
-                                <button
-                                  className="ml-0.5 flex h-3 w-3 items-center justify-center rounded-full text-blue-300 hover:bg-blue-200 hover:text-[#1E3A8A]"
-                                  onClick={() => onDeleteDepartmentConstraint(c)}
-                                  title="Retirer ce departement"
-                                  type="button"
-                                >
-                                  ×
-                                </button>
-                              ) : null}
-                            </span>
-                          );
-                        })
-                      )}
-                      {onAddDepartmentConstraint && canEditConstraints ? (
-                        <button
-                          className="flex h-5 w-5 flex-none items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-[#1E3A8A] hover:text-[#1E3A8A]"
-                          onClick={() => onAddDepartmentConstraint(agreement)}
-                          title="Ajouter un departement"
-                          type="button"
-                        >
-                          <Plus className="h-3 w-3" aria-hidden="true" />
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
+  async function saveDept(dq: AgreementYearDepartment) {
+    const val = parseInt(deptEditValue, 10);
+    if (!isNaN(val) && val !== dq.estimated_places) await onSaveDeptQuota(dq, val);
+    setEditingDeptId(null);
+  }
 
-                  {/* Column 3 — Quotas INP */}
-                  <div className="flex-[2] space-y-1.5">
-                    {activeQuota ? (
-                      <>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-xs text-gray-400 shrink-0">INP total :</span>
-                          <InlineEditNumber
-                            value={activeQuota.source_total_places}
-                            readOnly={isHistoricalView || isValidated}
-                            onSave={(v) =>
-                              onSaveSourceInfo?.(activeQuota, v, activeQuota.source_institutions)
-                            }
-                          />
-                        </div>
-                        <div className="flex items-start gap-1.5">
-                          <span className="text-xs text-gray-400 shrink-0">Etablissements :</span>
-                          <InlineEditText
-                            value={activeQuota.source_institutions}
-                            readOnly={isHistoricalView || isValidated}
-                            placeholder="ex: INP-ENSEEIHT;INP-ENSAT"
-                            onSave={(v) =>
-                              onSaveSourceInfo?.(activeQuota, activeQuota.source_total_places, v)
-                            }
-                          />
-                        </div>
-                        {deptQuotas.length > 0 ? (
-                          <div className="flex flex-wrap items-start gap-1">
-                            <span className="text-xs text-gray-400 shrink-0">Repartition :</span>
-                            <div className="flex flex-wrap gap-1">
-                              {deptQuotas.map((dq) => {
-                                const dept = departmentsById.get(dq.department_id);
-                                return (
-                                  <span
-                                    key={dq.id}
-                                    className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700"
-                                  >
-                                    {dept?.code ?? "?"} : {dq.places}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ) : null}
-                      </>
-                    ) : (
-                      <span className="text-xs italic text-gray-400">Pas de quota</span>
-                    )}
-                  </div>
+  const columns: DataTableColumn<AgreementRow>[] = [
+    {
+      key: "accord",
+      header: "Accord",
+      render: ({ agreement }) => {
+        // Vide = tous inclus
+        const displayLevels = agreement.level_ids.length > 0
+          ? agreement.level_ids.map((id) => levelById.get(id)).filter(Boolean)
+          : [...levelById.values()];
+        const displayDepts = agreement.department_ids.length > 0
+          ? agreement.department_ids.map((id) => departmentById.get(id)).filter(Boolean)
+          : [...departmentById.values()];
 
-                  {/* Column 4 — Places N7 + Statut + Actions */}
-                  <div className="flex flex-none flex-col items-end gap-2 min-w-40">
-                    {/* Status row */}
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          isAvailable
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-gray-100 text-gray-500"
-                        }`}
-                      >
-                        {isAvailable ? "disponible" : "indisponible"}
-                      </span>
-                      {isValidated ? (
-                        <span className="flex items-center gap-1 text-xs text-gray-400">
-                          <Lock className="h-3 w-3" aria-hidden="true" />
-                          Valide
-                        </span>
-                      ) : null}
-                    </div>
-
-                    {/* N7 Places */}
-                    <InlineQuotaInput
-                      quota={activeQuota}
-                      onSave={(places) => onSaveQuota(agreement, places, activeQuota)}
-                      onValidate={
-                        activeQuota && !isValidated
-                          ? () => onValidateAgreementQuota(activeQuota)
-                          : undefined
-                      }
-                      readOnly={isHistoricalView || isValidated}
-                      yearLabel={yearFilter}
-                    />
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1">
-                      {isHistoricalView ? (
-                        activeQuota ? (
-                          <ExpandButton
-                            expanded={isExpanded}
-                            onClick={() => toggleExpand(agreement.id!)}
-                          />
-                        ) : null
-                      ) : (
-                        <>
-                          {activeQuota ? (
-                            <ExpandButton
-                              expanded={isExpanded}
-                              onClick={() => toggleExpand(agreement.id!)}
-                            />
-                          ) : null}
-                          {!isValidated ? (
-                            <>
-                              <button
-                                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                                onClick={() => onToggleAvailability(agreement)}
-                                type="button"
-                              >
-                                {isAvailable ? "Desactiver" : "Activer"}
-                              </button>
-                              <ActionButtons
-                                onDelete={() => onDelete(agreement)}
-                                onEdit={() => onEdit(agreement)}
-                              />
-                            </>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Dept quota breakdown ───────────────────────────── */}
-                {isExpanded && activeQuota ? (
-                  <div className="border-t border-gray-100 bg-white px-4 pb-3 pt-2">
-                    <DeptQuotaBreakdown
-                      deptQuotas={deptQuotas}
-                      departments={departments}
-                      isHistoricalView={isHistoricalView}
-                      isValidated={isValidated}
-                      onDelete={onDeleteDepartmentQuota}
-                      onEdit={onEditDepartmentQuota}
-                      onValidate={onValidateDepartmentQuota}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </Fragment>
-          );
-        })}
-      </div>
-
-      {/* ── Pagination ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-1 text-sm text-gray-600">
-        <span>
-          {agreements.length} accord{agreements.length > 1 ? "s" : ""}
-          {` — page ${page + 1} / ${totalPages}`}
-        </span>
-        <div className="flex items-center gap-3">
-          <select
-            className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
-            onChange={(e) => setPageSize(Number(e.target.value))}
-            value={pageSize}
-          >
-            {PAGE_SIZE_OPTIONS.map((size) => (
-              <option key={size} value={size}>{size} / page</option>
-            ))}
-          </select>
-          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        return (
+          <div className="min-w-48">
+            <p className="font-medium text-gray-900">{agreement.name}</p>
+            {agreement.reference ? (
+              <p className="text-xs text-gray-400">{agreement.reference}</p>
+            ) : null}
+            <div className="mt-1 flex flex-wrap gap-1">
+              {displayLevels.map((l) => l && (
+                <span key={l.id} className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">
+                  {l.code}
+                </span>
+              ))}
+              {displayDepts.map((d) => d && (
+                <span key={d.id} className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+                  {d.code}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "partenaire",
+      header: "Partenaire",
+      render: ({ agreement }) => {
+        const u = universityById.get(agreement.partner_university_id);
+        return (
+          <div>
+            <p className="text-sm text-gray-700">{u?.short_name ?? u?.name ?? "—"}</p>
+            {u?.city ? <p className="text-xs text-gray-400">{u.city}</p> : null}
+          </div>
+        );
+      },
+    },
+    {
+      key: "cadre",
+      header: "Cadre / Direction",
+      render: ({ agreement }) => {
+        const cat = categoryById.get(agreement.category_id ?? -1);
+        return (
+          <div className="space-y-1">
+            {cat ? <p className="text-xs font-medium text-gray-600">{cat.name}</p> : null}
+            <DirectionBadge direction={agreement.direction} />
+          </div>
+        );
+      },
+    },
+    {
+      key: "validite",
+      header: "Validité · INP",
+      render: ({ agreement }) => (
+        <div className="text-xs">
+          <p className="text-gray-500">
+            {agreement.valid_from  ? agreement.valid_from.slice(0, 7)  : "—"}
+            {" → "}
+            {agreement.valid_until ? agreement.valid_until.slice(0, 7) : "—"}
+          </p>
+          <p className="mt-0.5 font-semibold text-gray-700">
+            {agreement.inp_total_places} place{agreement.inp_total_places !== 1 ? "s" : ""} INP
+          </p>
+          {agreement.inp_institutions ? (
+            <p className="max-w-32 truncate text-[10px] text-gray-400" title={agreement.inp_institutions}>
+              {agreement.inp_institutions}
+            </p>
+          ) : null}
         </div>
-      </div>
-    </div>
-  );
-}
+      ),
+    },
+    {
+      key: "annee",
+      header: yearFilter ? `Année ${yearFilter}` : "Instance annuelle",
+      render: ({ yearInstance, deptQuotas }) => {
+        if (!yearInstance) {
+          return <span className="text-xs italic text-gray-400">Pas d&apos;instance</span>;
+        }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function ExpandButton({ expanded, onClick }: { expanded: boolean; onClick: () => void }) {
-  return (
-    <button
-      className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-      onClick={onClick}
-      type="button"
-    >
-      Repartition
-      {expanded ? (
-        <ChevronUp className="h-3 w-3" aria-hidden="true" />
-      ) : (
-        <ChevronDown className="h-3 w-3" aria-hidden="true" />
-      )}
-    </button>
-  );
-}
-
-function Pagination({
-  page,
-  totalPages,
-  onPageChange,
-}: {
-  page: number;
-  totalPages: number;
-  onPageChange: (p: number) => void;
-}) {
-  const pageNumbers = buildPageNumbers(page, totalPages);
-
-  return (
-    <div className="flex items-center gap-1">
-      <NavBtn onClick={() => onPageChange(0)} disabled={page === 0} label="«" title="Premiere page" />
-      <NavBtn onClick={() => onPageChange(page - 1)} disabled={page === 0} label="‹" title="Page precedente" />
-
-      {pageNumbers.map((p, i) =>
-        p === "..." ? (
-          <span key={`ellipsis-${i}`} className="px-1 text-xs text-gray-400">…</span>
-        ) : (
-          <button
-            key={p}
-            className={`min-w-[2rem] rounded-md border px-2 py-1 text-xs font-medium ${
-              p === page
-                ? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
-                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-            }`}
-            onClick={() => onPageChange(p as number)}
-            type="button"
-          >
-            {(p as number) + 1}
-          </button>
-        ),
-      )}
-
-      <NavBtn onClick={() => onPageChange(page + 1)} disabled={page >= totalPages - 1} label="›" title="Page suivante" />
-      <NavBtn onClick={() => onPageChange(totalPages - 1)} disabled={page >= totalPages - 1} label="»" title="Derniere page" />
-    </div>
-  );
-}
-
-function NavBtn({
-  onClick,
-  disabled,
-  label,
-  title,
-}: {
-  onClick: () => void;
-  disabled: boolean;
-  label: string;
-  title: string;
-}) {
-  return (
-    <button
-      className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-      disabled={disabled}
-      onClick={onClick}
-      title={title}
-      type="button"
-    >
-      {label}
-    </button>
-  );
-}
-
-function buildPageNumbers(current: number, total: number): (number | "...")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i);
-  const pages: (number | "...")[] = [];
-  const addPage = (p: number) => { if (!pages.includes(p)) pages.push(p); };
-  addPage(0);
-  if (current > 3) pages.push("...");
-  for (let p = Math.max(1, current - 2); p <= Math.min(total - 2, current + 2); p++) addPage(p);
-  if (current < total - 4) pages.push("...");
-  addPage(total - 1);
-  return pages;
-}
-
-function DeptQuotaBreakdown({
-  deptQuotas,
-  departments,
-  isHistoricalView,
-  isValidated,
-  onDelete,
-  onEdit,
-  onValidate,
-}: {
-  deptQuotas: DepartmentQuota[];
-  departments: Department[];
-  isHistoricalView: boolean;
-  isValidated: boolean;
-  onDelete: (q: DepartmentQuota) => void;
-  onEdit: (q: DepartmentQuota) => void;
-  onValidate: (q: DepartmentQuota) => void;
-}) {
-  const showActions = !isHistoricalView && !isValidated;
-
-  if (deptQuotas.length === 0) {
-    return (
-      <p className="text-sm text-gray-500">
-        Aucune repartition departement pour cet accord.
-      </p>
-    );
-  }
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white">
-      <table className="min-w-full divide-y divide-gray-200 text-sm">
-        <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-normal text-gray-500">
-          <tr>
-            <th className="px-3 py-2">Departement</th>
-            <th className="px-3 py-2">Places</th>
-            <th className="px-3 py-2">Statut</th>
-            {showActions ? <th className="px-3 py-2 text-right">Actions</th> : null}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 bg-white">
-          {deptQuotas.map((dq) => {
-            const dept = departments.find((d) => d.id === dq.department_id);
-            return (
-              <tr key={dq.id}>
-                <td className="px-3 py-2.5 text-gray-700">
-                  {dept ? `${dept.code} — ${dept.name}` : "Departement inconnu"}
-                </td>
-                <td className="px-3 py-2.5">
-                  <span className="font-medium text-gray-900">{dq.places}</span>
-                  {dq.estimated_places !== null && dq.estimated_places !== dq.places ? (
-                    <span className="ml-1.5 text-xs text-gray-400">
-                      (estime : {dq.estimated_places})
-                    </span>
-                  ) : null}
-                </td>
-                <td className="px-3 py-2.5">
-                  {dq.is_validated ? (
-                    <div>
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                        Valide
-                      </span>
-                      {dq.validated_by ? (
-                        <p className="mt-0.5 text-xs text-gray-400">
-                          {dq.validated_by}
-                          {dq.validated_at
-                            ? ` · ${new Date(dq.validated_at).toLocaleDateString("fr-FR")}`
-                            : ""}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : dq.is_estimated ? (
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                        Estime
-                      </span>
-                      {showActions ? (
-                        <button
-                          className="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
-                          onClick={() => onValidate(dq)}
-                          type="button"
-                        >
-                          Valider
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <span className="text-xs text-gray-500">Manuel</span>
-                  )}
-                </td>
-                {showActions ? (
-                  <td className="px-3 py-2.5 text-right">
-                    <ActionButtons onDelete={() => onDelete(dq)} onEdit={() => onEdit(dq)} />
-                  </td>
-                ) : null}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ── Inline quota input ────────────────────────────────────────────────────────
-
-function InlineQuotaInput({
-  quota,
-  onSave,
-  onValidate,
-  readOnly = false,
-  yearLabel,
-}: {
-  quota: AgreementQuota | null;
-  onSave: (places: number) => Promise<void>;
-  onValidate?: () => Promise<void>;
-  readOnly?: boolean;
-  yearLabel?: string;
-}) {
-  const [value, setValue] = useState<string>(quota ? String(quota.total_places) : "");
-  const [saving, setSaving] = useState(false);
-  const [validating, setValidating] = useState(false);
-  const [error, setError] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const label = yearLabel ? `Places N7 — ${yearLabel}` : "Places N7 (annee courante)";
-
-  if (readOnly) {
-    return (
-      <div className="text-right">
-        <p className="text-xs text-gray-400">{label}</p>
-        <p className="text-lg font-semibold text-gray-900">
-          {quota ? quota.total_places : "—"}
-        </p>
-        {quota ? (
-          <p className="text-xs text-gray-400">{quota.remaining_places} restantes</p>
-        ) : null}
-      </div>
-    );
-  }
-
-  async function handleValidate() {
-    if (!onValidate) return;
-    setValidating(true);
-    try {
-      await onValidate();
-    } finally {
-      setValidating(false);
-    }
-  }
-
-  async function commit() {
-    const trimmed = value.trim();
-    if (trimmed === "" && !quota) return;
-    const places = Number(trimmed);
-    if (isNaN(places) || places < 0) {
-      setError(true);
-      return;
-    }
-    if (quota?.source_total_places != null && places > quota.source_total_places) {
-      setError(true);
-      return;
-    }
-    if (quota && places === quota.total_places) return;
-    setError(false);
-    setSaving(true);
-    try {
-      await onSave(places);
-    } catch {
-      setError(true);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      inputRef.current?.blur();
-    }
-    if (e.key === "Escape") {
-      setValue(quota ? String(quota.total_places) : "");
-      setError(false);
-      inputRef.current?.blur();
-    }
-  }
-
-  return (
-    <div className="text-right">
-      <p className="text-xs text-gray-400">{label}</p>
-      <div className="mt-0.5 flex items-center justify-end gap-1.5">
-        <input
-          ref={inputRef}
-          className={`w-20 rounded-md border px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] ${
-            error ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"
-          } ${saving ? "opacity-60" : ""}`}
-          disabled={saving}
-          min="0"
-          onBlur={commit}
-          onChange={(e) => {
-            setValue(e.target.value);
-            setError(false);
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="places"
-          type="number"
-          value={value}
-        />
-        {saving ? <span className="text-xs text-gray-400">...</span> : null}
-        {quota?.is_estimated && !quota.is_validated ? (
-          <div className="flex items-center gap-1">
-            <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">
-              Estime
-            </span>
-            {onValidate ? (
+        // ── Inactif : rien à afficher sauf le statut + bouton Activer ────────
+        if (!yearInstance.is_active && !yearInstance.is_validated) {
+          return (
+            <div className="flex flex-wrap items-center gap-2">
+              <YearStatusBadge instance={yearInstance} />
               <button
-                className="rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-60"
-                disabled={validating}
-                onClick={handleValidate}
+                className="rounded border border-gray-200 bg-white px-2 py-0.5 text-[10px] text-gray-600 hover:bg-gray-50"
+                onClick={() => onToggleYearActive(yearInstance)}
                 type="button"
               >
-                {validating ? "..." : "Valider"}
+                <ToggleLeft className="mr-0.5 inline text-gray-400" size={10} />
+                Activer
               </button>
+            </div>
+          );
+        }
+
+        // ── Actif ou validé : affichage complet ───────────────────────────────
+        const locked = yearInstance.is_validated;
+        const deptTotal = deptQuotas.reduce((s, dq) => s + dq.estimated_places, 0);
+        const isInconsistent = deptQuotas.length > 0 && deptTotal !== yearInstance.n7_places;
+
+        return (
+          <div className="min-w-52 space-y-2">
+            {/* Statut + N7 */}
+            <div className="flex flex-wrap items-center gap-2">
+              <YearStatusBadge instance={yearInstance} />
+
+              {/* N7 inline-editable */}
+              {!locked && editingN7ForId === yearInstance.id ? (
+                <input
+                  autoFocus
+                  className="w-14 rounded border border-blue-300 px-1 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  min="0"
+                  onBlur={() => saveN7(yearInstance)}
+                  onChange={(e) => setN7EditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter")  saveN7(yearInstance);
+                    if (e.key === "Escape") setEditingN7ForId(null);
+                  }}
+                  type="number"
+                  value={n7EditValue}
+                />
+              ) : (
+                <button
+                  className={`rounded px-1.5 py-0.5 text-xs font-semibold ${
+                    locked ? "cursor-default text-gray-600" : "text-[#1E3A8A] hover:bg-blue-50 cursor-text"
+                  }`}
+                  disabled={locked}
+                  onClick={() => !locked && startEditN7(yearInstance)}
+                  title={locked ? "Validé — non modifiable" : "Cliquer pour modifier le quota N7"}
+                  type="button"
+                >
+                  N7 : {yearInstance.n7_places}
+                  {locked && <Lock className="ml-1 inline" size={9} />}
+                </button>
+              )}
+            </div>
+
+            {/* Répartition par département — visible et éditable inline */}
+            {deptQuotas.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {deptQuotas.map((dq) => {
+                  const dept = departmentById.get(dq.department_id);
+                  const code = dept?.code ?? String(dq.department_id);
+                  const isEditingThis = !locked && editingDeptId === dq.id;
+                  return (
+                    <span key={dq.id} className="inline-flex items-center gap-0.5">
+                      <span className="text-[10px] font-medium text-gray-500">{code} :</span>
+                      {isEditingThis ? (
+                        <input
+                          autoFocus
+                          className="w-10 rounded border border-blue-300 px-0.5 py-0.5 text-[10px] text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          min="0"
+                          onBlur={() => saveDept(dq)}
+                          onChange={(e) => setDeptEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter")  saveDept(dq);
+                            if (e.key === "Escape") setEditingDeptId(null);
+                          }}
+                          type="number"
+                          value={deptEditValue}
+                        />
+                      ) : (
+                        <button
+                          className={`rounded px-1 py-0.5 text-[10px] font-semibold ${
+                            locked ? "cursor-default text-gray-700" : "text-[#1E3A8A] hover:bg-blue-50 cursor-text"
+                          }`}
+                          disabled={locked}
+                          onClick={() => !locked && startEditDept(dq)}
+                          title={locked ? "Validé" : "Cliquer pour modifier"}
+                          type="button"
+                        >
+                          {dq.estimated_places}
+                        </button>
+                      )}
+                    </span>
+                  );
+                })}
+                {isInconsistent && (
+                  <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-600">
+                    {deptTotal} ≠ N7 {yearInstance.n7_places}
+                  </span>
+                )}
+              </div>
             ) : null}
+
+            {/* Actions (uniquement si actif et non validé) */}
+            {!locked && (
+              <div className="flex flex-wrap gap-1">
+                <button
+                  className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] text-gray-600 hover:bg-gray-50"
+                  onClick={() => onToggleYearActive(yearInstance)}
+                  type="button"
+                >
+                  <ToggleRight className="mr-0.5 inline text-green-500" size={10} />
+                  Désactiver
+                </button>
+                <button
+                  className="rounded border border-green-300 bg-green-50 px-1.5 py-0.5 text-[10px] text-green-700 hover:bg-green-100"
+                  onClick={() => onValidateYear(yearInstance)}
+                  type="button"
+                >
+                  <Check className="mr-0.5 inline" size={9} /> Valider
+                </button>
+              </div>
+            )}
           </div>
-        ) : null}
-      </div>
-      {quota ? (
-        <p className="text-xs text-gray-400">{quota.remaining_places} restantes</p>
-      ) : (
-        <p className="text-xs text-gray-400">Saisir pour creer</p>
+        );
+      },
+    },
+    {
+      key: "vue",
+      header: "",
+      align: "right",
+      render: (row) => (
+        <button
+          className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+          onClick={() => setViewingRow(row)}
+          title="Voir les détails"
+          type="button"
+        >
+          <Eye size={15} />
+        </button>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <DataTable
+        columns={columns}
+        data={rows}
+        emptyLabel="Aucun accord trouvé."
+        getRowKey={(row) => row.agreement.id}
+        pageSize={5}
+      />
+
+      {viewingRow && (
+        <AgreementDetailModal
+          agreement={viewingRow.agreement}
+          allAgreementYears={agreementYears}
+          allDeptQuotas={agreementYearDepartments}
+          university={universityById.get(viewingRow.agreement.partner_university_id)}
+          category={categoryById.get(viewingRow.agreement.category_id ?? -1)}
+          departments={departmentById}
+          levels={levelById}
+          onClose={() => setViewingRow(null)}
+        />
       )}
-    </div>
+    </>
   );
 }
 
-// ── Inline source info inputs ─────────────────────────────────────────────────
+function DirectionBadge({ direction }: { direction: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    outgoing: { label: "Sortant",  cls: "bg-blue-100 text-blue-700"   },
+    incoming: { label: "Entrant",  cls: "bg-orange-100 text-orange-700" },
+    both:     { label: "Les deux", cls: "bg-purple-100 text-purple-700" },
+  };
+  const c = map[direction] ?? { label: direction, cls: "bg-gray-100 text-gray-500" };
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${c.cls}`}>
+      {c.label}
+    </span>
+  );
+}
 
-function InlineEditNumber({
-  value,
-  onSave,
-  readOnly,
-}: {
-  value: number | null;
-  onSave: ((v: number | null) => Promise<void> | void) | undefined;
-  readOnly: boolean;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  function startEdit() {
-    if (readOnly || !onSave) return;
-    setDraft(value != null ? String(value) : "");
-    setEditing(true);
-  }
-
-  async function commit() {
-    setEditing(false);
-    if (!onSave) return;
-    const trimmed = draft.trim();
-    const newVal = trimmed === "" ? null : Number(trimmed);
-    if (newVal === value || (newVal == null && value == null)) return;
-    if (trimmed !== "" && isNaN(newVal!)) return;
-    setSaving(true);
-    try { await onSave(newVal); } finally { setSaving(false); }
-  }
-
-  if (!editing) {
+function YearStatusBadge({ instance }: { instance: AgreementYear }) {
+  if (instance.is_validated) {
     return (
-      <button
-        className="text-xs text-left disabled:cursor-default"
-        disabled={readOnly || saving || !onSave}
-        onClick={startEdit}
-        title={readOnly ? undefined : "Cliquer pour modifier"}
-        type="button"
-      >
-        {saving ? (
-          <span className="text-gray-400">...</span>
-        ) : value != null ? (
-          <span className={`font-medium ${readOnly ? "text-gray-700" : "text-gray-700 hover:underline"}`}>
-            {value} places
-          </span>
-        ) : (
-          <span className={readOnly ? "italic text-gray-400" : "italic text-blue-500 hover:underline"}>
-            {readOnly ? "non renseigne" : "ajouter..."}
-          </span>
-        )}
-      </button>
+      <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
+        <Lock size={8} /> Validé
+      </span>
     );
   }
-
-  return (
-    <input
-      autoFocus
-      className="w-20 rounded border border-gray-300 px-1.5 py-0.5 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
-      min="0"
-      onBlur={commit}
-      onChange={(e) => setDraft(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") e.currentTarget.blur();
-        if (e.key === "Escape") { setEditing(false); setDraft(""); }
-      }}
-      type="number"
-      value={draft}
-    />
+  return instance.is_active ? (
+    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+      Actif
+    </span>
+  ) : (
+    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+      Inactif
+    </span>
   );
-}
-
-function InlineEditText({
-  value,
-  onSave,
-  placeholder,
-  readOnly,
-}: {
-  value: string;
-  onSave: ((v: string) => Promise<void> | void) | undefined;
-  placeholder?: string;
-  readOnly: boolean;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  function startEdit() {
-    if (readOnly || !onSave) return;
-    setDraft(value ?? "");
-    setEditing(true);
-  }
-
-  async function commit() {
-    setEditing(false);
-    if (!onSave) return;
-    const trimmed = draft.trim();
-    if (trimmed === (value ?? "")) return;
-    setSaving(true);
-    try { await onSave(trimmed); } finally { setSaving(false); }
-  }
-
-  if (!editing) {
-    return (
-      <button
-        className="max-w-[13rem] truncate text-xs text-left disabled:cursor-default"
-        disabled={readOnly || saving || !onSave}
-        onClick={startEdit}
-        title={value || (readOnly ? undefined : "Cliquer pour modifier")}
-        type="button"
-      >
-        {saving ? (
-          <span className="text-gray-400">...</span>
-        ) : value ? (
-          <span className={readOnly ? "text-gray-600" : "text-gray-600 hover:underline"}>{value}</span>
-        ) : (
-          <span className={readOnly ? "italic text-gray-400" : "italic text-blue-500 hover:underline"}>
-            {readOnly ? "—" : "ajouter..."}
-          </span>
-        )}
-      </button>
-    );
-  }
-
-  return (
-    <input
-      autoFocus
-      className="w-44 rounded border border-gray-300 px-1.5 py-0.5 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
-      onBlur={commit}
-      onChange={(e) => setDraft(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") e.currentTarget.blur();
-        if (e.key === "Escape") { setEditing(false); setDraft(""); }
-      }}
-      placeholder={placeholder}
-      value={draft}
-    />
-  );
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function getAgreementAvailabilityForYear(
-  agreement: Agreement,
-  yearFilter: string | undefined,
-  academicYears: AcademicYear[],
-  availabilities: AgreementYearAvailability[],
-  currentYear?: AcademicYear | null,
-) {
-  const selectedLabel = yearFilter || currentYear?.label;
-  const selectedYear =
-    academicYears.find((y) => y.label === selectedLabel) ?? currentYear;
-  const availability = selectedLabel
-    ? availabilities.find(
-        (item) =>
-          item.agreement_id === agreement.id! &&
-          item.academic_year_label === selectedLabel,
-      )
-    : undefined;
-
-  if (availability) return availability.is_available;
-  return selectedYear
-    ? isAgreementValidForYear(agreement, selectedYear)
-    : agreement.is_active;
-}
-
-function filterQuotasForYear(quotas: AgreementQuota[], yearFilter?: string) {
-  if (!yearFilter) return quotas;
-  return quotas.filter((q) => q.academic_year_label === yearFilter);
-}
-
-function isAgreementValidForYear(agreement: Agreement, academicYear: AcademicYear) {
-  if (!agreement.is_active) return false;
-  if (
-    ["closed", "archived", "inactive", "termine", "terminé"].includes(
-      (agreement.status ?? "").toLowerCase(),
-    )
-  ) {
-    return false;
-  }
-  if (agreement.start_date && agreement.start_date > academicYear.end_date)
-    return false;
-  if (agreement.end_date && agreement.end_date < academicYear.start_date)
-    return false;
-  return true;
 }

@@ -13,28 +13,13 @@ function getColumns(
       key: "name",
       header: "Cadre",
       render: (framework) => (
-        <div className="min-w-64">
-          <p className="font-medium text-gray-900">{framework.name}</p>
-          <p className="mt-1 text-xs text-gray-500">
-            {framework.relation_types || "Type(s) de relation non renseigne(s)"}
-          </p>
-        </div>
+        <p className="font-medium text-gray-900">{framework.name}</p>
       ),
     },
     {
-      key: "moveon_framework_id",
+      key: "moveon_id",
       header: "MoveON ID",
-      render: (framework) => framework.moveon_framework_id || "-",
-    },
-    {
-      key: "external_id",
-      header: "External ID",
-      render: (framework) => framework.external_id || "-",
-    },
-    {
-      key: "is_active",
-      header: "Actif",
-      render: (framework) => (framework.is_active ? "Oui" : "Non"),
+      render: (framework) => framework.moveon_id || "-",
     },
     {
       key: "last_sync_moveon",
@@ -70,7 +55,7 @@ export function MobilityCategorysTable({
       emptyLabel="Aucun cadre d'accord configure"
       getRowKey={(framework) => framework.id}
       maxHeight="28rem"
-      pageSize={20}
+      pageSize={5}
     />
   );
 }

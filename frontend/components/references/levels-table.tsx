@@ -75,7 +75,7 @@ export function LevelsTable({
       data={levels}
       emptyLabel="Aucun niveau configure"
       getRowKey={(level) => level.id}
-      pageSize={15}
+      pageSize={5}
     />
   );
 }

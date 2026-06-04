@@ -75,7 +75,7 @@ export function CountriesTable({
       emptyLabel="Aucun pays reference"
       getRowKey={(country) => country.id}
       maxHeight="32rem"
-      pageSize={25}
+      pageSize={5}
     />
   );
 }
