@@ -6,6 +6,10 @@ import { Plus } from "lucide-react";
 import { CountriesTable } from "@/components/references/countries-table";
 import { DepartmentsTable } from "@/components/references/departments-table";
 import { ImportErrorsPanel } from "@/components/references/import-errors-panel";
+import { LevelForm } from "@/components/references/level-form";
+import { LevelsTable } from "@/components/references/levels-table";
+import { ParcoursForm } from "@/components/references/parcours-form";
+import { ParcoursTable } from "@/components/references/parcours-table";
 import {
   ReferenceForm,
   type ReferenceFormKind,
@@ -13,54 +17,56 @@ import {
 import { ReferenceSection } from "@/components/references/reference-section";
 import { ReferenceTabs } from "@/components/references/reference-tabs";
 import { UniversitiesTable } from "@/components/references/universities-table";
-import { LevelForm } from "@/components/references/level-form";
-import { LevelsTable } from "@/components/references/levels-table";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { SearchInput } from "@/components/ui/search-input";
 import {
   createCountry,
   createDepartment,
+  createLevel,
+  createParcours,
   createUniversity,
   deleteCountry,
   deleteDepartment,
+  deleteLevel,
+  deleteParcours,
   deleteUniversity,
-  getDepartments,
-  getUniversities,
   getDepartmentImportErrors,
+  getDepartments,
+  getLevelImportErrors,
+  getLevels,
+  getUniversities,
   getUniversityImportErrors,
   ignoreDepartmentImport,
+  ignoreLevelImport,
   ignoreUniversityImport,
   retryDepartmentImport,
   retryUniversityImport,
   syncDepartmentsFromPegase,
+  syncLevelsFromPegase,
   syncUniversitiesFromMoveon,
   updateCountry,
   updateDepartment,
+  updateLevel,
+  updateParcours,
   updateUniversity,
   type CountryPayload,
   type DepartmentPayload,
-  type PartnerUniversityPayload,
-} from "@/lib/api/reference-mutations";
-import {
-  createLevel,
-  deleteLevel,
-  getLevelImportErrors,
-  getLevels,
-  ignoreLevelImport,
-  syncLevelsFromPegase,
-  updateLevel,
   type LevelPayload,
+  type ParcoursPayload,
+  type PartnerUniversityPayload,
 } from "@/lib/api/reference-mutations";
 import type {
   Country,
   Department,
   Level,
+  Parcours,
   PartnerUniversity,
   RawImport,
 } from "@/lib/api/types";
 
 type LevelModalState = { kind: "mobilityLevel"; item?: Level };
+type ParcoursModalState = { kind: "parcours"; item?: Parcours };
 
 type ReferencesWorkspaceProps = {
   countries: Country[];
@@ -77,6 +83,8 @@ type ReferencesWorkspaceProps = {
   setMobilityLevels: Dispatch<SetStateAction<Level[]>>;
   levelImportErrors: RawImport[];
   setLevelImportErrors: Dispatch<SetStateAction<RawImport[]>>;
+  parcours: Parcours[];
+  setParcours: Dispatch<SetStateAction<Parcours[]>>;
 };
 
 export function ReferencesWorkspace({
@@ -94,6 +102,8 @@ export function ReferencesWorkspace({
   setMobilityLevels,
   levelImportErrors,
   setLevelImportErrors,
+  parcours,
+  setParcours,
 }: ReferencesWorkspaceProps) {
   const [query, setQuery] = useState("");
   const { confirm, dialog: confirmDialog } = useConfirm();
@@ -102,6 +112,7 @@ export function ReferencesWorkspace({
     item?: Country | Department | PartnerUniversity;
   } | null>(null);
   const [levelModal, setLevelModal] = useState<LevelModalState | null>(null);
+  const [parcoursModal, setParcoursModal] = useState<ParcoursModalState | null>(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncError, setSyncError] = useState("");
   const [departmentSyncInProgress, setDepartmentSyncInProgress] = useState(false);
@@ -156,6 +167,18 @@ export function ReferencesWorkspace({
     );
   }, [mobilityLevels, normalizedQuery]);
 
+  const filteredParcours = useMemo(() => {
+    if (!normalizedQuery) return parcours;
+    const deptMap = new Map(departments.map((d) => [d.id, d]));
+    return parcours.filter((p) => {
+      const d = deptMap.get(p.department_id);
+      return [p.code, p.label, d?.code ?? ""]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
+  }, [parcours, departments, normalizedQuery]);
+
   async function submitReference(
     payload: CountryPayload | DepartmentPayload | PartnerUniversityPayload
   ) {
@@ -205,6 +228,18 @@ export function ReferencesWorkspace({
     setLevelModal(null);
   }
 
+  async function submitParcours(payload: ParcoursPayload) {
+    if (!parcoursModal) return;
+    if (parcoursModal.item) {
+      const res = await updateParcours(parcoursModal.item.id, payload);
+      setParcours((prev) => prev.map((i) => (i.id === res.id ? res : i)));
+    } else {
+      const res = await createParcours(payload);
+      setParcours((prev) => [...prev, res]);
+    }
+    setParcoursModal(null);
+  }
+
   async function removeCountry(country: Country) {
     if (!await confirm(`Supprimer le pays "${country.name_fr}" ?`)) return;
     await deleteCountry(country.id);
@@ -227,6 +262,12 @@ export function ReferencesWorkspace({
     if (!await confirm(`Supprimer le niveau "${level.code}" ?`)) return;
     await deleteLevel(level.id);
     setMobilityLevels((prev) => prev.filter((i) => i.id !== level.id));
+  }
+
+  async function removeParcours(p: Parcours) {
+    if (!await confirm(`Supprimer le parcours "${p.code}" ?`)) return;
+    await deleteParcours(p.id);
+    setParcours((prev) => prev.filter((i) => i.id !== p.id));
   }
 
   async function handleSyncUniversities() {
@@ -352,7 +393,7 @@ export function ReferencesWorkspace({
         levelsCount={mobilityLevels.length}
         universitiesCount={universities.length}
         countriesCount={countries.length}
-
+        parcoursCount={parcours.length}
       />
 
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -382,8 +423,6 @@ export function ReferencesWorkspace({
       ) : null}
 
       <div className="space-y-10">
-        
-
         <div id="departements">
           <ReferenceSection
             title="Departements"
@@ -408,6 +447,26 @@ export function ReferencesWorkspace({
               isBusy={departmentSyncInProgress}
               onIgnore={ignoreDepartmentImportError}
               onRetry={retryDepartmentImportError}
+            />
+          </ReferenceSection>
+        </div>
+
+        <div id="parcours">
+          <ReferenceSection
+            title="Parcours"
+            description="Parcours pedagogiques par departement."
+            toolbar={
+              <AddButton
+                label="Ajouter un parcours"
+                onClick={() => setParcoursModal({ kind: "parcours" })}
+              />
+            }
+          >
+            <ParcoursTable
+              parcours={filteredParcours}
+              departments={departments}
+              onDelete={removeParcours}
+              onEdit={(p) => setParcoursModal({ kind: "parcours", item: p })}
             />
           </ReferenceSection>
         </div>
@@ -515,6 +574,22 @@ export function ReferencesWorkspace({
           />
         </Modal>
       )}
+
+      {parcoursModal && (
+        <Modal
+          onClose={() => setParcoursModal(null)}
+          title={parcoursModal.item ? "Modifier le parcours" : "Ajouter un parcours"}
+          description="Parcours pedagogique rattache a un departement."
+        >
+          <ParcoursForm
+            item={parcoursModal.item}
+            departments={departments}
+            onCancel={() => setParcoursModal(null)}
+            onSubmit={submitParcours}
+          />
+        </Modal>
+      )}
+
       {confirmDialog}
     </>
   );

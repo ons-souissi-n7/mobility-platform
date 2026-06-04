@@ -4,21 +4,17 @@ import pytest
 from django.test import RequestFactory
 
 from app.academic.models import AcademicYear
+from app.imports.models import RawImport, RawImportStatus
 from app.institutions.models import PartnerUniversity
 from app.integrations.moveon import MoveOnAgreement, MoveOnAgreementFramework
 from app.mobility.api import list_agreements
 from app.mobility.models import (
     Agreement,
-    AgreementDepartmentConstraint,
-    AgreementLevelConstraint,
-    AgreementQuota,
-    AgreementYearAvailability,
-    DepartmentQuota,
+    AgreementYear,
+    AgreementYearDepartment,
     MobilityCategory,
-    RawImport,
-    RawImportStatus,
 )
-from app.mobility.services.quota_estimator import estimate_current_year_missing_quotas
+from app.mobility.services.quota_estimator import initialize_new_year_mobility
 from app.mobility.services.sync_moveon import (
     sync_moveon_agreements,
     sync_moveon_mobility,
@@ -55,37 +51,10 @@ class TestMoveOnMobilitySync:
 
         assert result.total == 1
         assert result.created == 1
-        agreement = Agreement.objects.get(moveon_relation_id="REL-001")
-        assert AgreementDepartmentConstraint.objects.filter(
-            agreement=agreement,
-            department__code="SN",
-            is_active=True,
-        ).exists()
-        assert AgreementLevelConstraint.objects.filter(
-            agreement=agreement,
-            level__code="MASTER",
-            is_active=True,
-        ).exists()
+        agreement = Agreement.objects.get(moveon_id="REL-001")
+        assert agreement.departments.filter(code="SN").exists()
+        assert agreement.levels.filter(code="MASTER").exists()
         assert RawImport.objects.filter(status=RawImportStatus.IMPORTED).exists()
-
-    def test_sync_creates_year_availability_override(self):
-        create_university()
-
-        sync_moveon_agreements(
-            FakeClient(
-                agreements=[
-                    agreement_payload(
-                        academic_year_label="2026-2027",
-                        is_available_for_year=False,
-                    )
-                ]
-            )
-        )
-
-        agreement = Agreement.objects.get(moveon_relation_id="REL-001")
-        availability = AgreementYearAvailability.objects.get(agreement=agreement)
-        assert availability.academic_year_label == "2026-2027"
-        assert availability.is_available is False
 
     def test_sync_updates_existing_agreement(self):
         create_university()
@@ -94,7 +63,7 @@ class TestMoveOnMobilitySync:
 
         result = sync_moveon_agreements(FakeClient(agreements=[payload]))
 
-        agreement = Agreement.objects.get(moveon_relation_id="REL-001")
+        agreement = Agreement.objects.get(moveon_id="REL-001")
         assert result.created == 0
         assert result.updated == 1
         assert agreement.name == "Updated Erasmus agreement"
@@ -109,7 +78,7 @@ class TestMoveOnMobilitySync:
         assert not Agreement.objects.exists()
         assert RawImport.objects.filter(
             status=RawImportStatus.FAILED,
-            error_message__contains="partner_university reference",
+            error_message__icontains="université partenaire",
         ).exists()
 
     def test_sync_marks_invalid_agreement_as_failed_when_partner_university_is_missing(
@@ -123,7 +92,7 @@ class TestMoveOnMobilitySync:
         assert not Agreement.objects.exists()
         assert RawImport.objects.filter(
             status=RawImportStatus.FAILED,
-            error_message__contains="partner university reference",
+            error_message__icontains="université partenaire",
         ).exists()
 
     def test_sync_links_agreement_by_erasmus_code_when_moveon_id_is_missing(self):
@@ -136,7 +105,7 @@ class TestMoveOnMobilitySync:
 
         result = sync_moveon_agreements(FakeClient(agreements=[payload]))
 
-        agreement = Agreement.objects.get(moveon_relation_id="REL-001")
+        agreement = Agreement.objects.get(moveon_id="REL-001")
         assert result.created == 1
         assert agreement.partner_university == university
 
@@ -145,11 +114,11 @@ class TestMoveOnMobilitySync:
             FakeClient(frameworks=[framework_payload()])
         )
 
-        framework = MobilityCategory.objects.get(moveon_framework_id="97")
+        framework = MobilityCategory.objects.get(moveon_id="97")
         assert result.created == 1
         assert framework.name == "Job Shadowing - Echange de bonnes pratiques"
 
-    def test_sync_mobility_imports_frameworks_and_agreements_only(self):
+    def test_sync_mobility_updates_inp_total_places_from_quotas(self):
         create_university()
         Department.objects.create(code="SN", name="Sciences du Numerique")
         client = FakeClient(
@@ -162,17 +131,14 @@ class TestMoveOnMobilitySync:
 
         result = sync_moveon_mobility(client)
 
-        agreement = Agreement.objects.get(moveon_relation_id="REL-001")
+        agreement = Agreement.objects.get(moveon_id="REL-001")
         assert result.frameworks.created == 1
         assert result.agreements.created == 1
-        assert result.quotas.created == 1
-        assert agreement.framework_ref is not None
-        quota = AgreementQuota.objects.get(agreement=agreement)
-        assert quota.source_total_places == 4
-        assert quota.total_places >= 1
-        assert DepartmentQuota.objects.filter(agreement_quota=quota).exists()
+        assert result.quotas.updated == 1
+        agreement.refresh_from_db()
+        assert agreement.inp_total_places == 4
 
-    def test_list_agreements_can_filter_by_partner_university(self):
+    def test_list_agreements_returns_all(self):
         university = create_university()
         another_university = PartnerUniversity.objects.create(
             moveon_id=2002,
@@ -180,92 +146,77 @@ class TestMoveOnMobilitySync:
             country=create_country(),
         )
         Agreement.objects.create(
-            moveon_relation_id="REL-001",
+            moveon_id="REL-001",
             name="Erasmus agreement A",
             partner_university=university,
         )
         Agreement.objects.create(
-            moveon_relation_id="REL-002",
+            moveon_id="REL-002",
             name="Erasmus agreement B",
             partner_university=another_university,
         )
 
-        request = RequestFactory().get(
-            "/agreements/", {"partner_university_id": university.id}
-        )
+        request = RequestFactory().get("/agreements/")
         agreements = list_agreements(request)
 
-        assert len(agreements) == 1
-        assert agreements[0].partner_university_id == university.id
+        assert len(agreements) == 2
 
-    def test_estimates_current_year_missing_quota_from_last_five_years(self):
-        agreement = create_agreement()
-        department = Department.objects.create(code="SN", name="Sciences du Numerique")
-        current_year = AcademicYear.objects.create(
+    def test_initialize_new_year_creates_agreement_years(self):
+        university = create_university()
+        agreement = Agreement.objects.create(
+            moveon_id="REL-001",
+            name="Erasmus outgoing agreement",
+            partner_university=university,
+            inp_total_places=6,
+        )
+        dept = Department.objects.create(code="SN", name="Sciences du Numerique")
+        agreement.departments.add(dept)
+
+        past_year = AcademicYear.objects.create(
             label="2025-2026",
             start_date=date(2025, 9, 1),
             end_date=date(2026, 8, 31),
+            status=AcademicYear.CampaignStatus.CLOSED,
         )
-        past_year = AcademicYear.objects.create(
-            label="2024-2025",
-            start_date=date(2024, 9, 1),
-            end_date=date(2025, 8, 31),
-        )
-        past_quota = AgreementQuota.objects.create(
+        AgreementYear.objects.create(
             agreement=agreement,
             academic_year=past_year,
-            academic_year_label=past_year.label,
-            period="S1",
-            total_places=5,
-            remaining_places=1,
+            is_active=True,
+            n7_places=3,
         )
-        DepartmentQuota.objects.create(
-            agreement_quota=past_quota,
-            department=department,
-            places=3,
-        )
-        agreement.start_date = current_year.start_date
-        agreement.end_date = current_year.end_date
-        agreement.save()
 
-        result = estimate_current_year_missing_quotas()
+        new_year = AcademicYear.objects.create(
+            label="2026-2027",
+            start_date=date(2026, 9, 1),
+            end_date=date(2027, 8, 31),
+        )
 
-        estimated_quota = AgreementQuota.objects.get(
-            agreement=agreement,
-            academic_year_label=current_year.label,
+        result = initialize_new_year_mobility(new_year)
+
+        assert result.year_instances_created == 1
+        year_instance = AgreementYear.objects.get(
+            agreement=agreement, academic_year=new_year
         )
-        assert result.quota_created == 1
-        assert estimated_quota.is_estimated is True
-        assert estimated_quota.total_places == 5
-        assert (
-            DepartmentQuota.objects.get(
-                agreement_quota=estimated_quota,
-                department=department,
-            ).is_estimated
-            is True
-        )
+        assert year_instance.n7_places == 3
+        assert AgreementYearDepartment.objects.filter(
+            agreement_year=year_instance
+        ).exists()
 
 
 def agreement_payload(**overrides):
     payload = {
-        "moveon_relation_id": "REL-001",
+        "moveon_id": "REL-001",
         "reference": "REF-001",
         "name": "Erasmus outgoing agreement",
         "partner_university_moveon_id": 1001,
         "relation_type": "Erasmus",
         "framework": "Erasmus Enseignement",
         "direction": "outgoing",
-        "status": "active",
         "is_active": True,
         "start_date": "2026-09-01",
         "end_date": "2027-08-31",
-        "start_academic_year": "2026-2027",
-        "end_academic_year": "2027-2028",
-        "discipline": "Engineering",
-        "isced": "071",
-        "level": "Master",
         "departments": ["SN"],
-        "formation": "SN",
+        "level": "Master",
     }
     payload.update(overrides)
     return payload
@@ -273,7 +224,7 @@ def agreement_payload(**overrides):
 
 def quota_payload(**overrides):
     payload = {
-        "moveon_relation_id": "REL-001",
+        "moveon_id": "REL-001",
         "academic_year_label": "2026-2027",
         "period": "S1",
         "places_id": "PLC-001",
@@ -328,7 +279,8 @@ def create_academic_year():
 
 def create_agreement():
     return Agreement.objects.create(
-        moveon_relation_id="REL-001",
+        moveon_id="REL-001",
         name="Erasmus outgoing agreement",
         partner_university=create_university(),
+        inp_total_places=10,
     )

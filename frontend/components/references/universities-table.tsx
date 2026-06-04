@@ -106,7 +106,7 @@ export function UniversitiesTable({
       emptyLabel="Aucune universite partenaire referencee"
       getRowKey={(university) => university.id}
       maxHeight="36rem"
-      pageSize={20}
+      pageSize={5}
     />
   );
 }

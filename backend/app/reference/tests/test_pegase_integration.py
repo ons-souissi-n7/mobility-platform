@@ -24,10 +24,10 @@ class TestPegaseSchema:
         assert result == payload
 
     def test_validate_raw_payload_rejects_non_dict(self):
-        with pytest.raises(ValueError, match="must be a dict"):
+        with pytest.raises(ValueError, match="objet JSON est attendu"):
             validate_raw_payload("invalid")
 
-        with pytest.raises(ValueError, match="must be a dict"):
+        with pytest.raises(ValueError, match="objet JSON est attendu"):
             validate_raw_payload([])
 
 
@@ -74,7 +74,7 @@ class TestPegaseValidator:
 
         data = TransformedDepartment(pegase_id="", code="SN", name="Sciences")
 
-        with pytest.raises(ValidationError, match="pegase_id is required"):
+        with pytest.raises(ValidationError, match="Identifiant Pégase"):
             validate_department(data)
 
     def test_validate_rejects_missing_code(self):
@@ -82,7 +82,7 @@ class TestPegaseValidator:
 
         data = TransformedDepartment(pegase_id="101", code="", name="Sciences")
 
-        with pytest.raises(ValidationError, match="code is required"):
+        with pytest.raises(ValidationError, match="Code du département"):
             validate_department(data)
 
     def test_validate_rejects_missing_name(self):
@@ -90,7 +90,7 @@ class TestPegaseValidator:
 
         data = TransformedDepartment(pegase_id="101", code="SN", name="")
 
-        with pytest.raises(ValidationError, match="name is required"):
+        with pytest.raises(ValidationError, match="Nom du département"):
             validate_department(data)
 
     def test_validate_accepts_complete_data(self):

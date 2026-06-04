@@ -8,15 +8,13 @@ export const dynamic = "force-dynamic";
 export default async function MobilityPage() {
   const {
     academicYears,
-    agreementAvailabilities,
-    agreementDepartmentConstraints,
     mobilityCategories,
-    agreementLevelConstraints,
-    agreementQuotas,
+    agreementYears,
+    agreementYearDepartments,
     agreements,
+    countries,
     currentYear,
     departments,
-    departmentQuotas,
     importErrors,
     mobilityLevels,
     universities,
@@ -26,21 +24,19 @@ export default async function MobilityPage() {
     <AdminShell>
       <div className="space-y-6">
         <PageHeader
-          title="Mobilite"
-          description="Gerez les accords, les quotas et les repartitions par departement."
+          title="Mobilité"
+          description="Gérez les accords, les quotas annuels et les répartitions par département."
         />
 
         <MobilityWorkspace
           academicYears={academicYears}
-          agreementAvailabilities={agreementAvailabilities}
-          agreementDepartmentConstraints={agreementDepartmentConstraints}
           mobilityCategories={mobilityCategories}
-          agreementLevelConstraints={agreementLevelConstraints}
+          countries={countries}
           currentYear={currentYear}
           departments={departments}
-          initialAgreementQuotas={agreementQuotas}
+          initialAgreementYears={agreementYears}
           initialAgreements={agreements}
-          initialDepartmentQuotas={departmentQuotas}
+          initialAgreementYearDepartments={agreementYearDepartments}
           initialImportErrors={importErrors}
           mobilityLevels={mobilityLevels}
           universities={universities}

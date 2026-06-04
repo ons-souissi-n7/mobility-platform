@@ -1,11 +1,8 @@
 import pytest
 
+from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.integrations.pegase import PegaseDepartment
-from app.reference.models import (
-    Department,
-    DepartmentRawImport,
-    DepartmentRawImportStatus,
-)
+from app.reference.models import Department
 from app.reference.services.sync_pegase import sync_pegase_departments
 
 
@@ -25,8 +22,9 @@ class TestPegaseDepartmentSync:
         assert result.total == 1
         assert result.created == 1
         assert Department.objects.filter(pegase_id="101").exists()
-        assert DepartmentRawImport.objects.filter(
-            status=DepartmentRawImportStatus.IMPORTED,
+        assert RawImport.objects.filter(
+            entity=RawImportEntity.DEPARTMENT,
+            status=RawImportStatus.IMPORTED,
         ).exists()
 
     def test_sync_updates_existing_department(self):
@@ -48,9 +46,10 @@ class TestPegaseDepartmentSync:
 
         assert result.failed == 1
         assert not Department.objects.exists()
-        assert DepartmentRawImport.objects.filter(
-            status=DepartmentRawImportStatus.FAILED,
-            error_message__contains="code is required",
+        assert RawImport.objects.filter(
+            entity=RawImportEntity.DEPARTMENT,
+            status=RawImportStatus.FAILED,
+            error_message__contains="Code du département",
         ).exists()
 
 

@@ -1,8 +1,11 @@
+import { PageTabBar } from "@/components/ui/page-tab-bar";
+
 type ReferenceTabsProps = {
   countriesCount: number;
   departmentsCount: number;
   levelsCount: number;
   universitiesCount: number;
+  parcoursCount: number;
 };
 
 export function ReferenceTabs({
@@ -10,32 +13,17 @@ export function ReferenceTabs({
   levelsCount,
   universitiesCount,
   countriesCount,
-
+  parcoursCount,
 }: ReferenceTabsProps) {
-  const tabs = [
-    { label: "Departements", href: "#departements", value: departmentsCount },
-    { label: "Niveaux", href: "#niveaux", value: levelsCount },
-    { label: "Universites", href: "#universites", value: universitiesCount },
-    { label: "Pays", href: "#pays", value: countriesCount },
-
-  ];
-
   return (
-    <div className="flex flex-wrap gap-2 rounded-lg border border-gray-200 bg-white p-2 shadow-sm">
-      {tabs.map((tab, index) => (
-        <a
-          key={tab.label}
-          className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-            index === 0
-              ? "bg-[#1E3A8A] text-white"
-              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-          }`}
-          href={tab.href}
-        >
-          {tab.label}
-          <span className="ml-2 text-xs opacity-75">{tab.value}</span>
-        </a>
-      ))}
-    </div>
+    <PageTabBar
+      tabs={[
+        { label: "Départements", value: departmentsCount, href: "#departements" },
+        { label: "Parcours", value: parcoursCount, href: "#parcours" },
+        { label: "Niveaux", value: levelsCount, href: "#niveaux" },
+        { label: "Universités", value: universitiesCount, href: "#universites" },
+        { label: "Pays", value: countriesCount, href: "#pays" },
+      ]}
+    />
   );
 }

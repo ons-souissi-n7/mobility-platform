@@ -5,25 +5,21 @@ from django.utils import timezone
 from ninja import Router
 from ninja.errors import HttpError
 
-from .models import (
-    Country,
-    Department,
-    DepartmentRawImport,
-    DepartmentRawImportStatus,
-    Level,
-    LevelRawImport,
-    LevelRawImportStatus,
-)
+from app.audit.logger import log_action
+from app.imports.models import RawImport, RawImportEntity, RawImportStatus
+
+from .models import Country, Department, Level, Parcours
 from .schemas import (
     CountryIn,
     CountryOut,
-    DepartmentImportOut,
     DepartmentImportRetryIn,
     DepartmentIn,
     DepartmentOut,
-    LevelImportOut,
     LevelIn,
     LevelOut,
+    ParcoursIn,
+    ParcoursOut,
+    RawImportOut,
 )
 from .services.pegase_transformer import transform_department
 from .services.sync_pegase import upsert_department
@@ -89,45 +85,45 @@ def delete_country(request, country_id: int):
 
 @router.get(
     "/departments/import-errors/",
-    response=list[DepartmentImportOut],
+    response=list[RawImportOut],
     summary="Liste des erreurs d'import Pegase des departements",
 )
 def list_department_import_errors(request):
-    raw_imports = DepartmentRawImport.objects.order_by("-created_at")
+    raw_imports = RawImport.objects.filter(entity=RawImportEntity.DEPARTMENT).order_by(
+        "-created_at"
+    )
     latest_by_external_id = {}
-
     for raw_import in raw_imports:
         key = raw_import.external_id or f"raw-{raw_import.id}"
         if key not in latest_by_external_id:
             latest_by_external_id[key] = raw_import
-
     return [
-        raw_import
-        for raw_import in latest_by_external_id.values()
-        if raw_import.status == DepartmentRawImportStatus.FAILED
+        ri
+        for ri in latest_by_external_id.values()
+        if ri.status == RawImportStatus.FAILED
     ]
 
 
 @router.get(
     "/departments/imports/",
-    response=list[DepartmentImportOut],
+    response=list[RawImportOut],
     summary="Liste de tous les imports Pegase (erreurs, reussis, etc.)",
 )
 def list_department_imports(request):
-    raw_imports = DepartmentRawImport.objects.order_by("-created_at")
+    raw_imports = RawImport.objects.filter(entity=RawImportEntity.DEPARTMENT).order_by(
+        "-created_at"
+    )
     latest_by_external_id = {}
-
     for raw_import in raw_imports:
         key = raw_import.external_id or f"raw-{raw_import.id}"
         if key not in latest_by_external_id:
             latest_by_external_id[key] = raw_import
-
     return list(latest_by_external_id.values())
 
 
 @router.put(
     "/departments/import-errors/{raw_import_id}/retry/",
-    response=DepartmentImportOut,
+    response=RawImportOut,
     summary="Relancer un import Pegase de departement",
 )
 def retry_department_import(
@@ -153,7 +149,7 @@ def retry_department_import(
         raise HttpError(400, str(exc)) from exc
 
     raw_import.payload = corrected_payload
-    raw_import.status = DepartmentRawImportStatus.IMPORTED
+    raw_import.status = RawImportStatus.IMPORTED
     raw_import.error_message = ""
     raw_import.imported_at = timezone.now()
     raw_import.save(
@@ -170,12 +166,12 @@ def retry_department_import(
 
 @router.put(
     "/departments/import-errors/{raw_import_id}/ignore/",
-    response=DepartmentImportOut,
+    response=RawImportOut,
     summary="Marquer une erreur d'import Pegase de departement comme traitee",
 )
 def ignore_department_import(request, raw_import_id: int):
     raw_import = get_department_raw_import(raw_import_id)
-    raw_import.status = DepartmentRawImportStatus.IGNORED
+    raw_import.status = RawImportStatus.IGNORED
     raw_import.error_message = (
         f"{raw_import.error_message}\nTraite manuellement par l'administrateur."
     ).strip()
@@ -190,19 +186,23 @@ def ignore_department_import(request, raw_import_id: int):
 )
 def sync_departments_from_pegase(request):
     task_id = enqueue_sync_pegase_departments()
+    log_action(
+        request, action="sync_pegase_departments", detail=f"Tâche {task_id} lancée"
+    )
     return 202, {
         "task_id": task_id,
         "message": "Synchronisation Pegase demandée en arrière-plan.",
     }
 
 
-def get_department_raw_import(raw_import_id: int) -> DepartmentRawImport:
+def get_department_raw_import(raw_import_id: int) -> RawImport:
     try:
-        return DepartmentRawImport.objects.get(
+        return RawImport.objects.get(
             pk=raw_import_id,
-            status=DepartmentRawImportStatus.FAILED,
+            entity=RawImportEntity.DEPARTMENT,
+            status=RawImportStatus.FAILED,
         )
-    except DepartmentRawImport.DoesNotExist as exc:
+    except RawImport.DoesNotExist as exc:
         raise HttpError(404, "Erreur d'import departement introuvable.") from exc
 
 
@@ -279,6 +279,7 @@ def create_level(request, payload: LevelIn):
 )
 def sync_levels_from_pegase(request):
     task_id = enqueue_sync_pegase_levels()
+    log_action(request, action="sync_pegase_levels", detail=f"Tâche {task_id} lancée")
     return 202, {
         "task_id": task_id,
         "message": "Synchronisation des niveaux depuis Pegase lancee.",
@@ -287,33 +288,37 @@ def sync_levels_from_pegase(request):
 
 @router.get(
     "/levels/import-errors/",
-    response=list[LevelImportOut],
+    response=list[RawImportOut],
     summary="Liste des erreurs d'import Pegase des niveaux",
 )
 def list_level_import_errors(request):
-    raw_imports = LevelRawImport.objects.order_by("-created_at")
+    raw_imports = RawImport.objects.filter(entity=RawImportEntity.LEVEL).order_by(
+        "-created_at"
+    )
     latest = {}
     for ri in raw_imports:
         key = ri.external_id or f"raw-{ri.id}"
         if key not in latest:
             latest[key] = ri
-    return [ri for ri in latest.values() if ri.status == LevelRawImportStatus.FAILED]
+    return [ri for ri in latest.values() if ri.status == RawImportStatus.FAILED]
 
 
 @router.put(
     "/levels/import-errors/{raw_import_id}/ignore/",
-    response=LevelImportOut,
+    response=RawImportOut,
     summary="Marquer une erreur d'import niveau comme traitee",
 )
 def ignore_level_import(request, raw_import_id: int):
     try:
-        raw_import = LevelRawImport.objects.get(
-            pk=raw_import_id, status=LevelRawImportStatus.FAILED
+        raw_import = RawImport.objects.get(
+            pk=raw_import_id,
+            entity=RawImportEntity.LEVEL,
+            status=RawImportStatus.FAILED,
         )
-    except LevelRawImport.DoesNotExist as exc:
+    except RawImport.DoesNotExist as exc:
         raise HttpError(404, "Erreur d'import niveau introuvable.") from exc
 
-    raw_import.status = LevelRawImportStatus.IGNORED
+    raw_import.status = RawImportStatus.IGNORED
     raw_import.error_message = (
         f"{raw_import.error_message}\nTraite manuellement par l'administrateur."
     ).strip()
@@ -348,5 +353,56 @@ def delete_level(request, level_id: int):
             400,
             "Ce niveau est utilise par un ou plusieurs accords et ne peut pas etre supprime.",
         ) from exc
+
+    return 204, None
+
+
+@router.get("/parcours/", response=list[ParcoursOut], summary="Liste des parcours")
+def list_parcours(request):
+    department_id = request.GET.get("department_id")
+    qs = Parcours.objects.select_related("department").order_by(
+        "department__code", "code"
+    )
+    if department_id:
+        qs = qs.filter(department_id=department_id)
+    return qs
+
+
+@router.post("/parcours/", response={201: ParcoursOut}, summary="Creer un parcours")
+def create_parcours(request, payload: ParcoursIn):
+    parcours = Parcours(**payload.model_dump())
+    return 201, save_validated(parcours)
+
+
+@router.put(
+    "/parcours/{parcours_id}/",
+    response=ParcoursOut,
+    summary="Modifier un parcours",
+)
+def update_parcours(request, parcours_id: int, payload: ParcoursIn):
+    try:
+        parcours = Parcours.objects.get(pk=parcours_id)
+    except Parcours.DoesNotExist as exc:
+        raise HttpError(404, "Parcours introuvable.") from exc
+
+    for field, value in payload.model_dump().items():
+        setattr(parcours, field, value)
+
+    return save_validated(parcours)
+
+
+@router.delete(
+    "/parcours/{parcours_id}/",
+    response={204: None},
+    summary="Supprimer un parcours",
+)
+def delete_parcours(request, parcours_id: int):
+    try:
+        parcours = Parcours.objects.get(pk=parcours_id)
+        parcours.delete()
+    except Parcours.DoesNotExist as exc:
+        raise HttpError(404, "Parcours introuvable.") from exc
+    except ProtectedError as exc:
+        raise HttpError(400, "Ce parcours est utilise par un etudiant.") from exc
 
     return 204, None

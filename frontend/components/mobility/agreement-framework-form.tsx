@@ -25,9 +25,6 @@ export function MobilityCategoryForm({ item, onCancel, onSubmit }: MobilityCateg
     try {
       await onSubmit({
         name: String(formData.get("name") ?? "").trim(),
-        external_id: String(formData.get("external_id") ?? "").trim(),
-        relation_types: String(formData.get("relation_types") ?? "").trim(),
-        is_active: formData.get("is_active") === "on",
       });
     } catch (submitError) {
       setError(
@@ -44,23 +41,7 @@ export function MobilityCategoryForm({ item, onCancel, onSubmit }: MobilityCateg
     <form className="space-y-5" onSubmit={handleSubmit}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field defaultValue={item?.name} label="Nom" name="name" required />
-        <Field defaultValue={item?.external_id} label="ID externe" name="external_id" />
-        <Field
-          defaultValue={item?.relation_types}
-          label="Type(s) de relation"
-          name="relation_types"
-        />
       </div>
-
-      <label className="inline-flex items-center gap-3">
-        <input
-          className="h-4 w-4 rounded border-gray-300 text-[#1E3A8A] focus:ring-[#1E3A8A]"
-          defaultChecked={item?.is_active ?? true}
-          name="is_active"
-          type="checkbox"
-        />
-        <span className="text-sm font-medium text-gray-700">Actif</span>
-      </label>
 
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

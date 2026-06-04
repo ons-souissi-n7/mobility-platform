@@ -13,6 +13,7 @@ export default async function ReferencesPage() {
     departmentImportErrors,
     mobilityLevels,
     levelImportErrors,
+    parcours,
   } = await getReferenceData();
 
   return (
@@ -25,6 +26,7 @@ export default async function ReferencesPage() {
         initialDepartmentImportErrors={departmentImportErrors}
         initialMobilityLevels={mobilityLevels}
         initialLevelImportErrors={levelImportErrors}
+        initialParcours={parcours}
       />
     </AdminShell>
   );

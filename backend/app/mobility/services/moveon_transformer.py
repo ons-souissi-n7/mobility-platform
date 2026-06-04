@@ -7,23 +7,19 @@ from .moveon_schema import validate_raw_payload
 
 @dataclass(frozen=True)
 class TransformedMobilityCategory:
-    moveon_framework_id: str
-    external_id: str
+    moveon_id: str
     name: str
-    relation_types: str
-    is_active: bool
 
 
 @dataclass(frozen=True)
 class TransformedAgreementAvailability:
     academic_year_label: str
     is_available: bool
-    remarks: str = ""
 
 
 @dataclass(frozen=True)
 class TransformedAgreement:
-    moveon_relation_id: str
+    moveon_id: str
     reference: str
     name: str
     partner_university_moveon_id: int | None
@@ -31,7 +27,7 @@ class TransformedAgreement:
     partner_university_erasmus_code: str
     partner_university_name: str
     relation_type: str
-    framework: str
+    category_name: str
     direction: str
     status: str
     is_active: bool
@@ -53,7 +49,7 @@ class TransformedAgreement:
 
 @dataclass(frozen=True)
 class TransformedAgreementQuota:
-    moveon_relation_id: str
+    moveon_id: str
     agreement_id: int | None
     academic_year_id: int | None
     academic_year_label: str
@@ -69,16 +65,15 @@ class TransformedAgreementQuota:
 
 def transform_mobility_category(payload: dict[str, Any]) -> TransformedMobilityCategory:
     raw = validate_raw_payload(payload)
-    framework_id = first_value(raw, "moveon_framework_id", "Cadre ID", "framework_id")
-    if framework_id in (None, ""):
-        raise ValueError("moveon_framework_id is required")
+    moveon_id = first_value(
+        raw, "moveon_framework_id", "moveon_id", "Cadre ID", "framework_id"
+    )
+    if moveon_id in (None, ""):
+        raise ValueError("moveon_id is required")
 
     return TransformedMobilityCategory(
-        moveon_framework_id=str(framework_id).strip(),
-        external_id=text(first_value(raw, "external_id", "ID externe")),
+        moveon_id=str(moveon_id).strip(),
         name=text(first_value(raw, "name", "Nom")),
-        relation_types=text(first_value(raw, "relation_types", "Types de relations")),
-        is_active=bool_value(first_value(raw, "is_active", "Actif"), default=True),
     )
 
 
@@ -86,24 +81,26 @@ def transform_agreement(payload: dict[str, Any]) -> TransformedAgreement:
     raw = validate_raw_payload(payload)
     relation_id = first_value(
         raw,
-        "moveon_relation_id",
+        "moveon_id",
         "relation_id",
         "Identifiant relation",
         "Relation: Identifiant relation",
     )
 
     if relation_id in (None, ""):
-        raise ValueError("moveon_relation_id is required")
+        raise ValueError("moveon_id is required")
 
     relation_type = text(first_value(raw, "relation_type", "Type de relation"))
-    framework = text(first_value(raw, "framework", "Cadres", "Relation: Cadres"))
+    category_name = text(
+        first_value(raw, "framework", "category_name", "Cadres", "Relation: Cadres")
+    )
     direction = text(
         first_value(raw, "direction", "Direction", "Relation: Direction") or "unknown"
     )
     level = text(first_value(raw, "level", "Niveau", "Relation: Niveau"))
 
     return TransformedAgreement(
-        moveon_relation_id=str(relation_id).strip(),
+        moveon_id=str(relation_id).strip(),
         reference=text(first_value(raw, "reference", "Reference")),
         name=text(first_value(raw, "name", "Nom", "Relation: Nom")),
         partner_university_moveon_id=optional_int(
@@ -128,7 +125,7 @@ def transform_agreement(payload: dict[str, Any]) -> TransformedAgreement:
             )
         ),
         relation_type=relation_type,
-        framework=framework,
+        category_name=category_name,
         direction=direction,
         status=text(
             first_value(raw, "status", "Statut", "Relation: Statut") or "draft"
@@ -203,14 +200,14 @@ def transform_agreement_quota(payload: dict[str, Any]) -> TransformedAgreementQu
     raw = validate_raw_payload(payload)
     relation_id = first_value(
         raw,
-        "moveon_relation_id",
+        "moveon_id",
         "relation_id",
         "Relation: Identifiant relation",
         "Identifiant relation",
     )
 
     return TransformedAgreementQuota(
-        moveon_relation_id=text(relation_id),
+        moveon_id=text(relation_id),
         agreement_id=optional_int(raw.get("agreement_id")),
         academic_year_id=optional_int(raw.get("academic_year_id")),
         academic_year_label=normalize_academic_year_label(
@@ -253,7 +250,6 @@ def transform_agreement_availabilities(
             TransformedAgreementAvailability(
                 academic_year_label=normalize_academic_year_label(label),
                 is_available=True,
-                remarks="Disponibilite importee depuis MoveON.",
             )
         )
 
@@ -270,7 +266,6 @@ def transform_agreement_availabilities(
             TransformedAgreementAvailability(
                 academic_year_label=normalize_academic_year_label(label),
                 is_available=False,
-                remarks="Indisponibilite importee depuis MoveON.",
             )
         )
 
@@ -287,7 +282,6 @@ def transform_agreement_availabilities(
             TransformedAgreementAvailability(
                 academic_year_label=normalize_academic_year_label(year_label),
                 is_available=bool_value(availability, default=True),
-                remarks="Disponibilite annuelle importee depuis MoveON.",
             )
         )
 
@@ -307,10 +301,22 @@ def first_value(payload: dict[str, Any], *keys: str) -> Any:
 
 
 def normalize_academic_year_label(value: str) -> str:
-    if "/" in value and len(value.split("/")[-1]) == 2:
-        start, end = value.split("/", 1)
-        return f"{start}-20{end}"
-    return value.replace("/", "-")
+    """Normalise un label d'année universitaire au format YYYY/YYYY (ex: 2026/2027).
+
+    Gère les variantes reçues de MoveOn :
+    - "2026/27"   → "2026/2027"
+    - "2026-2027" → "2026/2027"
+    - "2026/2027" → "2026/2027" (inchangé)
+    """
+    v = value.strip()
+    if "/" in v:
+        parts = v.split("/", 1)
+        if len(parts[1]) == 2:
+            return f"{parts[0]}/20{parts[1]}"
+        return v
+    if "-" in v:
+        return v.replace("-", "/")
+    return v
 
 
 def split_values(value: Any) -> tuple[str, ...]:

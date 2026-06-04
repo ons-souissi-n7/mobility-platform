@@ -1,71 +1,33 @@
 from __future__ import annotations
 
-from datetime import date
-
 from app.academic.models import AcademicYear
-from app.mobility.models import Agreement, AgreementYearAvailability
+from app.mobility.models import Agreement, AgreementYear
 
 
-def is_agreement_valid_for_year(
+def is_agreement_active_for_year(
     agreement: Agreement, academic_year: AcademicYear
 ) -> bool:
-    year_override = get_year_availability_override(agreement, academic_year)
-    if year_override is not None:
-        return year_override
-
-    if not agreement.is_active:
-        return False
-
-    if agreement.status.lower() in {
-        "closed",
-        "archived",
-        "inactive",
-        "termine",
-        "terminé",
-    }:
-        return False
-
-    if agreement.start_date and agreement.start_date > academic_year.end_date:
-        return False
-
-    if agreement.end_date and agreement.end_date < academic_year.start_date:
-        return False
-
-    if not agreement.start_date and agreement.start_academic_year:
-        if normalize_year_label(agreement.start_academic_year) > normalize_year_label(
-            academic_year.label,
-        ):
-            return False
-
-    if not agreement.end_date and agreement.end_academic_year:
-        if normalize_year_label(agreement.end_academic_year) < normalize_year_label(
-            academic_year.label,
-        ):
-            return False
-
-    return True
-
-
-def get_year_availability_override(
-    agreement: Agreement,
-    academic_year: AcademicYear,
-) -> bool | None:
+    """
+    Checks AgreementYear.is_active if an instance exists (manual override),
+    otherwise falls back to date-based validity check.
+    """
     try:
-        availability = agreement.year_availabilities.get(
-            academic_year_label=academic_year.label,
+        instance = AgreementYear.objects.get(
+            agreement=agreement, academic_year=academic_year
         )
-    except AgreementYearAvailability.DoesNotExist:
-        return None
+        return instance.is_active
+    except AgreementYear.DoesNotExist:
+        return is_within_validity(agreement, academic_year)
 
-    return availability.is_available
 
-
-def is_agreement_valid_for_date(agreement: Agreement, day: date) -> bool:
-    academic_year = AcademicYear.detect_by_date(day)
-    if academic_year is None:
+def is_within_validity(agreement: Agreement, academic_year: AcademicYear) -> bool:
+    """
+    Returns True if the agreement's validity period overlaps with the academic year.
+    - No valid_from set → not yet started restriction, assumed valid.
+    - No valid_until set → open-ended, assumed valid.
+    """
+    if agreement.valid_from and agreement.valid_from > academic_year.end_date:
         return False
-    return is_agreement_valid_for_year(agreement, academic_year)
-
-
-def normalize_year_label(label: str) -> str:
-    return label.replace("/", "-").strip()
+    if agreement.valid_until and agreement.valid_until < academic_year.start_date:
+        return False
+    return True

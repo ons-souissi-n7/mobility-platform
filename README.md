@@ -10,19 +10,24 @@ docker compose -f docker-compose.dev.yml up --build
 docker compose -f docker-compose.dev.yml down
 ```
 #### Restart all services:
+
 ```bash
 docker compose -f docker-compose.dev.yml restart
 ```
 ### Load Fixtures and Data
 Load initial data into the database:
 ```bash
-# Load reference data (countries, departments)
+# Load reference data (countries, departments, levels, parcours)
 docker compose -f docker-compose.dev.yml exec backend python manage.py loaddata app/reference/fixtures/countries.json
 docker compose -f docker-compose.dev.yml exec backend python manage.py loaddata app/reference/fixtures/departments.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py loaddata app/reference/fixtures/levels.json
+docker compose -f docker-compose.dev.yml exec backend python manage.py loaddata app/reference/fixtures/parcours.json
 # Load institutions fixtures
 docker compose -f docker-compose.dev.yml exec backend python manage.py loaddata app/institutions/fixtures/universities.json
 ```
 ### Code Quality
+
+#### Backend
 Format Python code with ruff:
 ```bash
 docker compose -f docker-compose.dev.yml run --rm backend ruff format .
@@ -41,6 +46,16 @@ docker compose -f docker-compose.dev.yml run --rm --no-deps backend ruff check .
 docker compose -f docker-compose.dev.yml run --rm --no-deps backend ruff format --check .
 # Run tests
 docker compose -f docker-compose.dev.yml run --rm backend pytest
+```
+
+#### Frontend
+Run ESLint:
+```bash
+docker compose -f docker-compose.dev.yml run --rm --no-deps frontend npm run lint
+```
+Check TypeScript types without compilation:
+```bash
+docker compose -f docker-compose.dev.yml run --rm --no-deps frontend npm run typecheck
 ```
 
 ### Database Migrations

@@ -4,15 +4,7 @@ import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 
 import type { AgreementPayload } from "@/lib/api/mobility-mutations";
-import type { Agreement, MobilityCategory, Department, Level, PartnerUniversity } from "@/lib/api/types";
-
-export type AgreementFullPayload = AgreementPayload & {
-  department_ids: number[];
-  level_ids: number[];
-  n7_places: number | null;
-  source_total_places: number | null;
-  source_institutions: string;
-};
+import type { Agreement, Department, Level, MobilityCategory, PartnerUniversity } from "@/lib/api/types";
 
 export function AgreementForm({
   departments,
@@ -28,15 +20,13 @@ export function AgreementForm({
   item?: Agreement;
   mobilityLevels: Level[];
   onCancel: () => void;
-  onSubmit: (payload: AgreementFullPayload) => Promise<void>;
+  onSubmit: (payload: AgreementPayload) => Promise<void>;
   universities: PartnerUniversity[];
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedDeptIds, setSelectedDeptIds] = useState<number[]>([]);
-  const [selectedLevelIds, setSelectedLevelIds] = useState<number[]>([]);
-
-  const isCreateMode = !item;
+  const [selectedDeptIds, setSelectedDeptIds] = useState<number[]>(() => item?.department_ids ?? []);
+  const [selectedLevelIds, setSelectedLevelIds] = useState<number[]>(() => item?.level_ids ?? []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -44,168 +34,146 @@ export function AgreementForm({
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
-    const n7PlacesRaw = getString(formData, "n7_places");
-    const inpPlacesRaw = getString(formData, "source_total_places");
-    const frameworkRefRaw = formData.get("framework_ref_id");
-    const n7Places = n7PlacesRaw ? Number(n7PlacesRaw) : null;
-    const inpPlaces = inpPlacesRaw ? Number(inpPlacesRaw) : null;
+    const inpPlaces = Number(getString(formData, "inp_total_places") || "0");
 
-    if (n7Places !== null && inpPlaces !== null && n7Places > inpPlaces) {
-      setError("Le quota N7 ne peut pas etre superieur au quota INP.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    const payload: AgreementFullPayload = {
+    const payload: AgreementPayload = {
       name: getString(formData, "name"),
       partner_university_id: Number(formData.get("partner_university_id") || 0),
-      framework_ref_id: frameworkRefRaw ? Number(frameworkRefRaw) : null,
-      is_active: formData.get("is_active") === "on",
+      category_id: formData.get("category_id") ? Number(formData.get("category_id")) : null,
+      direction: getString(formData, "direction") || "unknown",
+      valid_from: getString(formData, "valid_from") || null,
+      valid_until: getString(formData, "valid_until") || null,
+      inp_total_places: inpPlaces,
+      inp_institutions: getString(formData, "inp_institutions"),
       remarks: getString(formData, "remarks"),
-      department_ids: isCreateMode ? selectedDeptIds : [],
-      level_ids: isCreateMode ? selectedLevelIds : [],
-      n7_places: n7Places,
-      source_total_places: inpPlaces,
-      source_institutions: isCreateMode ? getString(formData, "source_institutions") : "",
+      level_ids: selectedLevelIds,
+      department_ids: selectedDeptIds,
     };
 
     try {
       await onSubmit(payload);
     } catch (submitError) {
       setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Impossible d'enregistrer l'accord.",
+        submitError instanceof Error ? submitError.message : "Impossible d'enregistrer l'accord.",
       );
       setIsSubmitting(false);
     }
   }
 
   function toggleDept(id: number) {
-    setSelectedDeptIds((prev) =>
-      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id],
-    );
+    setSelectedDeptIds((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]);
   }
 
   function toggleLevel(id: number) {
-    setSelectedLevelIds((prev) =>
-      prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id],
-    );
+    setSelectedLevelIds((prev) => prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]);
   }
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
+      {/* Informations générales */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field defaultValue={item?.name} label="Nom de l'accord" name="name" required />
-        <Select
-          defaultValue={item?.partner_university_id}
-          label="Universite partenaire"
-          name="partner_university_id"
-          required
-        >
+        <Select defaultValue={item?.partner_university_id} label="Université partenaire" name="partner_university_id" required>
           <option value="">Choisir un partenaire</option>
-          {universities.map((university) => (
-            <option key={university.id} value={university.id}>
-              {university.name}
-            </option>
+          {universities.map((u) => (
+            <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </Select>
-        <Select
-          defaultValue={item?.framework_ref_id ?? ""}
-          label="Cadre de mobilite"
-          name="framework_ref_id"
-        >
+        <Select defaultValue={item?.category_id ?? ""} label="Cadre de mobilité" name="category_id">
           <option value="">Aucun cadre</option>
-          {frameworks.filter((fw) => fw.is_active).map((fw) => (
-            <option key={fw.id} value={fw.id}>
-              {fw.name}
-            </option>
+          {frameworks.map((fw) => (
+            <option key={fw.id} value={fw.id}>{fw.name}</option>
           ))}
+        </Select>
+        <Select defaultValue={item?.direction ?? "unknown"} label="Direction" name="direction" required>
+          <option value="unknown">Non précisé</option>
+          <option value="outgoing">Sortant (N7 → Partenaire)</option>
+          <option value="incoming">Entrant (Partenaire → N7)</option>
+          <option value="both">Les deux</option>
         </Select>
       </div>
 
-      {isCreateMode ? (
-        <>
-          <div className="border-t border-gray-100 pt-4">
-            <p className="mb-3 text-sm font-semibold text-gray-700">
-              Departements concernes
-              <span className="ml-1 font-normal text-gray-400">(optionnel — vide = tous)</span>
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {departments.map((dept) => (
-                <button
-                  key={dept.id}
-                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                    selectedDeptIds.includes(dept.id)
-                      ? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
-                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                  }`}
-                  onClick={() => toggleDept(dept.id)}
-                  type="button"
-                >
-                  {dept.code}
-                </button>
-              ))}
-              {departments.length === 0 ? (
-                <p className="text-xs italic text-gray-400">Aucun departement disponible</p>
-              ) : null}
-            </div>
-          </div>
+      {/* Validité */}
+      <div className="border-t border-gray-100 pt-4">
+        <p className="mb-3 text-sm font-semibold text-gray-700">Période de validité</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Field defaultValue={item?.valid_from ?? ""} label="Date de début" name="valid_from" type="date" />
+          <Field defaultValue={item?.valid_until ?? ""} label="Date de fin" name="valid_until" type="date" />
+        </div>
+      </div>
 
-          <div className="border-t border-gray-100 pt-4">
-            <p className="mb-3 text-sm font-semibold text-gray-700">
-              Niveaux concernes
-              <span className="ml-1 font-normal text-gray-400">(optionnel — vide = tous)</span>
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {mobilityLevels
-                .filter((l) => l.is_active)
-                .map((level) => (
-                  <button
-                    key={level.id}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                      selectedLevelIds.includes(level.id)
-                        ? "border-purple-600 bg-purple-600 text-white"
-                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                    onClick={() => toggleLevel(level.id)}
-                    type="button"
-                  >
-                    {level.code}
-                  </button>
-                ))}
-              {mobilityLevels.filter((l) => l.is_active).length === 0 ? (
-                <p className="text-xs italic text-gray-400">Aucun niveau disponible</p>
-              ) : null}
-            </div>
-          </div>
+      {/* Quota INP */}
+      <div className="border-t border-gray-100 pt-4">
+        <p className="mb-3 text-sm font-semibold text-gray-700">Quota INP global</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field
+            defaultValue={String(item?.inp_total_places ?? 0)}
+            label="Places INP total"
+            min="0"
+            name="inp_total_places"
+            type="number"
+          />
+          <Field
+            defaultValue={item?.inp_institutions ?? ""}
+            label="Établissements partageant l'accord"
+            name="inp_institutions"
+          />
+        </div>
+      </div>
 
-          <div className="border-t border-gray-100 pt-4">
-            <p className="mb-3 text-sm font-semibold text-gray-700">
-              Quota de places
-              <span className="ml-1 font-normal text-gray-400">(optionnel — pour l&apos;annee courante)</span>
-            </p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Field label="Places N7" min="0" name="n7_places" type="number" />
-              <Field label="Places INP total" min="0" name="source_total_places" type="number" />
-              <Field
-                label="Etablissements internes"
-                name="source_institutions"
-              />
-            </div>
-          </div>
-        </>
-      ) : null}
+      {/* Contraintes niveaux */}
+      <div className="border-t border-gray-100 pt-4">
+        <p className="mb-3 text-sm font-semibold text-gray-700">
+          Niveaux autorisés
+          <span className="ml-1 font-normal text-gray-400">(vide = tous)</span>
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {mobilityLevels.filter((l) => l.is_active).map((level) => (
+            <button
+              key={level.id}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                selectedLevelIds.includes(level.id)
+                  ? "border-purple-600 bg-purple-600 text-white"
+                  : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+              }`}
+              onClick={() => toggleLevel(level.id)}
+              type="button"
+            >
+              {level.code}
+            </button>
+          ))}
+          {mobilityLevels.filter((l) => l.is_active).length === 0 && (
+            <p className="text-xs italic text-gray-400">Aucun niveau disponible</p>
+          )}
+        </div>
+      </div>
 
-      <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-        <input
-          className="h-4 w-4 rounded border-gray-300 text-[#1E3A8A]"
-          defaultChecked={item?.is_active ?? true}
-          name="is_active"
-          type="checkbox"
-        />
-        Accord actif
-      </label>
+      {/* Contraintes départements */}
+      <div className="border-t border-gray-100 pt-4">
+        <p className="mb-3 text-sm font-semibold text-gray-700">
+          Départements éligibles
+          <span className="ml-1 font-normal text-gray-400">(vide = tous)</span>
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {departments.map((dept) => (
+            <button
+              key={dept.id}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                selectedDeptIds.includes(dept.id)
+                  ? "border-[#1E3A8A] bg-[#1E3A8A] text-white"
+                  : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+              }`}
+              onClick={() => toggleDept(dept.id)}
+              type="button"
+            >
+              {dept.code}
+            </button>
+          ))}
+          {departments.length === 0 && (
+            <p className="text-xs italic text-gray-400">Aucun département disponible</p>
+          )}
+        </div>
+      </div>
 
       <TextArea defaultValue={item?.remarks} label="Remarques" name="remarks" />
 
@@ -274,15 +242,7 @@ function Select({
   );
 }
 
-function TextArea({
-  defaultValue,
-  label,
-  name,
-}: {
-  defaultValue?: string | null;
-  label: string;
-  name: string;
-}) {
+function TextArea({ defaultValue, label, name }: { defaultValue?: string | null; label: string; name: string }) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>
@@ -303,13 +263,7 @@ function ErrorBox({ message }: { message: string }) {
   );
 }
 
-function FormActions({
-  isSubmitting,
-  onCancel,
-}: {
-  isSubmitting: boolean;
-  onCancel: () => void;
-}) {
+function FormActions({ isSubmitting, onCancel }: { isSubmitting: boolean; onCancel: () => void }) {
   return (
     <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
       <button

@@ -3,16 +3,18 @@ import type { ReactNode } from "react";
 export function MobilitySection({
   children,
   description,
+  id,
   title,
   toolbar,
 }: {
   children: ReactNode;
   description: string;
+  id?: string;
   title: string;
   toolbar?: ReactNode;
 }) {
   return (
-    <section className="space-y-4">
+    <section id={id} className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
