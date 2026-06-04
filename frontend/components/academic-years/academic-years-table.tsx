@@ -127,7 +127,7 @@ export function AcademicYearsTable({
       emptyLabel="Aucune annee universitaire configuree"
       getRowKey={(year) => year.id}
       maxHeight="32rem"
-      pageSize={10}
+      pageSize={5}
     />
   );
 }
