@@ -9,6 +9,8 @@ from app.reference.models import Department, Level
 class TimeStampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.CharField(max_length=255, blank=True, default="")
+    updated_by = models.CharField(max_length=255, blank=True, default="")
 
     class Meta:
         abstract = True
@@ -36,7 +38,6 @@ class MobilityCategory(TimeStampedModel):
 class Agreement(TimeStampedModel):
     id = models.BigAutoField(primary_key=True)
     moveon_id = models.CharField(max_length=255, blank=True, null=True, unique=True)
-    reference = models.CharField(max_length=255, blank=True)
     name = models.CharField(max_length=255)
     partner_university = models.ForeignKey(
         PartnerUniversity,
@@ -62,11 +63,6 @@ class Agreement(TimeStampedModel):
         blank=True,
         related_name="agreements",
     )
-    departments = models.ManyToManyField(
-        Department,
-        blank=True,
-        related_name="agreements",
-    )
 
     class Meta:
         verbose_name = "Agreement"
@@ -86,12 +82,44 @@ class Agreement(TimeStampedModel):
             )
 
     @property
-    def department_ids(self) -> list[int]:
-        return [d.id for d in self.departments.all()]
-
-    @property
     def level_ids(self) -> list[int]:
         return [lvl.id for lvl in self.levels.all()]
+
+
+class AgreementDepartment(TimeStampedModel):
+    id = models.BigAutoField(primary_key=True)
+    agreement = models.ForeignKey(
+        Agreement,
+        on_delete=models.CASCADE,
+        related_name="agreement_departments",
+    )
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.PROTECT,
+        related_name="agreement_departments",
+    )
+    remarks = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "Agreement Department"
+        verbose_name_plural = "Agreement Departments"
+        ordering = ["department__code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agreement", "department"],
+                name="unique_agreement_department",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["agreement", "department"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.agreement.name} — {self.department.code}"
+
+    @property
+    def department_id_val(self) -> int:
+        return self.department_id
 
 
 class AgreementYear(TimeStampedModel):
@@ -153,42 +181,46 @@ class AgreementYearDepartment(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="department_quotas",
     )
-    department = models.ForeignKey(
-        Department,
+    agreement_department = models.ForeignKey(
+        AgreementDepartment,
         on_delete=models.PROTECT,
-        related_name="agreement_year_departments",
+        related_name="year_quotas",
     )
     estimated_places = models.IntegerField(default=0)
 
     class Meta:
         verbose_name = "Agreement Year Department"
         verbose_name_plural = "Agreement Year Departments"
-        ordering = ["department__code"]
+        ordering = ["agreement_department__department__code"]
         constraints = [
             models.UniqueConstraint(
-                fields=["agreement_year", "department"],
+                fields=["agreement_year", "agreement_department"],
                 name="unique_agreement_year_department",
             ),
         ]
         indexes = [
-            models.Index(fields=["agreement_year", "department"]),
+            models.Index(fields=["agreement_year", "agreement_department"]),
         ]
 
     def __str__(self) -> str:
-        return f"{self.department.code}: {self.estimated_places}"
+        return f"{self.agreement_department.department.code}: {self.estimated_places}"
 
     def clean(self) -> None:
         if self.estimated_places < 0:
             raise ValidationError(
                 {"estimated_places": "estimated_places ne peut pas être négatif"}
             )
-        if self.department_id and self.agreement_year_id:
-            constrained = list(
-                self.agreement_year.agreement.departments.values_list("id", flat=True)
-            )
-            if constrained and self.department_id not in constrained:
+        if self.agreement_department_id and self.agreement_year_id:
+            if (
+                self.agreement_department.agreement_id
+                != self.agreement_year.agreement_id
+            ):
                 raise ValidationError(
                     {
-                        "department": "Ce département n'est pas dans les contraintes de l'accord."
+                        "agreement_department": "Ce département n'appartient pas à cet accord."
                     }
                 )
+
+    @property
+    def department_id(self) -> int:
+        return self.agreement_department.department_id

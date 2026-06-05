@@ -35,7 +35,7 @@ class AuditConfig(AppConfig):
         )
 
         auditlog.register(MobilityCategory)
-        auditlog.register(Agreement, m2m_fields={"levels", "departments"})
+        auditlog.register(Agreement)
         auditlog.register(AgreementYear)
         auditlog.register(AgreementYearDepartment)
 

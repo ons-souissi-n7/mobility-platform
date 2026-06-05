@@ -1,7 +1,38 @@
 from datetime import datetime
 from decimal import Decimal
 
-from ninja import Schema
+from ninja import Schema  # noqa: I001
+
+# ── Vœux étudiants ─────────────────────────────────────────────────────────
+
+
+class AgreementWishOut(Schema):
+    rank: int
+    agreement_id: int
+    moveon_id: str | None
+    agreement_name: str
+    university_name: str
+    direction: str
+
+
+class StudentWishesOut(Schema):
+    student_id: int
+    ine: str
+    first_name: str
+    last_name: str
+    department_code: str | None
+    parcours_code: str | None
+    gpa: Decimal | None
+    wishes: list[AgreementWishOut]
+
+
+class WishSyncReportOut(Schema):
+    created: int
+    updated: int
+    skipped: int
+    total: int
+    unresolved: list[dict]
+    errors: list[str]
 
 
 class ParcoursOut(Schema):
@@ -14,12 +45,32 @@ class ParcoursOut(Schema):
 class AnnualEnrollmentOut(Schema):
     id: int
     academic_year_id: int
+    academic_year_label: str
     department_id: int
+    department_code: str
     level_id: int
+    level_code: str
     parcours_id: int | None
+    parcours_code: str | None
     gpa: Decimal | None
     created_at: datetime
     updated_at: datetime
+
+    @staticmethod
+    def resolve_academic_year_label(obj) -> str:
+        return obj.academic_year.label
+
+    @staticmethod
+    def resolve_department_code(obj) -> str:
+        return obj.department.code
+
+    @staticmethod
+    def resolve_level_code(obj) -> str:
+        return obj.level.code
+
+    @staticmethod
+    def resolve_parcours_code(obj) -> str | None:
+        return obj.parcours.code if obj.parcours_id else None
 
 
 class StudentOut(Schema):
@@ -29,8 +80,18 @@ class StudentOut(Schema):
     last_name: str
     email: str
     gender: str
+    nationality_iso2: str | None = None
+    nationality_name_fr: str | None = None
     created_at: datetime
     updated_at: datetime
+
+    @staticmethod
+    def resolve_nationality_iso2(obj) -> str | None:
+        return obj.nationality.iso2 if obj.nationality_id else None
+
+    @staticmethod
+    def resolve_nationality_name_fr(obj) -> str | None:
+        return obj.nationality.name_fr if obj.nationality_id else None
 
 
 class StudentDetailOut(StudentOut):
@@ -113,6 +174,8 @@ class StudentEnrollmentOut(Schema):
     last_name: str
     email: str
     gender: str
+    nationality_iso2: str | None
+    nationality_name_fr: str | None
     department_id: int
     department_code: str
     department_name: str

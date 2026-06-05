@@ -10,3 +10,8 @@ export async function getStudentsData() {
 
   return { academicYears, departments, levels };
 }
+
+export async function getWishesData() {
+  const academicYears = await getApi<AcademicYear[]>("/academic/years/");
+  return { academicYears };
+}

@@ -1,5 +1,12 @@
 import { browserApi } from "@/lib/api/browser-client";
-import type { ImportReport, RawImport, StudentStats, StudentWithEnrollment } from "@/lib/api/types";
+import type {
+  ImportReport,
+  RawImport,
+  StudentStats,
+  StudentWithEnrollment,
+  StudentWishes,
+  WishSyncReport,
+} from "@/lib/api/types";
 
 const publicApiBaseUrl = (
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"
@@ -83,4 +90,25 @@ export async function downloadStudentTemplate(): Promise<void> {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export function getStudentDetail(studentId: number): Promise<import("@/lib/api/types").StudentDetail> {
+  return browserApi(`/students/students/${studentId}/`, { method: "GET" });
+}
+
+export async function syncWishesFromMoveon(yearId: number): Promise<WishSyncReport> {
+  const response = await fetch(
+    `${publicApiBaseUrl}/students/students/wishes/sync-moveon/${yearId}/`,
+    { method: "POST" },
+  );
+  if (!response.ok) throw new Error(`Erreur sync vœux MoveON : ${response.status}`);
+  return response.json() as Promise<WishSyncReport>;
+}
+
+export async function getWishesByYear(yearId: number): Promise<StudentWishes[]> {
+  const response = await fetch(
+    `${publicApiBaseUrl}/students/students/wishes/by-year/${yearId}/`,
+  );
+  if (!response.ok) throw new Error(`Erreur chargement vœux : ${response.status}`);
+  return response.json() as Promise<StudentWishes[]>;
 }

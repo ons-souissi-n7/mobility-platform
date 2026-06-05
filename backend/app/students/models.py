@@ -24,6 +24,25 @@ class Student(TimeStampedModel):
         default="",
         verbose_name="Genre",
     )
+    nationality = models.ForeignKey(
+        "reference.Country",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="students",
+        verbose_name="Nationalité",
+    )
+    pegase_id = models.CharField(  # noqa: DJ001
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name="Identifiant Pégase",
+    )
+    last_sync_pegase = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Dernière sync Pégase",
+    )
 
     class Meta:
         verbose_name = "Etudiant"
@@ -81,3 +100,48 @@ class AnnualEnrollment(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.student} — {self.academic_year} ({self.level})"
+
+
+class StudentWish(TimeStampedModel):
+    id = models.BigAutoField(primary_key=True)
+    annual_enrollment = models.ForeignKey(
+        AnnualEnrollment,
+        on_delete=models.CASCADE,
+        related_name="wishes",
+    )
+    agreement = models.ForeignKey(
+        "mobility.Agreement",
+        on_delete=models.PROTECT,
+        related_name="student_wishes",
+    )
+    rank = models.PositiveSmallIntegerField(verbose_name="Rang du vœu")
+
+    class Meta:
+        verbose_name = "Vœu étudiant"
+        verbose_name_plural = "Vœux étudiants"
+        ordering = [
+            "annual_enrollment__student__last_name",
+            "annual_enrollment__academic_year__start_date",
+            "rank",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["annual_enrollment", "rank"],
+                name="unique_wish_enrollment_rank",
+            ),
+            models.UniqueConstraint(
+                fields=["annual_enrollment", "agreement"],
+                name="unique_wish_enrollment_agreement",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["annual_enrollment"], name="wish_enrollment_idx"),
+            models.Index(fields=["agreement"], name="wish_agreement_idx"),
+        ]
+
+    def clean(self) -> None:
+        if self.rank < 1:
+            raise ValidationError({"rank": "Le rang doit être supérieur ou égal à 1."})
+
+    def __str__(self) -> str:
+        return f"{self.annual_enrollment.student} — Vœu {self.rank} ({self.annual_enrollment.academic_year})"

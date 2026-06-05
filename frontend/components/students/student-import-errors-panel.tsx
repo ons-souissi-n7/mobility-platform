@@ -9,10 +9,12 @@ export function StudentImportErrorsPanel({
   errors,
   isBusy,
   onIgnore,
+  title = "Erreurs d’import étudiants",
 }: {
   errors: RawImport[];
   isBusy: boolean;
   onIgnore: (error: RawImport) => Promise<void>;
+  title?: string;
 }) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export function StudentImportErrorsPanel({
       <div className="flex items-center gap-2 text-amber-900">
         <AlertTriangle className="h-5 w-5" aria-hidden="true" />
         <h3 className="text-sm font-semibold">
-          Erreurs d&apos;import étudiants ({errors.length})
+          {title} ({errors.length})
         </h3>
       </div>
 

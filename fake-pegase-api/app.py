@@ -26,6 +26,10 @@ class FakePegaseHandler(BaseHTTPRequestHandler):
             self.respond(load_json("enrollments.json"))
             return
 
+        if path in ("/inscriptions", "/api/inscriptions"):
+            self.respond(load_json("inscriptions.json"))
+            return
+
         if path in ("/gpa-records", "/api/gpa-records"):
             self.respond(load_json("gpa_records.json"))
             return

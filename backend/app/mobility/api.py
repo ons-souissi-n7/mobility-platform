@@ -15,12 +15,15 @@ from app.reference.models import Level
 
 from .models import (
     Agreement,
+    AgreementDepartment,
     AgreementYear,
     AgreementYearDepartment,
     MobilityCategory,
 )
 from .schemas import (
     AGREEMENT_READONLY_FIELDS,
+    AgreementDepartmentIn,
+    AgreementDepartmentOut,
     AgreementIn,
     AgreementOut,
     AgreementYearDepartmentIn,
@@ -108,7 +111,7 @@ def validate_year_consistency(agreement_year: AgreementYear) -> None:
 def list_agreements(request):
     return (
         Agreement.objects.select_related("partner_university", "category")
-        .prefetch_related("departments", "levels")
+        .prefetch_related("levels")
         .all()
     )
 
@@ -118,12 +121,10 @@ def create_agreement(request, payload: AgreementIn):
     data = {
         k: v
         for k, v in payload.model_dump().items()
-        if k not in AGREEMENT_READONLY_FIELDS
-        and k not in ("department_ids", "level_ids")
+        if k not in AGREEMENT_READONLY_FIELDS and k not in ("level_ids",)
     }
     agreement = Agreement(**data)
     save_validated(agreement)
-    agreement.departments.set(payload.department_ids)
     agreement.levels.set(payload.level_ids)
     return 201, agreement
 
@@ -140,13 +141,9 @@ def update_agreement(request, agreement_id: int, payload: AgreementIn):
             "Modifiez uniquement les quotas de l'année en cours.",
         )
     for field, value in payload.model_dump().items():
-        if field not in AGREEMENT_READONLY_FIELDS and field not in (
-            "department_ids",
-            "level_ids",
-        ):
+        if field not in AGREEMENT_READONLY_FIELDS and field not in ("level_ids",):
             setattr(agreement, field, value)
     save_validated(agreement)
-    agreement.departments.set(payload.department_ids)
     agreement.levels.set(payload.level_ids)
     return agreement
 
@@ -157,6 +154,58 @@ def update_agreement(request, agreement_id: int, payload: AgreementIn):
 def delete_agreement(request, agreement_id: int):
     agreement = get_or_404(Agreement, agreement_id, "Accord introuvable.")
     safe_delete(agreement)
+    return 204, None
+
+
+# ──────────────────────────────────────────────
+# Départements d'accord (AgreementDepartment)
+# ──────────────────────────────────────────────
+
+
+@router.get(
+    "/agreement-departments/",
+    response=list[AgreementDepartmentOut],
+    summary="Liste des départements d'un accord",
+)
+def list_agreement_departments(request):
+    agreement_id = request.GET.get("agreement_id")
+    qs = AgreementDepartment.objects.select_related("agreement", "department").all()
+    if agreement_id:
+        qs = qs.filter(agreement_id=agreement_id)
+    return qs
+
+
+@router.post(
+    "/agreement-departments/",
+    response={201: AgreementDepartmentOut},
+    summary="Ajouter un département à un accord",
+)
+def create_agreement_department(request, payload: AgreementDepartmentIn):
+    dept = AgreementDepartment(**payload.model_dump())
+    return 201, save_validated(dept)
+
+
+@router.put(
+    "/agreement-departments/{dept_id}/",
+    response=AgreementDepartmentOut,
+    summary="Modifier un département d'accord",
+)
+def update_agreement_department(request, dept_id: int, payload: AgreementDepartmentIn):
+    dept = get_or_404(AgreementDepartment, dept_id, "Département d'accord introuvable.")
+    for field, value in payload.model_dump().items():
+        if field not in ("id", "created_at", "updated_at"):
+            setattr(dept, field, value)
+    return save_validated(dept)
+
+
+@router.delete(
+    "/agreement-departments/{dept_id}/",
+    response={204: None},
+    summary="Retirer un département d'un accord",
+)
+def delete_agreement_department(request, dept_id: int):
+    dept = get_or_404(AgreementDepartment, dept_id, "Département d'accord introuvable.")
+    safe_delete(dept)
     return 204, None
 
 
@@ -294,7 +343,7 @@ def list_agreement_year_departments(request):
     agreement_year_id = request.GET.get("agreement_year_id")
 
     qs = AgreementYearDepartment.objects.select_related(
-        "agreement_year__academic_year", "department"
+        "agreement_year__academic_year", "agreement_department__department"
     ).all()
 
     if academic_year_label:
@@ -562,11 +611,7 @@ def download_excel_template(request):
     categories = list(
         MobilityCategory.objects.values_list("name", flat=True).order_by("name")
     )
-    levels = list(
-        Level.objects.filter(is_active=True)
-        .values_list("code", flat=True)
-        .order_by("code")
-    )
+    levels = list(Level.objects.values_list("code", flat=True).order_by("code"))
 
     file_bytes = build_excel_template(
         departments=departments,

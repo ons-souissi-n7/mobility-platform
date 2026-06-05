@@ -1,7 +1,7 @@
 from io import BytesIO
 
 import openpyxl
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 from django.http import HttpResponse
 from ninja import File, Router
 from ninja.errors import HttpError
@@ -21,8 +21,9 @@ from app.imports.models import (
 )
 from app.reference.models import Department, Level
 
-from .models import AnnualEnrollment, Student
+from .models import AnnualEnrollment, Student, StudentWish
 from .schemas import (
+    AgreementWishOut,
     CrossStatOut,
     DepartmentStatOut,
     ImportReportOut,
@@ -33,10 +34,13 @@ from .schemas import (
     StudentOut,
     StudentRawImportOut,
     StudentStatsOut,
+    StudentWishesOut,
+    WishSyncReportOut,
 )
 from .services.adapters import excel as excel_adapter
 from .services.adapters import pegase as pegase_adapter
 from .services.etl import import_students
+from .services.sync_moveon_wishes import sync_moveon_wishes
 
 router = Router()
 
@@ -318,7 +322,9 @@ def download_student_template(request):
 def list_students_by_year(request, year_id: int):
     enrollments = (
         AnnualEnrollment.objects.filter(academic_year_id=year_id)
-        .select_related("student", "department", "level", "parcours")
+        .select_related(
+            "student", "student__nationality", "department", "level", "parcours"
+        )
         .order_by("student__last_name", "student__first_name")
     )
     return [
@@ -329,6 +335,12 @@ def list_students_by_year(request, year_id: int):
             last_name=e.student.last_name,
             email=e.student.email,
             gender=e.student.gender,
+            nationality_iso2=e.student.nationality.iso2
+            if e.student.nationality_id
+            else None,
+            nationality_name_fr=e.student.nationality.name_fr
+            if e.student.nationality_id
+            else None,
             department_id=e.department.id,
             department_code=e.department.code,
             department_name=e.department.name,
@@ -391,7 +403,18 @@ def ignore_student_import_error(request, raw_import_id: int):
 )
 def get_student(request, student_id: int):
     try:
-        return Student.objects.prefetch_related("enrollments").get(pk=student_id)
+        return (
+            Student.objects.prefetch_related(
+                Prefetch(
+                    "enrollments",
+                    queryset=AnnualEnrollment.objects.select_related(
+                        "academic_year", "department", "level", "parcours"
+                    ).order_by("-academic_year__start_date"),
+                )
+            )
+            .select_related("nationality")
+            .get(pk=student_id)
+        )
     except Student.DoesNotExist as exc:
         raise HttpError(404, "Etudiant introuvable.") from exc
 
@@ -442,3 +465,137 @@ def import_from_excel(request, year_id: int, file: UploadedFile = File(...)):  #
         detail=f"Fichier {file.name} — Année {academic_year.label} — {report.created} créés, {report.updated} mis à jour, {len(report.unresolved)} non résolus",
     )
     return report
+
+
+# ── Vœux étudiants ─────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/students/wishes/sync-moveon/{year_id}/",
+    response=WishSyncReportOut,
+    summary="Synchroniser les vœux étudiants depuis MoveON",
+)
+def sync_wishes_from_moveon(request, year_id: int):
+    academic_year = get_academic_year(year_id)
+    report = sync_moveon_wishes(
+        academic_year=academic_year,
+        triggered_by=getattr(request.user, "username", ""),
+    )
+    log_action(
+        request,
+        action="sync_moveon_wishes",
+        detail=(
+            f"Année {academic_year.label} — "
+            f"{report.created} créés, {report.updated} mis à jour, "
+            f"{len(report.unresolved)} non résolus"
+        ),
+    )
+    return report
+
+
+@router.get(
+    "/students/wishes/by-year/{year_id}/",
+    response=list[StudentWishesOut],
+    summary="Vœux ordonnés par étudiant pour une année",
+)
+def list_wishes_by_year(request, year_id: int):
+    academic_year = get_academic_year(year_id)
+
+    wishes = (
+        StudentWish.objects.filter(annual_enrollment__academic_year=academic_year)
+        .select_related(
+            "annual_enrollment__student",
+            "annual_enrollment__department",
+            "annual_enrollment__parcours",
+            "agreement__partner_university",
+        )
+        .order_by(
+            "annual_enrollment__student__last_name",
+            "annual_enrollment__student__first_name",
+            "rank",
+        )
+    )
+
+    grouped: dict[int, StudentWishesOut] = {}
+    for w in wishes:
+        enrollment = w.annual_enrollment
+        student = enrollment.student
+        sid = student.id
+        if sid not in grouped:
+            grouped[sid] = StudentWishesOut(
+                student_id=sid,
+                ine=student.ine,
+                first_name=student.first_name,
+                last_name=student.last_name,
+                department_code=enrollment.department.code,
+                parcours_code=enrollment.parcours.code
+                if enrollment.parcours_id
+                else None,
+                gpa=enrollment.gpa,
+                wishes=[],
+            )
+        grouped[sid].wishes.append(
+            AgreementWishOut(
+                rank=w.rank,
+                agreement_id=w.agreement_id,
+                moveon_id=w.agreement.moveon_id,
+                agreement_name=w.agreement.name,
+                university_name=w.agreement.partner_university.name,
+                direction=w.agreement.direction,
+            )
+        )
+
+    return list(grouped.values())
+
+
+@router.get(
+    "/students/{student_id}/wishes/{year_id}/",
+    response=StudentWishesOut,
+    summary="Vœux d'un étudiant pour une année",
+)
+def get_student_wishes(request, student_id: int, year_id: int):
+    try:
+        student = Student.objects.get(pk=student_id)
+    except Student.DoesNotExist as exc:
+        raise HttpError(404, "Étudiant introuvable.") from exc
+
+    academic_year = get_academic_year(year_id)
+
+    enrollment = (
+        AnnualEnrollment.objects.filter(student=student, academic_year=academic_year)
+        .select_related("department", "parcours")
+        .first()
+    )
+
+    wishes = (
+        (
+            StudentWish.objects.filter(annual_enrollment=enrollment)
+            .select_related("agreement", "agreement__partner_university")
+            .order_by("rank")
+        )
+        if enrollment
+        else StudentWish.objects.none()
+    )
+
+    return StudentWishesOut(
+        student_id=student.id,
+        ine=student.ine,
+        first_name=student.first_name,
+        last_name=student.last_name,
+        department_code=enrollment.department.code if enrollment else None,
+        parcours_code=enrollment.parcours.code
+        if enrollment and enrollment.parcours_id
+        else None,
+        gpa=enrollment.gpa if enrollment else None,
+        wishes=[
+            AgreementWishOut(
+                rank=w.rank,
+                agreement_id=w.agreement_id,
+                moveon_id=w.agreement.moveon_id,
+                agreement_name=w.agreement.name,
+                university_name=w.agreement.partner_university.name,
+                direction=w.agreement.direction,
+            )
+            for w in wishes
+        ],
+    )

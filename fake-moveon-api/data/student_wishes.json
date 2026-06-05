@@ -1,0 +1,43 @@
+[
+  {"Individu": "THOMAS Alexis",    "Numéro étudiant": "22010000001", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "03/11/2025 10:12", "Dernière modification le": "03/11/2025 10:12"},
+  {"Individu": "THOMAS Alexis",    "Numéro étudiant": "22010000001", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Joint double degree",           "Statut Sélection": "Candidat", "Crée le": "03/11/2025 10:14", "Dernière modification le": "03/11/2025 10:14"},
+
+  {"Individu": "LEROY Sophie",     "Numéro étudiant": "22010000002", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Joint double degree",           "Statut Sélection": "Candidat", "Crée le": "05/11/2025 09:30", "Dernière modification le": "12/01/2026 14:00"},
+  {"Individu": "LEROY Sophie",     "Numéro étudiant": "22010000002", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "05/11/2025 09:32", "Dernière modification le": "05/11/2025 09:32"},
+  {"Individu": "LEROY Sophie",     "Numéro étudiant": "22010000002", "Période de début": "Semestre 2 - 2026/27", "No": 3, "Offre de séjour": "Industry internship agreement", "Statut Sélection": "Candidat", "Crée le": "05/11/2025 09:35", "Dernière modification le": "05/11/2025 09:35"},
+
+  {"Individu": "MOREAU Kevin",     "Numéro étudiant": "22010000003", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "10/11/2025 11:00", "Dernière modification le": "10/11/2025 11:00"},
+
+  {"Individu": "DAVID Manon",      "Numéro étudiant": "22010000004", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Joint double degree",           "Statut Sélection": "Candidat", "Crée le": "07/11/2025 08:45", "Dernière modification le": "07/11/2025 08:45"},
+  {"Individu": "DAVID Manon",      "Numéro étudiant": "22010000004", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "07/11/2025 08:47", "Dernière modification le": "07/11/2025 08:47"},
+
+  {"Individu": "FOURNIER Antoine", "Numéro étudiant": "22010000005", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "14/11/2025 16:20", "Dernière modification le": "14/11/2025 16:20"},
+  {"Individu": "FOURNIER Antoine", "Numéro étudiant": "22010000005", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Industry internship agreement", "Statut Sélection": "Candidat", "Crée le": "14/11/2025 16:22", "Dernière modification le": "14/11/2025 16:22"},
+
+  {"Individu": "GIRARD Mathieu",   "Numéro étudiant": "22010000006", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "18/11/2025 10:05", "Dernière modification le": "18/11/2025 10:05"},
+  {"Individu": "GIRARD Mathieu",   "Numéro étudiant": "22010000006", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Joint double degree",           "Statut Sélection": "Candidat", "Crée le": "18/11/2025 10:07", "Dernière modification le": "18/11/2025 10:07"},
+  {"Individu": "GIRARD Mathieu",   "Numéro étudiant": "22010000006", "Période de début": "Semestre 2 - 2026/27", "No": 3, "Offre de séjour": "Industry internship agreement", "Statut Sélection": "Candidat", "Crée le": "18/11/2025 10:09", "Dernière modification le": "18/11/2025 10:09"},
+
+  {"Individu": "BONNET Alice",     "Numéro étudiant": "22010000007", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Joint double degree",           "Statut Sélection": "Candidat", "Crée le": "20/11/2025 14:30", "Dernière modification le": "20/11/2025 14:30"},
+  {"Individu": "BONNET Alice",     "Numéro étudiant": "22010000007", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "20/11/2025 14:32", "Dernière modification le": "20/11/2025 14:32"},
+
+  {"Individu": "DUBOIS Romain",    "Numéro étudiant": "22010000008", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Industry internship agreement", "Statut Sélection": "Candidat", "Crée le": "25/11/2025 09:15", "Dernière modification le": "25/11/2025 09:15"},
+  {"Individu": "DUBOIS Romain",    "Numéro étudiant": "22010000008", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Joint double degree",           "Statut Sélection": "Candidat", "Crée le": "25/11/2025 09:17", "Dernière modification le": "25/11/2025 09:17"},
+
+  {"Individu": "LAMBERT Clara",    "Numéro étudiant": "22010000009", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Industry internship agreement", "Statut Sélection": "Candidat", "Crée le": "28/11/2025 11:45", "Dernière modification le": "28/11/2025 11:45"},
+  {"Individu": "LAMBERT Clara",    "Numéro étudiant": "22010000009", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "28/11/2025 11:47", "Dernière modification le": "28/11/2025 11:47"},
+  {"Individu": "LAMBERT Clara",    "Numéro étudiant": "22010000009", "Période de début": "Semestre 2 - 2026/27", "No": 3, "Offre de séjour": "Joint double degree",           "Statut Sélection": "Candidat", "Crée le": "28/11/2025 11:50", "Dernière modification le": "28/11/2025 11:50"},
+
+  {"Individu": "MORIN Julien",     "Numéro étudiant": "22010000010", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "02/12/2025 10:00", "Dernière modification le": "02/12/2025 10:00"},
+  {"Individu": "MORIN Julien",     "Numéro étudiant": "22010000010", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Joint double degree",           "Statut Sélection": "Candidat", "Crée le": "02/12/2025 10:02", "Dernière modification le": "02/12/2025 10:02"},
+
+  {"Individu": "FONTAINE Theo",    "Numéro étudiant": "21010000001", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "06/11/2025 15:00", "Dernière modification le": "06/11/2025 15:00"},
+  {"Individu": "FONTAINE Theo",    "Numéro étudiant": "21010000001", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Joint double degree",           "Statut Sélection": "Candidat", "Crée le": "06/11/2025 15:02", "Dernière modification le": "06/11/2025 15:02"},
+
+  {"Individu": "ROUSSEAU Ines",    "Numéro étudiant": "21010000002", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Joint double degree",           "Statut Sélection": "Candidat", "Crée le": "08/11/2025 13:20", "Dernière modification le": "08/11/2025 13:20"},
+  {"Individu": "ROUSSEAU Ines",    "Numéro étudiant": "21010000002", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "08/11/2025 13:22", "Dernière modification le": "08/11/2025 13:22"},
+
+  {"Individu": "INCONNU NomTest",  "Numéro étudiant": "99999999999", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "10/11/2025 09:00", "Dernière modification le": "10/11/2025 09:00"},
+
+  {"Individu": "MARTIN OLD",       "Numéro étudiant": "00000000000", "Période de début": "Semestre 2 - 2023/24", "No": 1, "Offre de séjour": "Erasmus outgoing agreement",    "Statut Sélection": "Candidat", "Crée le": "15/11/2022 10:00", "Dernière modification le": "15/11/2022 10:00"}
+]

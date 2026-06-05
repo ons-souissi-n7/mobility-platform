@@ -35,14 +35,12 @@ class AgreementIn(Schema):
     inp_total_places: int = 0
     inp_institutions: str = ""
     remarks: str = ""
-    department_ids: list[int] = []
     level_ids: list[int] = []
 
 
 class AgreementOut(Schema):
     id: int
     moveon_id: str | None
-    reference: str
     name: str
     partner_university_id: int
     category_id: int | None
@@ -53,8 +51,22 @@ class AgreementOut(Schema):
     inp_institutions: str
     remarks: str
     last_sync_moveon: datetime | None
-    department_ids: list[int]
     level_ids: list[int]
+    created_at: datetime
+    updated_at: datetime
+
+
+class AgreementDepartmentIn(Schema):
+    agreement_id: int
+    department_id: int
+    remarks: str = ""
+
+
+class AgreementDepartmentOut(Schema):
+    id: int
+    agreement_id: int
+    department_id: int
+    remarks: str
     created_at: datetime
     updated_at: datetime
 
@@ -86,17 +98,22 @@ class AgreementYearValidateIn(Schema):
 
 class AgreementYearDepartmentIn(Schema):
     agreement_year_id: int
-    department_id: int
+    agreement_department_id: int
     estimated_places: int = 0
 
 
 class AgreementYearDepartmentOut(Schema):
     id: int
     agreement_year_id: int
+    agreement_department_id: int
     department_id: int
     estimated_places: int
     created_at: datetime
     updated_at: datetime
+
+    @staticmethod
+    def resolve_department_id(obj) -> int:
+        return obj.agreement_department.department_id
 
 
 class MobilityCategoryIn(Schema):

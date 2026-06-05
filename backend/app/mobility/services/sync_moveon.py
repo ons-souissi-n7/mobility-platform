@@ -17,6 +17,7 @@ from app.institutions.models import PartnerUniversity
 from app.integrations.moveon import MoveOnClient
 from app.mobility.models import (
     Agreement,
+    AgreementDepartment,
     MobilityCategory,
 )
 from app.reference.models import Department, Level
@@ -254,7 +255,6 @@ def upsert_agreement(transformed_data: TransformedAgreement | dict[str, Any]) ->
     category = _resolve_mobility_category(transformed_data.category_name)
 
     defaults = {
-        "reference": transformed_data.reference,
         "name": transformed_data.name,
         "partner_university": partner_university,
         "category": category,
@@ -435,7 +435,8 @@ def _sync_departments(agreement: Agreement, tokens: tuple[str, ...]) -> None:
                     "puis relancez la synchronisation."
                 ),
             )
-    agreement.departments.set(departments)
+    for dept in departments:
+        AgreementDepartment.objects.get_or_create(agreement=agreement, department=dept)
 
 
 def _sync_levels(agreement: Agreement, tokens: tuple[str, ...]) -> None:
@@ -456,7 +457,7 @@ def _resolve_department(token: str) -> Department | None:
 def _get_or_create_level(token: str) -> Level:
     code = "-".join(token.strip().upper().split())[:50]
     level, _ = Level.objects.update_or_create(
-        code=code, defaults={"name": token.strip(), "is_active": True}
+        code=code, defaults={"name": token.strip()}
     )
     return level
 

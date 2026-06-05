@@ -7,7 +7,7 @@ from django.test import Client
 from app.academic.models import AcademicYear
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.institutions.models import PartnerUniversity
-from app.mobility.models import Agreement, AgreementYear
+from app.mobility.models import Agreement, AgreementDepartment, AgreementYear
 from app.reference.models import Country, CTIRegion, Department
 
 
@@ -153,9 +153,12 @@ class TestMobilityAgreementAPI:
         assert response.status_code == 400
 
     def test_create_agreement_year_department(self):
+        ad = AgreementDepartment.objects.create(
+            agreement=self.agreement, department=self.department
+        )
         payload = {
             "agreement_year_id": self.year.id,
-            "department_id": self.department.id,
+            "agreement_department_id": ad.id,
             "estimated_places": 2,
         }
 
