@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 
 import { CountriesTable } from "@/components/references/countries-table";
 import { DepartmentsTable } from "@/components/references/departments-table";
@@ -17,6 +17,8 @@ import {
 import { ReferenceSection } from "@/components/references/reference-section";
 import { ReferenceTabs } from "@/components/references/reference-tabs";
 import { UniversitiesTable } from "@/components/references/universities-table";
+import { ErrorBanner } from "@/components/ui/alert";
+import { Btn } from "@/components/ui/btn";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { SearchInput } from "@/components/ui/search-input";
@@ -404,23 +406,9 @@ export function ReferencesWorkspace({
         />
       </div>
 
-      {syncError ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {syncError}
-        </div>
-      ) : null}
-
-      {departmentSyncError ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {departmentSyncError}
-        </div>
-      ) : null}
-
-      {levelSyncError ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {levelSyncError}
-        </div>
-      ) : null}
+      <ErrorBanner message={syncError} />
+      <ErrorBanner message={departmentSyncError} />
+      <ErrorBanner message={levelSyncError} />
 
       <div className="space-y-10">
         <div id="departements">
@@ -597,21 +585,18 @@ export function ReferencesWorkspace({
 
 function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button className="bg-[#1E3A8A] text-white px-4 py-2 rounded-md text-sm font-medium" onClick={onClick}>
-      <Plus className="inline h-4 w-4 mr-1" /> {label}
-    </button>
+    <Btn variant="primary" onClick={onClick}>
+      <Plus className="h-4 w-4" /> {label}
+    </Btn>
   );
 }
 
 function SyncButton({ isLoading, label, onClick }: { isLoading: boolean; label: string; onClick: () => void }) {
   return (
-    <button
-      className="border border-gray-300 px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-      onClick={onClick}
-      disabled={isLoading}
-    >
-      {isLoading ? "En cours..." : label}
-    </button>
+    <Btn disabled={isLoading} onClick={onClick}>
+      <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+      {isLoading ? "Synchronisation..." : label}
+    </Btn>
   );
 }
 

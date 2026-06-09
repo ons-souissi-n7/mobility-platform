@@ -31,6 +31,11 @@ _COLUMN_MAP = {
     "gpa": "gpa",
     "moyenne": "gpa",
     "note": "gpa",
+    "nationalite": "nationality_iso2",
+    "nationalité": "nationality_iso2",
+    "pays": "nationality_iso2",
+    "pays_iso2": "nationality_iso2",
+    "nationalite_iso2": "nationality_iso2",
 }
 
 _GENDER_MAP = {
@@ -85,6 +90,9 @@ def parse(file_bytes: bytes) -> list[StudentRow]:
                     else None,
                     gpa=float(data["gpa"])
                     if "gpa" in data and data["gpa"] is not None
+                    else None,
+                    nationality_iso2=str(data["nationality_iso2"]).strip() or None
+                    if "nationality_iso2" in data and data["nationality_iso2"]
                     else None,
                 )
             )

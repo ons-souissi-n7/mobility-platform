@@ -1,0 +1,272 @@
+[
+  {
+    "model": "students.student",
+    "pk": 1,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "12345678901",
+      "first_name": "Thomas",
+      "last_name": "DUPONT",
+      "email": "thomas.dupont@etu.inp-toulouse.fr",
+      "gender": "M",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 2,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "23456789012",
+      "first_name": "Marie",
+      "last_name": "LEBLANC",
+      "email": "marie.leblanc@etu.inp-toulouse.fr",
+      "gender": "F",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 3,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "34567890123",
+      "first_name": "Antoine",
+      "last_name": "BERNARD",
+      "email": "antoine.bernard@etu.inp-toulouse.fr",
+      "gender": "M",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 4,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "45678901234",
+      "first_name": "Sophie",
+      "last_name": "MARTIN",
+      "email": "sophie.martin@etu.inp-toulouse.fr",
+      "gender": "F",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 5,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "56789012345",
+      "first_name": "Julien",
+      "last_name": "ROBERT",
+      "email": "julien.robert@etu.inp-toulouse.fr",
+      "gender": "M",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 6,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "67890123456",
+      "first_name": "Clara",
+      "last_name": "PETIT",
+      "email": "clara.petit@etu.inp-toulouse.fr",
+      "gender": "F",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 7,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "78901234567",
+      "first_name": "Lucas",
+      "last_name": "MOREAU",
+      "email": "lucas.moreau@etu.inp-toulouse.fr",
+      "gender": "M",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 8,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "89012345678",
+      "first_name": "Emma",
+      "last_name": "SIMON",
+      "email": "emma.simon@etu.inp-toulouse.fr",
+      "gender": "F",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 9,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "90123456789",
+      "first_name": "Hugo",
+      "last_name": "LAURENT",
+      "email": "hugo.laurent@etu.inp-toulouse.fr",
+      "gender": "M",
+      "nationality": 2,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 10,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "01234567890",
+      "first_name": "Lea",
+      "last_name": "DUBOIS",
+      "email": "lea.dubois@etu.inp-toulouse.fr",
+      "gender": "F",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 11,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "11234567890",
+      "first_name": "Nathan",
+      "last_name": "GARCIA",
+      "email": "nathan.garcia@etu.inp-toulouse.fr",
+      "gender": "M",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 12,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "21234567890",
+      "first_name": "Camille",
+      "last_name": "ROUX",
+      "email": "camille.roux@etu.inp-toulouse.fr",
+      "gender": "F",
+      "nationality": 22,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 13,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "31234567890",
+      "first_name": "Axel",
+      "last_name": "FOURNIER",
+      "email": "axel.fournier@etu.inp-toulouse.fr",
+      "gender": "M",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 14,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "41234567890",
+      "first_name": "Ines",
+      "last_name": "MOREL",
+      "email": "ines.morel@etu.inp-toulouse.fr",
+      "gender": "F",
+      "nationality": 1,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "students.student",
+    "pk": 15,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "ine": "51234567890",
+      "first_name": "Theo",
+      "last_name": "GIRARD",
+      "email": "theo.girard@etu.inp-toulouse.fr",
+      "gender": "M",
+      "nationality": 42,
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  }
+]

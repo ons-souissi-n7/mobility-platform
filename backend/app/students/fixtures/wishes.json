@@ -1,0 +1,366 @@
+[
+  {
+    "model": "students.studentwish",
+    "pk": 1,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 16,
+      "agreement": 1,
+      "rank": 1
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 2,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 16,
+      "agreement": 2,
+      "rank": 2
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 3,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 16,
+      "agreement": 4,
+      "rank": 3
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 4,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 18,
+      "agreement": 1,
+      "rank": 1
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 5,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 18,
+      "agreement": 3,
+      "rank": 2
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 6,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 18,
+      "agreement": 5,
+      "rank": 3
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 7,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 2,
+      "agreement": 2,
+      "rank": 1
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 8,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 2,
+      "agreement": 4,
+      "rank": 2
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 9,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 2,
+      "agreement": 1,
+      "rank": 3
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 10,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 5,
+      "agreement": 3,
+      "rank": 1
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 11,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 5,
+      "agreement": 1,
+      "rank": 2
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 12,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 5,
+      "agreement": 5,
+      "rank": 3
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 13,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 8,
+      "agreement": 5,
+      "rank": 1
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 14,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 8,
+      "agreement": 3,
+      "rank": 2
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 15,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 11,
+      "agreement": 1,
+      "rank": 1
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 16,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 11,
+      "agreement": 2,
+      "rank": 2
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 17,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 11,
+      "agreement": 5,
+      "rank": 3
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 18,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 14,
+      "agreement": 6,
+      "rank": 1
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 19,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 14,
+      "agreement": 1,
+      "rank": 2
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 20,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 14,
+      "agreement": 3,
+      "rank": 3
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 21,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 25,
+      "agreement": 7,
+      "rank": 1
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 22,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 25,
+      "agreement": 2,
+      "rank": 2
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 23,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 25,
+      "agreement": 1,
+      "rank": 3
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 24,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 27,
+      "agreement": 7,
+      "rank": 1
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 25,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 27,
+      "agreement": 6,
+      "rank": 2
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 26,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 27,
+      "agreement": 3,
+      "rank": 3
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 27,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 29,
+      "agreement": 5,
+      "rank": 1
+    }
+  },
+  {
+    "model": "students.studentwish",
+    "pk": 28,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "annual_enrollment": 29,
+      "agreement": 3,
+      "rank": 2
+    }
+  }
+]

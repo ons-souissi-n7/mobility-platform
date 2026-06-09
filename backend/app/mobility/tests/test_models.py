@@ -6,7 +6,12 @@ from django.db import IntegrityError
 
 from app.academic.models import AcademicYear
 from app.institutions.models import PartnerUniversity
-from app.mobility.models import Agreement, AgreementYear, AgreementYearDepartment
+from app.mobility.models import (
+    Agreement,
+    AgreementDepartment,
+    AgreementYear,
+    AgreementYearDepartment,
+)
 from app.reference.models import Country, CTIRegion, Department
 
 
@@ -122,10 +127,13 @@ class TestAgreementYearDepartment:
     def test_create_department_quota(self):
         department = Department.objects.create(code="SN", name="Sciences du Numerique")
         year = create_agreement_year()
+        ad = AgreementDepartment.objects.create(
+            agreement=year.agreement, department=department
+        )
 
         dept_quota = AgreementYearDepartment.objects.create(
             agreement_year=year,
-            department=department,
+            agreement_department=ad,
             estimated_places=2,
         )
 
@@ -134,16 +142,19 @@ class TestAgreementYearDepartment:
     def test_department_quota_unique_per_year(self):
         department = Department.objects.create(code="SN", name="Sciences du Numerique")
         year = create_agreement_year()
+        ad = AgreementDepartment.objects.create(
+            agreement=year.agreement, department=department
+        )
         AgreementYearDepartment.objects.create(
             agreement_year=year,
-            department=department,
+            agreement_department=ad,
             estimated_places=2,
         )
 
         with pytest.raises(IntegrityError):
             AgreementYearDepartment.objects.create(
                 agreement_year=year,
-                department=department,
+                agreement_department=ad,
                 estimated_places=1,
             )
 

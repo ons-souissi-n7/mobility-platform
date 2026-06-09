@@ -37,7 +37,7 @@ class AgreementAdmin(admin.ModelAdmin):
     ]
     list_filter = ["category", "direction"]
     search_fields = ["name", "partner_university__name", "reference"]
-    filter_horizontal = ["departments", "levels"]
+    filter_horizontal = ["levels"]
     readonly_fields = ["moveon_id", "last_sync_moveon", "created_at", "updated_at"]
     inlines = [AgreementYearInline]
     fieldsets = [
@@ -68,7 +68,7 @@ class AgreementAdmin(admin.ModelAdmin):
         (
             "Contraintes",
             {
-                "fields": ["levels", "departments"],
+                "fields": ["levels"],
             },
         ),
         (
@@ -83,7 +83,7 @@ class AgreementAdmin(admin.ModelAdmin):
 class AgreementYearDepartmentInline(admin.TabularInline):
     model = AgreementYearDepartment
     extra = 0
-    fields = ["department", "estimated_places"]
+    fields = ["agreement_department", "estimated_places"]
 
 
 @admin.register(AgreementYear)
@@ -111,9 +111,12 @@ class AgreementYearAdmin(admin.ModelAdmin):
 
 @admin.register(AgreementYearDepartment)
 class AgreementYearDepartmentAdmin(admin.ModelAdmin):
-    list_display = ["agreement_year", "department", "estimated_places"]
-    list_filter = ["department"]
-    search_fields = ["agreement_year__agreement__name", "department__code"]
+    list_display = ["agreement_year", "agreement_department", "estimated_places"]
+    list_filter = ["agreement_department__department"]
+    search_fields = [
+        "agreement_year__agreement__name",
+        "agreement_department__department__code",
+    ]
 
 
 @admin.register(RawImport)

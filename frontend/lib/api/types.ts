@@ -101,7 +101,6 @@ export type Level = {
   id: number;
   code: string;
   name: string;
-  is_active: boolean;
   pegase_id: string | null;
   last_sync_pegase: string | null;
   created_at: string;
@@ -127,9 +126,13 @@ export type Parcours = {
 export type AnnualEnrollment = {
   id: number;
   academic_year_id: number;
+  academic_year_label: string;
   department_id: number;
+  department_code: string;
   level_id: number;
+  level_code: string;
   parcours_id: number | null;
+  parcours_code: string | null;
   gpa: string | null;
   created_at: string;
   updated_at: string;
@@ -141,6 +144,9 @@ export type Student = {
   first_name: string;
   last_name: string;
   email: string;
+  gender: string;
+  nationality_iso2: string | null;
+  nationality_name_fr: string | null;
   pegase_id: string | null;
   created_at: string;
   updated_at: string;
@@ -206,6 +212,8 @@ export type StudentWithEnrollment = {
   last_name: string;
   email: string;
   gender: string;
+  nationality_iso2: string | null;
+  nationality_name_fr: string | null;
   department_id: number;
   department_code: string;
   department_name: string;
@@ -216,6 +224,35 @@ export type StudentWithEnrollment = {
   parcours_code: string | null;
   parcours_label: string | null;
   gpa: string | null;
+};
+
+export type AgreementWish = {
+  rank: number;
+  agreement_id: number;
+  moveon_id: string | null;
+  agreement_name: string;
+  university_name: string;
+  direction: string;
+};
+
+export type StudentWishes = {
+  student_id: number;
+  ine: string;
+  first_name: string;
+  last_name: string;
+  department_code: string | null;
+  parcours_code: string | null;
+  gpa: string | null;
+  wishes: AgreementWish[];
+};
+
+export type WishSyncReport = {
+  created: number;
+  updated: number;
+  skipped: number;
+  total: number;
+  unresolved: Record<string, string>[];
+  errors: string[];
 };
 
 export type AcademicYear = {

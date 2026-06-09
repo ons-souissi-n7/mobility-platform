@@ -3,7 +3,6 @@ Tests unitaires pour les adaptateurs Excel et Pégase.
 Aucune base de données n'est nécessaire — ces tests sont purement Python.
 """
 
-import json
 from io import BytesIO
 
 import openpyxl
@@ -234,28 +233,33 @@ class TestExcelAdapterParse:
 # ---------------------------------------------------------------------------
 
 
-class TestPegaseAdapterFetch:
-    def test_load_valid_fixture(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
+class TestPegaseParseRows:
+    """Tests unitaires de _parse_rows — la fonction pure de parsing Pégase.
 
-        fixture = [
-            {
-                "ine": "12345678901",
-                "prenom": "Jean",
-                "nom": "Martin",
-                "email": "jean@n7.fr",
-                "sexe": "h",
-                "departement": "SN",
-                "niveau": "3A",
-                "gpa": 15.5,
-            }
-        ]
-        fixture_file = tmp_path / "pegase_students.json"
-        fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", fixture_file)
+    Ces tests passent directement des dicts en entrée, sans appel réseau
+    ni fichier temporaire. Ils reflètent le vrai format de l'export Pégase.
+    """
 
-        rows = pegase_mod.fetch_enrollments("2026-2027")
+    def _parse(self, data):
+        from app.students.services.adapters.pegase import _parse_rows
 
+        return _parse_rows(data)
+
+    def test_parses_valid_row(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "12345678901",
+                    "prenom": "Jean",
+                    "nom": "Martin",
+                    "email": "jean@n7.fr",
+                    "sexe": "h",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "moyenne": 15.5,
+                }
+            ]
+        )
         assert len(rows) == 1
         assert rows[0].ine == "12345678901"
         assert rows[0].first_name == "Jean"
@@ -265,184 +269,196 @@ class TestPegaseAdapterFetch:
         assert rows[0].level_code == "3A"
         assert rows[0].gpa == 15.5
 
-    def test_returns_empty_when_fixture_missing(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
-
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", tmp_path / "nonexistent.json")
-
-        rows = pegase_mod.fetch_enrollments("2026-2027")
-
+    def test_skips_items_without_ine(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                },
+                {"prenom": "C", "nom": "D", "departement": "SN", "niveau": "3A"},
+            ]
+        )
         assert rows == []
 
-    def test_returns_empty_on_invalid_json(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
-
-        bad_file = tmp_path / "bad.json"
-        bad_file.write_text("not valid json", encoding="utf-8")
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", bad_file)
-
-        rows = pegase_mod.fetch_enrollments("2026-2027")
-
-        assert rows == []
-
-    def test_skips_items_without_ine(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
-
-        fixture = [
-            {"ine": "", "prenom": "A", "nom": "B", "departement": "SN", "niveau": "3A"},
-            {"prenom": "C", "nom": "D", "departement": "SN", "niveau": "3A"},
-        ]
-        fixture_file = tmp_path / "pegase_students.json"
-        fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", fixture_file)
-
-        rows = pegase_mod.fetch_enrollments("2026-2027")
-
-        assert rows == []
-
-    def test_gender_sexe_h_maps_to_m(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
-
-        fixture = [
-            {
-                "ine": "00000000001",
-                "prenom": "A",
-                "nom": "B",
-                "departement": "SN",
-                "niveau": "3A",
-                "sexe": "h",
-            }
-        ]
-        fixture_file = tmp_path / "p.json"
-        fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", fixture_file)
-
-        rows = pegase_mod.fetch_enrollments("2026-2027")
-
+    def test_gender_sexe_h_maps_to_m(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "sexe": "h",
+                }
+            ]
+        )
         assert rows[0].gender == "M"
 
-    def test_gender_femme_maps_to_f(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
-
-        fixture = [
-            {
-                "ine": "00000000001",
-                "prenom": "A",
-                "nom": "B",
-                "departement": "SN",
-                "niveau": "3A",
-                "sexe": "femme",
-            }
-        ]
-        fixture_file = tmp_path / "p.json"
-        fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", fixture_file)
-
-        rows = pegase_mod.fetch_enrollments("2026-2027")
-
+    def test_gender_femme_maps_to_f(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "sexe": "femme",
+                }
+            ]
+        )
         assert rows[0].gender == "F"
 
-    def test_gender_masculin_maps_to_m(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
-
-        fixture = [
-            {
-                "ine": "00000000002",
-                "prenom": "C",
-                "nom": "D",
-                "departement": "SN",
-                "niveau": "3A",
-                "sexe": "masculin",
-            }
-        ]
-        fixture_file = tmp_path / "p.json"
-        fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", fixture_file)
-
-        rows = pegase_mod.fetch_enrollments("2026-2027")
-
+    def test_gender_masculin_maps_to_m(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "002",
+                    "prenom": "C",
+                    "nom": "D",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "sexe": "masculin",
+                }
+            ]
+        )
         assert rows[0].gender == "M"
 
-    def test_genre_field_used_as_fallback(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
-
-        fixture = [
-            {
-                "ine": "00000000001",
-                "prenom": "A",
-                "nom": "B",
-                "departement": "SN",
-                "niveau": "3A",
-                "genre": "f",
-            }
-        ]
-        fixture_file = tmp_path / "p.json"
-        fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", fixture_file)
-
-        rows = pegase_mod.fetch_enrollments("2026-2027")
-
+    def test_genre_field_used_as_fallback(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "genre": "f",
+                }
+            ]
+        )
         assert rows[0].gender == "F"
 
-    def test_parcours_field_parsed(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
-
-        fixture = [
-            {
-                "ine": "00000000001",
-                "prenom": "A",
-                "nom": "B",
-                "departement": "SN",
-                "niveau": "3A",
-                "parcours": "IPA",
-            }
-        ]
-        fixture_file = tmp_path / "p.json"
-        fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", fixture_file)
-
-        rows = pegase_mod.fetch_enrollments("2026-2027")
-
+    def test_parcours_field_parsed(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "parcours": "IPA",
+                }
+            ]
+        )
         assert rows[0].parcours_code == "IPA"
 
-    def test_gpa_none_when_absent(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
-
-        fixture = [
-            {
-                "ine": "00000000001",
-                "prenom": "A",
-                "nom": "B",
-                "departement": "SN",
-                "niveau": "3A",
-            }
-        ]
-        fixture_file = tmp_path / "p.json"
-        fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", fixture_file)
-
-        rows = pegase_mod.fetch_enrollments("2026-2027")
-
+    def test_gpa_none_when_absent(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                }
+            ]
+        )
         assert rows[0].gpa is None
 
-    def test_skips_non_dict_items(self, tmp_path, monkeypatch):
-        from app.students.services.adapters import pegase as pegase_mod
+    def test_moyenne_field_used_as_gpa(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "moyenne": 14.2,
+                }
+            ]
+        )
+        assert rows[0].gpa == 14.2
 
-        fixture = [
-            {
-                "ine": "00000000001",
-                "prenom": "A",
-                "nom": "B",
-                "departement": "SN",
-                "niveau": "3A",
-            },
-            "not a dict",
-            42,
-        ]
-        fixture_file = tmp_path / "p.json"
-        fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
-        monkeypatch.setattr(pegase_mod, "_FIXTURE_PATH", fixture_file)
+    def test_nationality_french_name(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "nationalite": "France",
+                }
+            ]
+        )
+        assert rows[0].nationality_iso2 == "France"
 
-        rows = pegase_mod.fetch_enrollments("2026-2027")
+    def test_nationality_iso2(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "nationalite": "FR",
+                }
+            ]
+        )
+        assert rows[0].nationality_iso2 == "FR"
 
+    def test_skips_non_dict_items(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                },
+                "not a dict",
+                42,
+            ]
+        )
         assert len(rows) == 1
+
+    def test_source_id_defaults_to_ine(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                }
+            ]
+        )
+        assert rows[0].source_id == "001"
+
+    def test_source_id_uses_pegase_id_when_present(self):
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "pegase_id": "PEG-999",
+                }
+            ]
+        )
+        assert rows[0].source_id == "PEG-999"

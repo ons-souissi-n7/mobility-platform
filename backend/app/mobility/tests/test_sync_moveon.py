@@ -10,6 +10,7 @@ from app.integrations.moveon import MoveOnAgreement, MoveOnAgreementFramework
 from app.mobility.api import list_agreements
 from app.mobility.models import (
     Agreement,
+    AgreementDepartment,
     AgreementYear,
     AgreementYearDepartment,
     MobilityCategory,
@@ -52,7 +53,9 @@ class TestMoveOnMobilitySync:
         assert result.total == 1
         assert result.created == 1
         agreement = Agreement.objects.get(moveon_id="REL-001")
-        assert agreement.departments.filter(code="SN").exists()
+        assert AgreementDepartment.objects.filter(
+            agreement=agreement, department__code="SN"
+        ).exists()
         assert agreement.levels.filter(code="MASTER").exists()
         assert RawImport.objects.filter(status=RawImportStatus.IMPORTED).exists()
 
@@ -170,7 +173,7 @@ class TestMoveOnMobilitySync:
             inp_total_places=6,
         )
         dept = Department.objects.create(code="SN", name="Sciences du Numerique")
-        agreement.departments.add(dept)
+        AgreementDepartment.objects.create(agreement=agreement, department=dept)
 
         past_year = AcademicYear.objects.create(
             label="2025-2026",
@@ -217,6 +220,7 @@ def agreement_payload(**overrides):
         "end_date": "2027-08-31",
         "departments": ["SN"],
         "level": "Master",
+        "inp_institutions": "ENSEEIHT",
     }
     payload.update(overrides)
     return payload

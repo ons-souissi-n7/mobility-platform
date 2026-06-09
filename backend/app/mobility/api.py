@@ -12,15 +12,19 @@ from app.audit.logger import log_action
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.institutions.models import PartnerUniversity
 from app.reference.models import Level
+from app.shared.excel_utils import build_filename, workbook_response, write_header_row
 
 from .models import (
     Agreement,
+    AgreementDepartment,
     AgreementYear,
     AgreementYearDepartment,
     MobilityCategory,
 )
 from .schemas import (
     AGREEMENT_READONLY_FIELDS,
+    AgreementDepartmentIn,
+    AgreementDepartmentOut,
     AgreementIn,
     AgreementOut,
     AgreementYearDepartmentIn,
@@ -44,7 +48,7 @@ from .services.quota_estimator import (
 from .services.sync_moveon import upsert_agreement
 from .tasks import (
     enqueue_sync_excel_agreements,
-    enqueue_sync_moveon_mobility,
+    enqueue_sync_moveon_agreements_only,
     enqueue_sync_moveon_mobility_categories,
 )
 
@@ -104,11 +108,104 @@ def validate_year_consistency(agreement_year: AgreementYear) -> None:
 # ──────────────────────────────────────────────
 
 
+@router.get("/agreements/export-excel/", summary="Exporter les accords en Excel")
+def export_agreements_excel(
+    request,
+    year_label: str | None = None,
+    country: str | None = None,
+    category: str | None = None,
+    activity: str | None = None,
+):
+    import openpyxl
+
+    qs = (
+        Agreement.objects.select_related(
+            "partner_university",
+            "partner_university__country",
+            "category",
+        )
+        .prefetch_related("levels", "year_instances", "year_instances__academic_year")
+        .order_by("partner_university__name", "name")
+    )
+    if country and country != "all":
+        qs = qs.filter(partner_university__country__name_fr=country)
+    if category and category != "all":
+        qs = qs.filter(category__name=category)
+
+    year_map: dict[int, AgreementYear] = {}
+    if year_label:
+        for ay in AgreementYear.objects.filter(
+            academic_year__label=year_label
+        ).select_related("academic_year"):
+            year_map[ay.agreement_id] = ay
+        if activity == "active":
+            qs = qs.filter(
+                year_instances__academic_year__label=year_label,
+                year_instances__is_active=True,
+            )
+        elif activity == "inactive":
+            qs = qs.filter(
+                year_instances__academic_year__label=year_label,
+                year_instances__is_active=False,
+            )
+
+    year_slug = year_label.replace("/", "-") if year_label else ""
+    filename = build_filename("accords", year_slug)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Accords"
+
+    headers = [
+        "Accord",
+        "Université",
+        "Pays",
+        "Cadre",
+        "Direction",
+        "Places INP",
+        "Places N7",
+        "Niveaux",
+        "Valide de",
+        "Valide jusqu'à",
+    ]
+    widths = [45, 40, 20, 22, 12, 12, 10, 22, 14, 14]
+    if year_label:
+        headers += ["Actif", "Validé"]
+        widths += [8, 8]
+    write_header_row(ws, headers, widths)
+
+    for agr in qs.distinct():
+        ay = year_map.get(agr.pk)
+        levels = ", ".join(lvl.code for lvl in agr.levels.all())
+        row = [
+            agr.name,
+            agr.partner_university.name if agr.partner_university_id else "",
+            agr.partner_university.country.name_fr
+            if agr.partner_university_id and agr.partner_university.country_id
+            else "",
+            agr.category.name if agr.category_id else "",
+            agr.direction,
+            agr.inp_total_places,
+            ay.n7_places if ay else "",
+            levels,
+            agr.valid_from.isoformat() if agr.valid_from else "",
+            agr.valid_until.isoformat() if agr.valid_until else "",
+        ]
+        if year_label:
+            row += [
+                "Oui" if (ay and ay.is_active) else "Non",
+                "Oui" if (ay and ay.is_validated) else "Non",
+            ]
+        ws.append(row)
+
+    return workbook_response(wb, filename)
+
+
 @router.get("/agreements/", response=list[AgreementOut], summary="Liste des accords")
 def list_agreements(request):
     return (
         Agreement.objects.select_related("partner_university", "category")
-        .prefetch_related("departments", "levels")
+        .prefetch_related("levels", "agreement_departments")
         .all()
     )
 
@@ -118,14 +215,14 @@ def create_agreement(request, payload: AgreementIn):
     data = {
         k: v
         for k, v in payload.model_dump().items()
-        if k not in AGREEMENT_READONLY_FIELDS
-        and k not in ("department_ids", "level_ids")
+        if k not in AGREEMENT_READONLY_FIELDS and k not in ("level_ids",)
     }
     agreement = Agreement(**data)
     save_validated(agreement)
-    agreement.departments.set(payload.department_ids)
     agreement.levels.set(payload.level_ids)
-    return 201, agreement
+    return 201, Agreement.objects.prefetch_related(
+        "levels", "agreement_departments"
+    ).get(pk=agreement.pk)
 
 
 @router.put(
@@ -140,15 +237,13 @@ def update_agreement(request, agreement_id: int, payload: AgreementIn):
             "Modifiez uniquement les quotas de l'année en cours.",
         )
     for field, value in payload.model_dump().items():
-        if field not in AGREEMENT_READONLY_FIELDS and field not in (
-            "department_ids",
-            "level_ids",
-        ):
+        if field not in AGREEMENT_READONLY_FIELDS and field not in ("level_ids",):
             setattr(agreement, field, value)
     save_validated(agreement)
-    agreement.departments.set(payload.department_ids)
     agreement.levels.set(payload.level_ids)
-    return agreement
+    return Agreement.objects.prefetch_related("levels", "agreement_departments").get(
+        pk=agreement.pk
+    )
 
 
 @router.delete(
@@ -157,6 +252,58 @@ def update_agreement(request, agreement_id: int, payload: AgreementIn):
 def delete_agreement(request, agreement_id: int):
     agreement = get_or_404(Agreement, agreement_id, "Accord introuvable.")
     safe_delete(agreement)
+    return 204, None
+
+
+# ──────────────────────────────────────────────
+# Départements d'accord (AgreementDepartment)
+# ──────────────────────────────────────────────
+
+
+@router.get(
+    "/agreement-departments/",
+    response=list[AgreementDepartmentOut],
+    summary="Liste des départements d'un accord",
+)
+def list_agreement_departments(request):
+    agreement_id = request.GET.get("agreement_id")
+    qs = AgreementDepartment.objects.select_related("agreement", "department").all()
+    if agreement_id:
+        qs = qs.filter(agreement_id=agreement_id)
+    return qs
+
+
+@router.post(
+    "/agreement-departments/",
+    response={201: AgreementDepartmentOut},
+    summary="Ajouter un département à un accord",
+)
+def create_agreement_department(request, payload: AgreementDepartmentIn):
+    dept = AgreementDepartment(**payload.model_dump())
+    return 201, save_validated(dept)
+
+
+@router.put(
+    "/agreement-departments/{dept_id}/",
+    response=AgreementDepartmentOut,
+    summary="Modifier un département d'accord",
+)
+def update_agreement_department(request, dept_id: int, payload: AgreementDepartmentIn):
+    dept = get_or_404(AgreementDepartment, dept_id, "Département d'accord introuvable.")
+    for field, value in payload.model_dump().items():
+        if field not in ("id", "created_at", "updated_at"):
+            setattr(dept, field, value)
+    return save_validated(dept)
+
+
+@router.delete(
+    "/agreement-departments/{dept_id}/",
+    response={204: None},
+    summary="Retirer un département d'un accord",
+)
+def delete_agreement_department(request, dept_id: int):
+    dept = get_or_404(AgreementDepartment, dept_id, "Département d'accord introuvable.")
+    safe_delete(dept)
     return 204, None
 
 
@@ -294,7 +441,7 @@ def list_agreement_year_departments(request):
     agreement_year_id = request.GET.get("agreement_year_id")
 
     qs = AgreementYearDepartment.objects.select_related(
-        "agreement_year__academic_year", "department"
+        "agreement_year__academic_year", "agreement_department__department"
     ).all()
 
     if academic_year_label:
@@ -370,6 +517,16 @@ def create_agreement_category(request, payload: MobilityCategoryIn):
     return 201, save_validated(category)
 
 
+# Route littérale définie AVANT /{category_id}/ pour éviter le conflit de routing
+@router.post("/agreement-categories/sync/", response=dict)
+def sync_agreement_categories_from_moveon(request):
+    task_id = enqueue_sync_moveon_mobility_categories()
+    log_action(
+        request, action="sync_moveon_categories", detail=f"Tâche {task_id} lancée"
+    )
+    return {"task_id": task_id, "message": "Synchronisation des cadres lancée."}
+
+
 @router.put("/agreement-categories/{category_id}/", response=MobilityCategoryOut)
 def update_agreement_category(request, category_id: int, payload: MobilityCategoryIn):
     category = get_or_404(MobilityCategory, category_id, "Catégorie introuvable.")
@@ -383,15 +540,6 @@ def delete_agreement_category(request, category_id: int):
     category = get_or_404(MobilityCategory, category_id, "Catégorie introuvable.")
     safe_delete(category)
     return 204, None
-
-
-@router.post("/agreement-categories/sync/", response=dict)
-def sync_agreement_categories_from_moveon(request):
-    task_id = enqueue_sync_moveon_mobility_categories()
-    log_action(
-        request, action="sync_moveon_categories", detail=f"Tâche {task_id} lancée"
-    )
-    return {"task_id": task_id, "message": "Synchronisation des cadres lancée."}
 
 
 # ──────────────────────────────────────────────
@@ -453,11 +601,11 @@ def mobility_dashboard(request):
 
 @router.post("/sync-moveon/", response={202: dict})
 def sync_mobility_from_moveon(request):
-    task_id = enqueue_sync_moveon_mobility()
+    task_id = enqueue_sync_moveon_agreements_only()
     log_action(
         request, action="sync_moveon_agreements", detail=f"Tâche {task_id} lancée"
     )
-    return 202, {"task_id": task_id, "message": "Synchronisation MoveON lancée."}
+    return 202, {"task_id": task_id, "message": "Synchronisation des accords lancée."}
 
 
 # ──────────────────────────────────────────────
@@ -562,11 +710,7 @@ def download_excel_template(request):
     categories = list(
         MobilityCategory.objects.values_list("name", flat=True).order_by("name")
     )
-    levels = list(
-        Level.objects.filter(is_active=True)
-        .values_list("code", flat=True)
-        .order_by("code")
-    )
+    levels = list(Level.objects.values_list("code", flat=True).order_by("code"))
 
     file_bytes = build_excel_template(
         departments=departments,

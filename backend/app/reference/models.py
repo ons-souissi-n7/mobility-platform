@@ -1,6 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from app.core.models import TimeStampedModel
+
 
 class CTIRegion(models.TextChoices):
     FRANCE = "france", "France"
@@ -12,13 +14,7 @@ class CTIRegion(models.TextChoices):
     OCEANIE = "oceanie", "Océanie"
 
 
-class Country(models.Model):
-    """
-    Referentiel stable des pays.
-
-    La region CTI determine si un sejour compte pour le calcul CTI.
-    """
-
+class Country(TimeStampedModel):
     id = models.BigAutoField(primary_key=True)
     iso2 = models.CharField(
         max_length=2,
@@ -50,13 +46,7 @@ class Country(models.Model):
             )
 
 
-class Department(models.Model):
-    """
-    Departements pedagogiques de l'ENSEEIHT.
-
-    Codes : SN, 3EA, MF2Ei
-    """
-
+class Department(TimeStampedModel):
     id = models.BigAutoField(primary_key=True)
     code = models.CharField(
         max_length=10,
@@ -86,7 +76,7 @@ class Department(models.Model):
         return f"{self.code} - {self.name}"
 
 
-class Parcours(models.Model):
+class Parcours(TimeStampedModel):
     id = models.BigAutoField(primary_key=True)
     department = models.ForeignKey(
         "Department",
@@ -106,15 +96,12 @@ class Parcours(models.Model):
         return f"{self.department.code} — {self.label}"
 
 
-class Level(models.Model):
+class Level(TimeStampedModel):
     id = models.BigAutoField(primary_key=True)
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=255)
-    is_active = models.BooleanField(default=True)
     pegase_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
     last_sync_pegase = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Level"
@@ -122,7 +109,6 @@ class Level(models.Model):
         ordering = ["code"]
         indexes = [
             models.Index(fields=["code"]),
-            models.Index(fields=["is_active"]),
         ]
 
     def __str__(self) -> str:

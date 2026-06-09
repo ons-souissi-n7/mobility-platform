@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Download, GraduationCap, RefreshCw, Users, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react";
+import { BookOpen, Download, Eye, FileDown, FileSpreadsheet, GraduationCap, RefreshCw, Upload, Users, X } from "lucide-react";
 
+import { ErrorBanner } from "@/components/ui/alert";
+import { Btn, FileBtn } from "@/components/ui/btn";
+import { ImportReportPanel } from "@/components/ui/import-report-panel";
+import { Pagination } from "@/components/ui/pagination";
 import { StatCard } from "@/components/ui/stat-card";
-import { SearchInput } from "@/components/ui/search-input";
+import { Toolbar } from "@/components/ui/toolbar";
 import {
   downloadStudentTemplate,
+  exportStudentsExcel,
+  getStudentDetail,
   getStudentImportErrors,
   getStudentStatsForYear,
   getStudentsByYear,
@@ -18,6 +24,7 @@ import type {
   AcademicYear,
   ImportReport,
   RawImport,
+  StudentDetail,
   StudentStats,
   StudentWithEnrollment,
 } from "@/lib/api/types";
@@ -47,9 +54,11 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
   const [importInProgress, setImportInProgress] = useState(false);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [templateLoading, setTemplateLoading] = useState(false);
+  const [exportInProgress, setExportInProgress] = useState(false);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const [importErrors, setImportErrors] = useState<RawImport[]>([]);
   const [error, setError] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState<StudentWithEnrollment | null>(null);
 
   const selectedYear = useMemo(
     () => academicYears.find((y) => y.id === selectedYearId) ?? null,
@@ -72,7 +81,11 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
       getStudentsByYear(selectedYearId),
       getStudentImportErrors(),
     ])
-      .then(([s, e, errs]) => { setStats(s); setEnrollments(e); setImportErrors(errs); })
+      .then(([s, e, errs]) => {
+        setStats(s);
+        setEnrollments(e);
+        setImportErrors(errs.filter((err) => err.source !== "moveon_student_wishes"));
+      })
       .catch((err: unknown) =>
         setError(err instanceof Error ? err.message : "Erreur de chargement."),
       )
@@ -173,7 +186,7 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
       ]);
       setStats(s);
       setEnrollments(e);
-      setImportErrors(errs);
+      setImportErrors(errs.filter((err) => err.source !== "moveon_student_wishes"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de rechargement.");
     } finally {
@@ -215,6 +228,23 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
     try { await downloadStudentTemplate(); }
     catch (err) { setError(err instanceof Error ? err.message : "Erreur telechargement."); }
     finally { setTemplateLoading(false); }
+  }
+
+  async function handleExport() {
+    if (!selectedYear) return;
+    setError("");
+    setExportInProgress(true);
+    try {
+      await exportStudentsExcel(selectedYear.id, {
+        levelId: filterLevel || undefined,
+        deptId: filterDept || undefined,
+        parcoursId: filterParcours || undefined,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur export.");
+    } finally {
+      setExportInProgress(false);
+    }
   }
 
   const hasFilter = !!(filterLevel || filterDept || filterParcours);
@@ -281,66 +311,46 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
         </div>
       )}
 
-      {/* Toolbar: search + filters + actions */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-        {/* Row 1: search + action buttons */}
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <SearchInput
-            onChange={setQuery}
-            placeholder="Rechercher par INE, nom, prenom, email..."
-            value={query}
-          />
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+      <Toolbar
+        search={{ value: query, onChange: setQuery, placeholder: "Rechercher par INE, nom, prénom, email..." }}
+        actions={
+          <>
             <TemplateButton isLoading={templateLoading} onClick={handleTemplateDownload} />
             <ExcelImportButton isLoading={importInProgress} onImport={handleExcelImport} />
             <SyncButton isLoading={syncInProgress} onClick={handleSync} />
-          </div>
-        </div>
-
-        {/* Row 2: breakdown filters */}
-        {selectedYear && (
-          <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-gray-100">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide shrink-0">
-              Filtrer :
-            </span>
-
+            <span className="hidden h-6 w-px bg-gray-200 md:block" />
+            <Btn disabled={!selectedYear || exportInProgress || isLoading} onClick={handleExport}>
+              <FileDown className="h-4 w-4" />
+              {exportInProgress ? "Export..." : "Exporter"}
+            </Btn>
+          </>
+        }
+        filters={selectedYear ? (
+          <>
             <select
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-36 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
               value={filterLevel}
-              onChange={(e) => {
-                setFilterLevel(e.target.value);
-                setFilterDept("");
-                setFilterParcours("");
-              }}
+              onChange={(e) => { setFilterLevel(e.target.value); setFilterDept(""); setFilterParcours(""); }}
               disabled={isLoading || levelOptions.length === 0}
             >
               <option value="">Tous les niveaux</option>
               {levelOptions.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.code}{l.name && l.name !== l.code ? ` — ${l.name}` : ""}
-                </option>
+                <option key={l.id} value={l.id}>{l.code}{l.name && l.name !== l.code ? ` — ${l.name}` : ""}</option>
               ))}
             </select>
-
             <select
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-40 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
               value={filterDept}
-              onChange={(e) => {
-                setFilterDept(e.target.value);
-                setFilterParcours("");
-              }}
+              onChange={(e) => { setFilterDept(e.target.value); setFilterParcours(""); }}
               disabled={isLoading || deptOptions.length === 0}
             >
-              <option value="">Tous les departements</option>
+              <option value="">Tous les départements</option>
               {deptOptions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.code}{d.name && d.name !== d.code ? ` — ${d.name}` : ""}
-                </option>
+                <option key={d.id} value={d.id}>{d.code}{d.name && d.name !== d.code ? ` — ${d.name}` : ""}</option>
               ))}
             </select>
-
             <select
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-40 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
               value={filterParcours}
               onChange={(e) => setFilterParcours(e.target.value)}
               disabled={isLoading || parcoursOptions.length === 0}
@@ -352,36 +362,33 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
                 </option>
               ))}
             </select>
-
             {hasFilter && (
               <button
-                className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+                className="shrink-0 inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
                 onClick={() => { setFilterLevel(""); setFilterDept(""); setFilterParcours(""); }}
                 type="button"
               >
-                <X className="h-3.5 w-3.5" />
-                Reinitialiser
+                <X className="h-3.5 w-3.5" /> Réinitialiser
               </button>
             )}
-
             {hasFilter && (
-              <span className="ml-auto text-xs text-gray-400">
-                {displayEnrollments.length} etudiant{displayEnrollments.length > 1 ? "s" : ""}
+              <span className="shrink-0 text-xs text-gray-400">
+                {displayEnrollments.length} étudiant{displayEnrollments.length > 1 ? "s" : ""}
               </span>
             )}
-          </div>
-        )}
-      </div>
+          </>
+        ) : undefined}
+      />
 
-      {error ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
+      <ErrorBanner message={error} />
 
-      {importReport ? (
-        <ImportReportPanel report={importReport} onClose={() => setImportReport(null)} />
-      ) : null}
+      {importReport && (
+        <ImportReportPanel
+          report={importReport}
+          title="Import terminé"
+          onClose={() => setImportReport(null)}
+        />
+      )}
 
       <div id="erreurs">
         <StudentImportErrorsPanel
@@ -391,9 +398,13 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
         />
       </div>
 
+      {selectedStudent && (
+        <StudentDetailPanel student={selectedStudent} onClose={() => setSelectedStudent(null)} />
+      )}
+
       <div id="inscriptions">
         {selectedYear ? (
-          <EnrollmentTable enrollments={displayEnrollments} isBusy={isBusy} />
+          <EnrollmentTable enrollments={displayEnrollments} isBusy={isBusy} onView={setSelectedStudent} />
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-12 text-center text-sm text-gray-400">
             Selectionnez une annee universitaire pour afficher les inscriptions.
@@ -417,7 +428,7 @@ function BreakdownCard({
   title: string;
   items: { code: string; label: string; count: number }[];
   isLoading: boolean;
-  icon: React.ElementType;
+  icon: ElementType;
 }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -460,17 +471,19 @@ function BreakdownCard({
 function EnrollmentTable({
   enrollments,
   isBusy,
+  onView,
 }: {
   enrollments: StudentWithEnrollment[];
   isBusy: boolean;
+  onView: (s: StudentWithEnrollment) => void;
 }) {
-  const [page, setPage] = useState(0);
-  const pageSize = 20;
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const totalPages = Math.max(1, Math.ceil(enrollments.length / pageSize));
-  const pageItems = enrollments.slice(page * pageSize, (page + 1) * pageSize);
-
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = enrollments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setPage(0); }, [enrollments]);
+  useEffect(() => { setPage(1); }, [enrollments]);
 
   if (enrollments.length === 0 && !isBusy) {
     return (
@@ -481,13 +494,14 @@ function EnrollmentTable({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
               <Th>INE</Th><Th>Nom</Th><Th>Prenom</Th><Th>Email</Th>
-              <Th>Genre</Th><Th>Departement</Th><Th>Niveau</Th><Th>Parcours</Th><Th>GPA</Th>
+              <Th>Genre</Th><Th>Nationalité</Th><Th>Departement</Th><Th>Niveau</Th><Th>Parcours</Th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
@@ -507,6 +521,11 @@ function EnrollmentTable({
                   ) : <span className="text-xs italic text-gray-300">—</span>}
                 </Td>
                 <Td>
+                  <span className="text-xs text-gray-700">
+                    {e.nationality_name_fr ?? "—"}
+                  </span>
+                </Td>
+                <Td>
                   <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
                     {e.department_code}
                   </span>
@@ -521,29 +540,180 @@ function EnrollmentTable({
                     ? <span className="text-xs text-gray-600">{e.parcours_code}</span>
                     : <span className="text-xs italic text-gray-300">—</span>}
                 </Td>
-                <Td>
-                  {e.gpa != null
-                    ? <span className="text-xs font-medium text-gray-700">{e.gpa}</span>
-                    : <span className="text-xs italic text-gray-300">—</span>}
-                </Td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    className="rounded-md border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                    onClick={() => onView(e)}
+                    title="Voir le détail"
+                    type="button"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <div className="flex items-center justify-between px-1 text-sm text-gray-600">
-        <span>
-          {enrollments.length} etudiant{enrollments.length > 1 ? "s" : ""}
-          {` — page ${page + 1} / ${totalPages}`}
-        </span>
-        <div className="flex items-center gap-1">
-          <NavBtn disabled={page === 0} label="«" onClick={() => setPage(0)} />
-          <NavBtn disabled={page === 0} label="‹" onClick={() => setPage((p) => p - 1)} />
-          <NavBtn disabled={page >= totalPages - 1} label="›" onClick={() => setPage((p) => p + 1)} />
-          <NavBtn disabled={page >= totalPages - 1} label="»" onClick={() => setPage(totalPages - 1)} />
+      <Pagination
+        page={currentPage}
+        totalPages={totalPages}
+        totalItems={enrollments.length}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+        emptyLabel="Aucun étudiant"
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Student detail panel
+// ---------------------------------------------------------------------------
+
+function StudentDetailPanel({
+  student,
+  onClose,
+}: {
+  student: StudentWithEnrollment;
+  onClose: () => void;
+}) {
+  const [detail, setDetail] = useState<StudentDetail | null>(null);
+  const [loadedId, setLoadedId] = useState<number | null>(null);
+  const loading = loadedId !== student.student_id;
+
+  useEffect(() => {
+    getStudentDetail(student.student_id).then((data) => {
+      setDetail(data);
+      setLoadedId(student.student_id);
+    });
+  }, [student.student_id]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
+
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">
+              {student.last_name.toUpperCase()} {student.first_name}
+            </h2>
+            <p className="mt-1 font-mono text-sm text-gray-500">{student.ine}</p>
+          </div>
+          <button
+            className="rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+            onClick={onClose}
+            title="Fermer"
+            type="button"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-6 px-6 py-5">
+
+          {/* Informations personnelles */}
+          <DetailSection title="Informations personnelles">
+            <div className="space-y-2">
+              <InfoRow label="Email" value={student.email || "—"} />
+              <InfoRow
+                label="Genre"
+                value={student.gender === "M" ? "Homme" : student.gender === "F" ? "Femme" : "—"}
+              />
+              <InfoRow
+                label="Nationalité"
+                value={student.nationality_name_fr ?? "—"}
+              />
+            </div>
+          </DetailSection>
+
+          {/* Inscription courante */}
+          <DetailSection title="Inscription (année en cours)">
+            <div className="space-y-2">
+              <InfoRow label="Département" value={student.department_code} />
+              <InfoRow label="Niveau" value={student.level_code} />
+              <InfoRow label="Parcours" value={student.parcours_code ?? "—"} />
+              <InfoRow
+                label="GPA"
+                value={student.gpa != null ? <span className="font-mono">{student.gpa}</span> : "—"}
+              />
+            </div>
+          </DetailSection>
+
+          {/* Historique */}
+          <DetailSection title="Historique des inscriptions">
+            {loading ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-12 animate-pulse rounded-md bg-gray-100" />
+                ))}
+              </div>
+            ) : detail?.enrollments.length ? (
+              <div className="space-y-3">
+                {detail.enrollments.map((e) => (
+                  <div key={e.id} className="rounded-md border border-gray-100 bg-gray-50 px-4 py-3">
+                    <p className="mb-2 text-sm font-semibold text-gray-800">{e.academic_year_label}</p>
+                    <div className="space-y-1.5">
+                      <InfoRow
+                        label="Département"
+                        value={
+                          <span className="rounded bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                            {e.department_code}
+                          </span>
+                        }
+                      />
+                      <InfoRow
+                        label="Niveau"
+                        value={
+                          <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                            {e.level_code}
+                          </span>
+                        }
+                      />
+                      <InfoRow
+                        label="Parcours"
+                        value={e.parcours_code ?? "—"}
+                      />
+                      <InfoRow
+                        label="GPA"
+                        value={
+                          e.gpa != null
+                            ? <span className="font-mono">{parseFloat(e.gpa).toFixed(2)}</span>
+                            : "—"
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm italic text-gray-400">Aucune inscription enregistrée.</p>
+            )}
+          </DetailSection>
+
         </div>
       </div>
+    </div>
+  );
+}
+
+function DetailSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="w-28 shrink-0 text-xs text-gray-500">{label}</span>
+      <span className="text-sm text-gray-900">{value ?? "—"}</span>
     </div>
   );
 }
@@ -552,7 +722,7 @@ function EnrollmentTable({
 // Primitives
 // ---------------------------------------------------------------------------
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({ children }: { children: ReactNode }) {
   return (
     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
       {children}
@@ -560,89 +730,34 @@ function Th({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Td({ children }: { children: React.ReactNode }) {
+function Td({ children }: { children: ReactNode }) {
   return <td className="px-4 py-3">{children}</td>;
-}
-
-function NavBtn({ disabled, label, onClick }: { disabled: boolean; label: string; onClick: () => void }) {
-  return (
-    <button
-      className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-      disabled={disabled} onClick={onClick} type="button"
-    >
-      {label}
-    </button>
-  );
 }
 
 function TemplateButton({ isLoading, onClick }: { isLoading: boolean; onClick: () => void }) {
   return (
-    <button
-      className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-      disabled={isLoading} onClick={onClick} type="button"
-    >
-      <Download className="h-4 w-4" aria-hidden="true" />
-      {isLoading ? "..." : "Template"}
-    </button>
+    <Btn disabled={isLoading} onClick={onClick}>
+      <Download className="h-4 w-4" />
+      Template
+    </Btn>
   );
 }
 
 function ExcelImportButton({ isLoading, onImport }: { isLoading: boolean; onImport: (file: File) => void }) {
   return (
-    <label
-      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 ${isLoading ? "cursor-not-allowed opacity-60" : ""}`}
-      title="Importer depuis Excel"
-    >
-      <input accept=".xlsx,.xls" className="sr-only" disabled={isLoading}
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) { onImport(f); e.target.value = ""; } }}
-        type="file"
-      />
-      {isLoading ? "Import..." : "↑ Import Excel"}
-    </label>
+    <FileBtn disabled={isLoading} onFile={onImport}>
+      {isLoading ? <Upload className="h-4 w-4 animate-bounce" /> : <FileSpreadsheet className="h-4 w-4" />}
+      {isLoading ? "Import..." : "Importer Excel"}
+    </FileBtn>
   );
 }
 
 function SyncButton({ isLoading, onClick }: { isLoading: boolean; onClick: () => void }) {
   return (
-    <button
-      className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-      disabled={isLoading} onClick={onClick} type="button"
-    >
-      <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />
+    <Btn disabled={isLoading} onClick={onClick}>
+      <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
       {isLoading ? "Synchronisation..." : "Sync Pegase"}
-    </button>
+    </Btn>
   );
 }
 
-function ImportReportPanel({ report, onClose }: { report: ImportReport; onClose: () => void }) {
-  const hasIssues = report.unresolved.length > 0 || report.errors.length > 0;
-  return (
-    <div className={`rounded-lg border p-4 text-sm ${hasIssues ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <p className={`font-medium ${hasIssues ? "text-amber-800" : "text-emerald-800"}`}>Import termine</p>
-          <p className={hasIssues ? "text-amber-700" : "text-emerald-700"}>
-            {report.created} cree{report.created > 1 ? "s" : ""},{" "}
-            {report.updated} mis a jour
-            {report.unresolved.length > 0 ? `, ${report.unresolved.length} non resolus` : ""}
-            {report.errors.length > 0 ? `, ${report.errors.length} erreur(s)` : ""}
-          </p>
-          {report.unresolved.length > 0 && (
-            <ul className="mt-2 space-y-0.5 text-xs text-amber-700">
-              {report.unresolved.slice(0, 5).map((item, i) => (
-                <li key={i}>INE {item.ine} — {item.reason}</li>
-              ))}
-              {report.unresolved.length > 5 && <li>… et {report.unresolved.length - 5} autre(s)</li>}
-            </ul>
-          )}
-          {report.errors.length > 0 && (
-            <ul className="mt-2 space-y-0.5 text-xs text-red-700">
-              {report.errors.slice(0, 3).map((err, i) => <li key={i}>{err}</li>)}
-            </ul>
-          )}
-        </div>
-        <button className="shrink-0 text-gray-400 hover:text-gray-600" onClick={onClose} type="button">✕</button>
-      </div>
-    </div>
-  );
-}

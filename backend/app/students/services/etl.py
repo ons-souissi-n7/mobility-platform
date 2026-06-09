@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+from datetime import datetime
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.utils import timezone
 
@@ -11,7 +13,7 @@ from app.imports.models import (
     RawImportEntity,
     RawImportStatus,
 )
-from app.reference.models import Department, Level, Parcours
+from app.reference.models import Country, Department, Level, Parcours
 
 from ..models import AnnualEnrollment, Student
 
@@ -27,6 +29,10 @@ class StudentRow:
     parcours_code: str | None = None
     gpa: float | None = None
     gender: str = ""
+    nationality_iso2: str | None = None
+    # Source tracking (may be empty for Excel imports)
+    source_id: str | None = None  # e.g. Pegase internal student ID
+    source_sync_at: datetime | None = None  # timestamp from the source system
 
 
 @dataclass
@@ -48,6 +54,7 @@ def import_students(
     dept_cache: dict[str, Department | None] = {}
     level_cache: dict[str, Level | None] = {}
     parcours_cache: dict[tuple, Parcours | None] = {}
+    country_cache: dict[str, Country | None] = {}
 
     for row in rows:
         payload = {
@@ -110,6 +117,9 @@ def import_students(
                         db_report.record_error(row.ine, reason)
                     continue
 
+            nationality = _resolve_country(row.nationality_iso2, country_cache)
+
+            sync_now = row.source_sync_at or timezone.now()
             student, created = Student.objects.get_or_create(
                 ine=row.ine,
                 defaults={
@@ -117,6 +127,9 @@ def import_students(
                     "last_name": row.last_name,
                     "email": row.email,
                     "gender": row.gender,
+                    "nationality": nationality,
+                    "pegase_id": row.source_id,
+                    "last_sync_pegase": sync_now,
                 },
             )
 
@@ -127,6 +140,14 @@ def import_students(
                     if val and getattr(student, attr) != val:
                         setattr(student, attr, val)
                         update_fields.append(attr)
+                if nationality is not None and student.nationality != nationality:
+                    student.nationality = nationality
+                    update_fields.append("nationality")
+                if row.source_id and student.pegase_id != row.source_id:
+                    student.pegase_id = row.source_id
+                    update_fields.append("pegase_id")
+                student.last_sync_pegase = sync_now
+                update_fields.append("last_sync_pegase")
                 if update_fields:
                     student.save(update_fields=update_fields)
 
@@ -137,7 +158,7 @@ def import_students(
                     "department": department,
                     "level": level,
                     "parcours": parcours,
-                    "gpa": row.gpa,
+                    "gpa": _to_decimal(row.gpa),
                 },
             )
             enrollment.full_clean()
@@ -192,3 +213,33 @@ def _resolve_parcours(
             department=department, code__iexact=code
         ).first()
     return cache[key]
+
+
+def _resolve_country(
+    nationality_raw: str | None, cache: dict[str, Country | None]
+) -> Country | None:
+    """
+    Resolve a country from whatever Pegase/Excel provides: ISO2 code ("FR"),
+    French name ("France", "france"), or English name ("France").
+    """
+    if not nationality_raw:
+        return None
+    key = nationality_raw.strip().lower()
+    if key not in cache:
+        raw = nationality_raw.strip()
+        country = Country.objects.filter(iso2__iexact=raw).first()
+        if country is None:
+            country = Country.objects.filter(name_fr__iexact=raw).first()
+        if country is None:
+            country = Country.objects.filter(name_en__iexact=raw).first()
+        cache[key] = country
+    return cache[key]
+
+
+def _to_decimal(value: float | None) -> Decimal | None:
+    if value is None:
+        return None
+    try:
+        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except InvalidOperation:
+        return None

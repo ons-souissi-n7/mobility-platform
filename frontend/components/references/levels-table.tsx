@@ -35,21 +35,6 @@ function getColumns(
           : "-",
     },
     {
-      key: "is_active",
-      header: "Statut",
-      render: (level) => (
-        <span
-          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-            level.is_active
-              ? "bg-emerald-50 text-emerald-700"
-              : "bg-gray-100 text-gray-500"
-          }`}
-        >
-          {level.is_active ? "Actif" : "Inactif"}
-        </span>
-      ),
-    },
-    {
       key: "actions",
       header: "Actions",
       align: "right",

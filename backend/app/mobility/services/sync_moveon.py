@@ -17,6 +17,7 @@ from app.institutions.models import PartnerUniversity
 from app.integrations.moveon import MoveOnClient
 from app.mobility.models import (
     Agreement,
+    AgreementDepartment,
     MobilityCategory,
 )
 from app.reference.models import Department, Level
@@ -42,7 +43,16 @@ class SyncResult:
     created: int = 0
     updated: int = 0
     failed: int = 0
+    ignored: int = 0
     total: int = 0
+
+
+_N7_TOKENS = frozenset({"n7", "enseeiht", "inp toulouse n7", "inp n7"})
+
+
+def _n7_is_present(inp_institutions: str) -> bool:
+    normalized = inp_institutions.strip().casefold()
+    return any(token in normalized for token in _N7_TOKENS)
 
 
 @dataclass
@@ -57,6 +67,7 @@ def sync_moveon_mobility(
     academic_year: AcademicYear | None = None,
     triggered_by: str = "",
 ) -> MobilitySyncResult:
+    """Sync complet : cadres + accords + quotas."""
     client = client or MoveOnClient()
     frameworks = sync_moveon_mobility_categories(
         client, academic_year=academic_year, triggered_by=triggered_by
@@ -70,6 +81,23 @@ def sync_moveon_mobility(
     return MobilitySyncResult(
         frameworks=frameworks, agreements=agreements, quotas=quotas
     )
+
+
+def sync_moveon_agreements_only(
+    client: MoveOnClient | None = None,
+    academic_year: AcademicYear | None = None,
+    triggered_by: str = "",
+) -> MobilitySyncResult:
+    """Sync accords + quotas uniquement, sans toucher aux cadres."""
+    client = client or MoveOnClient()
+    dummy = SyncResult()
+    agreements = sync_moveon_agreements(
+        client, academic_year=academic_year, triggered_by=triggered_by
+    )
+    quotas = sync_moveon_agreement_inp_quotas(
+        client, academic_year=academic_year, triggered_by=triggered_by
+    )
+    return MobilitySyncResult(frameworks=dummy, agreements=agreements, quotas=quotas)
 
 
 def sync_moveon_mobility_categories(
@@ -167,6 +195,28 @@ def sync_moveon_agreements(
         try:
             transformed = transform_agreement(payload)
             validate_agreement(transformed)
+        except (
+            IntegrityError,
+            DjangoValidationError,
+            MoveOnValidationError,
+            ValueError,
+            KeyError,
+        ) as exc:
+            result.failed += 1
+            _mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
+            report.record_error(raw_import.external_id, str(exc), raw_import.id)
+            continue
+
+        if not _n7_is_present(transformed.inp_institutions):
+            result.ignored += 1
+            _mark_raw_import(
+                raw_import,
+                RawImportStatus.IGNORED,
+                "N7/ENSEEIHT absent des établissements INP de cet accord",
+            )
+            continue
+
+        try:
             created = upsert_agreement(transformed)
         except (
             IntegrityError,
@@ -187,7 +237,7 @@ def sync_moveon_agreements(
         report.record_success()
         _mark_raw_import(raw_import, RawImportStatus.IMPORTED)
 
-    result.total = result.created + result.updated + result.failed
+    result.total = result.created + result.updated + result.failed + result.ignored
     report.finalize()
     return result
 
@@ -254,13 +304,13 @@ def upsert_agreement(transformed_data: TransformedAgreement | dict[str, Any]) ->
     category = _resolve_mobility_category(transformed_data.category_name)
 
     defaults = {
-        "reference": transformed_data.reference,
         "name": transformed_data.name,
         "partner_university": partner_university,
         "category": category,
         "direction": transformed_data.direction,
         "valid_from": transformed_data.start_date,
         "valid_until": transformed_data.end_date,
+        "inp_institutions": transformed_data.inp_institutions,
         "remarks": transformed_data.remarks,
         "last_sync_moveon": timezone.now(),
     }
@@ -435,7 +485,8 @@ def _sync_departments(agreement: Agreement, tokens: tuple[str, ...]) -> None:
                     "puis relancez la synchronisation."
                 ),
             )
-    agreement.departments.set(departments)
+    for dept in departments:
+        AgreementDepartment.objects.get_or_create(agreement=agreement, department=dept)
 
 
 def _sync_levels(agreement: Agreement, tokens: tuple[str, ...]) -> None:
@@ -456,7 +507,7 @@ def _resolve_department(token: str) -> Department | None:
 def _get_or_create_level(token: str) -> Level:
     code = "-".join(token.strip().upper().split())[:50]
     level, _ = Level.objects.update_or_create(
-        code=code, defaults={"name": token.strip(), "is_active": True}
+        code=code, defaults={"name": token.strip()}
     )
     return level
 

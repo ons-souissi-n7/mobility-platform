@@ -34,6 +34,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3004",
 ]
 CORS_ALLOW_CREDENTIALS = True
+CORS_EXPOSE_HEADERS = ["Content-Disposition"]
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 

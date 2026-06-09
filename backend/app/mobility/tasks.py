@@ -10,6 +10,12 @@ SYNC_MOVEON_MOBILITY_CATEGORIES_TASK = (
 SYNC_MOVEON_MOBILITY_CATEGORIES_GROUP = "moveon-mobility-categories-sync"
 SYNC_MOVEON_MOBILITY_CATEGORIES_TASK_NAME = "MoveON mobility categories sync"
 
+SYNC_MOVEON_AGREEMENTS_ONLY_TASK = (
+    "app.mobility.services.sync_moveon.sync_moveon_agreements_only"
+)
+SYNC_MOVEON_AGREEMENTS_ONLY_GROUP = "moveon-agreements-sync"
+SYNC_MOVEON_AGREEMENTS_ONLY_TASK_NAME = "MoveON agreements sync"
+
 SYNC_EXCEL_AGREEMENTS_TASK = (
     "app.mobility.services.sync_excel.sync_agreements_from_excel"
 )
@@ -22,6 +28,14 @@ def enqueue_sync_moveon_mobility() -> str:
         SYNC_MOVEON_MOBILITY_TASK,
         group=SYNC_MOVEON_MOBILITY_GROUP,
         task_name=SYNC_MOVEON_MOBILITY_TASK_NAME,
+    )
+
+
+def enqueue_sync_moveon_agreements_only() -> str:
+    return async_task(
+        SYNC_MOVEON_AGREEMENTS_ONLY_TASK,
+        group=SYNC_MOVEON_AGREEMENTS_ONLY_GROUP,
+        task_name=SYNC_MOVEON_AGREEMENTS_ONLY_TASK_NAME,
     )
 
 

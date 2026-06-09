@@ -1,0 +1,142 @@
+[
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 1,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Technische Universitat Munchen",
+      "short_name": "TUM",
+      "translated_name": "Universite Technique de Munich",
+      "erasmus_code": "D MUNCHEN02",
+      "city": "Munich",
+      "url": "",
+      "email": "",
+      "country": 3,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 2,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Universidad Politecnica de Madrid",
+      "short_name": "UPM",
+      "translated_name": "Universite Polytechnique de Madrid",
+      "erasmus_code": "E MADRID05",
+      "city": "Madrid",
+      "url": "",
+      "email": "",
+      "country": 4,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 3,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "ETH Zurich",
+      "short_name": "ETH",
+      "translated_name": "Ecole Polytechnique Federale de Zurich",
+      "erasmus_code": "",
+      "city": "Zurich",
+      "url": "",
+      "email": "",
+      "country": 15,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 4,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "McGill University",
+      "short_name": "McGill",
+      "translated_name": "Universite McGill",
+      "erasmus_code": "",
+      "city": "Montreal",
+      "url": "",
+      "email": "",
+      "country": 6,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 5,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Politecnico di Milano",
+      "short_name": "Polimi",
+      "translated_name": "Ecole Polytechnique de Milan",
+      "erasmus_code": "I MILANO006",
+      "city": "Milan",
+      "url": "",
+      "email": "",
+      "country": 10,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 6,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Delft University of Technology",
+      "short_name": "TU Delft",
+      "translated_name": "Univ. de Technologie de Delft",
+      "erasmus_code": "NL DELFT01",
+      "city": "Delft",
+      "url": "",
+      "email": "",
+      "country": 13,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 7,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "KTH Royal Institute of Technology",
+      "short_name": "KTH",
+      "translated_name": "Institut Royal de Technologie de Stockholm",
+      "erasmus_code": "S STOCKHO03",
+      "city": "Stockholm",
+      "url": "",
+      "email": "",
+      "country": 16,
+      "last_sync_moveon": null
+    }
+  }
+]

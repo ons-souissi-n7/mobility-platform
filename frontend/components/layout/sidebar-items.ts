@@ -3,6 +3,7 @@ import {
   CalendarRange,
   ClipboardCheck,
   FileText,
+  Heart,
   LayoutDashboard,
   PlaneLanding,
   PlaneTakeoff,
@@ -20,6 +21,11 @@ export const adminNavigation = [
     href: "/etudiants",
     label: "Etudiants",
     icon: Users,
+  },
+  {
+    href: "/voeux",
+    label: "Voeux étudiants",
+    icon: Heart,
   },
   {
     href: "/sortantes",

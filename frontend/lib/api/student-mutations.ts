@@ -1,9 +1,13 @@
 import { browserApi } from "@/lib/api/browser-client";
-import type { ImportReport, RawImport, StudentStats, StudentWithEnrollment } from "@/lib/api/types";
-
-const publicApiBaseUrl = (
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"
-).replace(/\/$/, "");
+import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
+import type {
+  ImportReport,
+  RawImport,
+  StudentStats,
+  StudentWithEnrollment,
+  StudentWishes,
+  WishSyncReport,
+} from "@/lib/api/types";
 
 export async function importStudentsFromExcel(
   yearId: number,
@@ -83,4 +87,90 @@ export async function downloadStudentTemplate(): Promise<void> {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export function getStudentDetail(studentId: number): Promise<import("@/lib/api/types").StudentDetail> {
+  return browserApi(`/students/students/${studentId}/`, { method: "GET" });
+}
+
+export async function syncWishesFromMoveon(yearId: number): Promise<WishSyncReport> {
+  const response = await fetch(
+    `${publicApiBaseUrl}/students/students/wishes/sync-moveon/${yearId}/`,
+    { method: "POST" },
+  );
+  if (!response.ok) throw new Error(`Erreur sync vœux MoveON : ${response.status}`);
+  return response.json() as Promise<WishSyncReport>;
+}
+
+export async function getWishesByYear(yearId: number): Promise<StudentWishes[]> {
+  const response = await fetch(
+    `${publicApiBaseUrl}/students/students/wishes/by-year/${yearId}/`,
+  );
+  if (!response.ok) throw new Error(`Erreur chargement vœux : ${response.status}`);
+  return response.json() as Promise<StudentWishes[]>;
+}
+
+export async function downloadWishTemplate(yearId: number): Promise<void> {
+  const response = await fetch(
+    `${publicApiBaseUrl}/students/students/wishes/template/${yearId}/`,
+    { method: "GET" },
+  );
+  if (!response.ok) throw new Error("Impossible de télécharger le template vœux.");
+  const blob = await response.blob();
+  const cd = response.headers.get("Content-Disposition") ?? "";
+  const match = /filename="?([^"]+)"?/.exec(cd);
+  const filename = match?.[1] ?? "template_voeux.xlsx";
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export async function importWishesFromExcel(
+  yearId: number,
+  file: File,
+): Promise<WishSyncReport> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(
+    `${publicApiBaseUrl}/students/students/wishes/import-excel/${yearId}/`,
+    { method: "POST", body: formData },
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    let message = `Erreur API ${response.status}`;
+    try {
+      const payload = JSON.parse(text) as { detail?: string };
+      if (payload?.detail) message = String(payload.detail);
+      else if (text) message = text;
+    } catch {
+      if (text) message = text;
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<WishSyncReport>;
+}
+
+export async function exportStudentsExcel(
+  yearId: number,
+  filters: { levelId?: string; deptId?: string; parcoursId?: string } = {},
+): Promise<void> {
+  const params = new URLSearchParams();
+  if (filters.levelId) params.set("level_id", filters.levelId);
+  if (filters.deptId) params.set("dept_id", filters.deptId);
+  if (filters.parcoursId) params.set("parcours_id", filters.parcoursId);
+  await downloadBlob(`${publicApiBaseUrl}/students/students/export-excel/${yearId}/?${params}`, "etudiants.xlsx");
+}
+
+export async function exportWishesExcel(
+  yearId: number,
+  filters: { deptCode?: string } = {},
+): Promise<void> {
+  const params = new URLSearchParams();
+  if (filters.deptCode) params.set("dept_code", filters.deptCode);
+  await downloadBlob(`${publicApiBaseUrl}/students/students/wishes/export-excel/${yearId}/?${params}`, "voeux.xlsx");
 }
