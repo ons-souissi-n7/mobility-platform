@@ -3,9 +3,12 @@
     "model": "reference.level",
     "pk": 1,
     "fields": {
-      "code": "BACHELOR",
-      "name": "Bachelor",
-      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "code": "1M",
+      "name": "1ere annee Master",
       "pegase_id": null,
       "last_sync_pegase": null
     }
@@ -14,10 +17,13 @@
     "model": "reference.level",
     "pk": 2,
     "fields": {
-      "code": "DOC",
-      "name": "Doctorat (Bac+8)",
-      "is_active": true,
-      "pegase_id": "205",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "code": "1ING",
+      "name": "1ere annee Ingenieur",
+      "pegase_id": null,
       "last_sync_pegase": null
     }
   },
@@ -25,10 +31,13 @@
     "model": "reference.level",
     "pk": 3,
     "fields": {
-      "code": "ING",
-      "name": "Ingénieur (Bac+5)",
-      "is_active": true,
-      "pegase_id": "204",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "code": "1DOC",
+      "name": "1ere annee Doctorat",
+      "pegase_id": null,
       "last_sync_pegase": null
     }
   },
@@ -36,10 +45,13 @@
     "model": "reference.level",
     "pk": 4,
     "fields": {
-      "code": "L3",
-      "name": "Licence 3 (Bac+3)",
-      "is_active": true,
-      "pegase_id": "201",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "code": "2M",
+      "name": "2eme annee Master",
+      "pegase_id": null,
       "last_sync_pegase": null
     }
   },
@@ -47,10 +59,13 @@
     "model": "reference.level",
     "pk": 5,
     "fields": {
-      "code": "M1",
-      "name": "Master 1 (Bac+4)",
-      "is_active": true,
-      "pegase_id": "202",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "code": "2ING",
+      "name": "2eme annee Ingenieur",
+      "pegase_id": null,
       "last_sync_pegase": null
     }
   },
@@ -58,10 +73,13 @@
     "model": "reference.level",
     "pk": 6,
     "fields": {
-      "code": "M2",
-      "name": "Master 2 (Bac+5)",
-      "is_active": true,
-      "pegase_id": "203",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "code": "2DOC",
+      "name": "2eme annee Doctorat",
+      "pegase_id": null,
       "last_sync_pegase": null
     }
   },
@@ -69,9 +87,26 @@
     "model": "reference.level",
     "pk": 7,
     "fields": {
-      "code": "MASTER",
-      "name": "Master",
-      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "code": "3ING",
+      "name": "3eme annee Ingenieur",
+      "pegase_id": null,
+      "last_sync_pegase": null
+    }
+  },
+  {
+    "model": "reference.level",
+    "pk": 8,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "code": "3DOC",
+      "name": "3eme annee Doctorat",
       "pegase_id": null,
       "last_sync_pegase": null
     }

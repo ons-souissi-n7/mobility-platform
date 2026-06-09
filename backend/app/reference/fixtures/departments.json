@@ -4,7 +4,13 @@
     "pk": 1,
     "fields": {
       "code": "SN",
-      "name": "Sciences du Numérique"
+      "name": "Sciences du Numérique",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "pegase_id": null,
+      "last_sync_pegase": null
     }
   },
   {
@@ -12,7 +18,13 @@
     "pk": 2,
     "fields": {
       "code": "3EA",
-      "name": "Electronique, Energie Electrique et Automatique"
+      "name": "Electronique, Energie Electrique et Automatique",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "pegase_id": null,
+      "last_sync_pegase": null
     }
   },
   {
@@ -20,8 +32,13 @@
     "pk": 3,
     "fields": {
       "code": "MF2E",
-      "name": "Mécanique des Fluides, Énergétique & Environnement"
+      "name": "Mécanique des Fluides, Énergétique & Environnement",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "pegase_id": null,
+      "last_sync_pegase": null
     }
   }
 ]
-  

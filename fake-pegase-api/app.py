@@ -1,7 +1,7 @@
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
@@ -27,7 +27,9 @@ class FakePegaseHandler(BaseHTTPRequestHandler):
             return
 
         if path in ("/inscriptions", "/api/inscriptions"):
-            self.respond(load_json("inscriptions.json"))
+            annee = parse_qs(urlparse(self.path).query).get("annee", [None])[0]
+            filename = _inscriptions_filename(annee)
+            self.respond(load_json(filename))
             return
 
         if path in ("/gpa-records", "/api/gpa-records"):
@@ -50,6 +52,20 @@ class FakePegaseHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+
+def _inscriptions_filename(annee: str | None) -> str:
+    """Retourne le fichier d'inscriptions correspondant à l'année donnée.
+
+    Ex: annee="2025/2026" → "inscriptions_2025_2026.json"
+    Si le fichier n'existe pas, retourne "inscriptions.json" (fallback).
+    """
+    if annee:
+        slug = annee.replace("/", "_").replace("-", "_")
+        specific = f"inscriptions_{slug}.json"
+        if (DATA_DIR / specific).exists():
+            return specific
+    return "inscriptions.json"
 
 
 def load_json(filename):

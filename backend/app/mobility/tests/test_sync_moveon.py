@@ -220,6 +220,7 @@ def agreement_payload(**overrides):
         "end_date": "2027-08-31",
         "departments": ["SN"],
         "level": "Master",
+        "inp_institutions": "ENSEEIHT",
     }
     payload.update(overrides)
     return payload
