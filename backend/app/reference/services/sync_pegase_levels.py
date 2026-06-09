@@ -79,7 +79,6 @@ def _upsert_level(payload: dict[str, Any]) -> bool:
         defaults={
             "code": str(payload["code"]).strip().upper(),
             "name": str(payload["name"]).strip(),
-            "is_active": bool(payload.get("is_active", True)),
             "last_sync_pegase": timezone.now(),
         },
     )

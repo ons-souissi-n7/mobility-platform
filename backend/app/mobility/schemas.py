@@ -52,8 +52,13 @@ class AgreementOut(Schema):
     remarks: str
     last_sync_moveon: datetime | None
     level_ids: list[int]
+    department_ids: list[int]
     created_at: datetime
     updated_at: datetime
+
+    @staticmethod
+    def resolve_department_ids(obj) -> list[int]:
+        return list(obj.agreement_departments.values_list("department_id", flat=True))
 
 
 class AgreementDepartmentIn(Schema):

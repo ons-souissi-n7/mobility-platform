@@ -42,6 +42,7 @@ class TransformedAgreement:
     url: str
     restrictions: str
     remarks: str
+    inp_institutions: str
     department_tokens: tuple[str, ...]
     level_tokens: tuple[str, ...]
     availabilities: tuple[TransformedAgreementAvailability, ...]
@@ -177,7 +178,14 @@ def transform_agreement(payload: dict[str, Any]) -> TransformedAgreement:
                 "remarks",
                 "Remarques",
                 "Relation: Remarques",
+            )
+        ),
+        inp_institutions=text(
+            first_value(
+                raw,
+                "inp_institutions",
                 "Etablissements internes",
+                "etablissements_internes",
             )
         ),
         department_tokens=split_values(
@@ -188,7 +196,6 @@ def transform_agreement(payload: dict[str, Any]) -> TransformedAgreement:
                 "departements",
                 "departements_concernes",
                 "Departements concernes",
-                "Etablissements internes",
             )
         ),
         level_tokens=split_values(first_value(raw, "levels")) or split_values(level),

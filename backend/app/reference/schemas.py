@@ -56,7 +56,6 @@ class RawImportOut(Schema):
 class LevelIn(Schema):
     code: str
     name: str
-    is_active: bool = True
     pegase_id: str | None = None
     last_sync_pegase: datetime | None = None
 

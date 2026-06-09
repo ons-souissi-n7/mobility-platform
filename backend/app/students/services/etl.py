@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.utils import timezone
 
@@ -157,7 +158,7 @@ def import_students(
                     "department": department,
                     "level": level,
                     "parcours": parcours,
-                    "gpa": row.gpa,
+                    "gpa": _to_decimal(row.gpa),
                 },
             )
             enrollment.full_clean()
@@ -233,3 +234,12 @@ def _resolve_country(
             country = Country.objects.filter(name_en__iexact=raw).first()
         cache[key] = country
     return cache[key]
+
+
+def _to_decimal(value: float | None) -> Decimal | None:
+    if value is None:
+        return None
+    try:
+        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except InvalidOperation:
+        return None

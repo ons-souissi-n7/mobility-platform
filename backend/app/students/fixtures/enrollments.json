@@ -1,0 +1,514 @@
+[
+  {
+    "model": "students.annualenrollment",
+    "pk": 1,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 1,
+      "academic_year": 1,
+      "department": 13,
+      "level": 2,
+      "parcours": 1,
+      "gpa": "2.90"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 2,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 1,
+      "academic_year": 2,
+      "department": 13,
+      "level": 5,
+      "parcours": 1,
+      "gpa": "3.04"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 3,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 1,
+      "academic_year": 3,
+      "department": 13,
+      "level": 7,
+      "parcours": 1,
+      "gpa": "3.16"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 4,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 2,
+      "academic_year": 1,
+      "department": 14,
+      "level": 2,
+      "parcours": 3,
+      "gpa": "3.22"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 5,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 2,
+      "academic_year": 2,
+      "department": 14,
+      "level": 5,
+      "parcours": 3,
+      "gpa": "3.34"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 6,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 2,
+      "academic_year": 3,
+      "department": 14,
+      "level": 7,
+      "parcours": 3,
+      "gpa": "3.44"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 7,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 3,
+      "academic_year": 1,
+      "department": 15,
+      "level": 2,
+      "parcours": 5,
+      "gpa": "2.76"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 8,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 3,
+      "academic_year": 2,
+      "department": 15,
+      "level": 5,
+      "parcours": 5,
+      "gpa": "2.86"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 9,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 3,
+      "academic_year": 3,
+      "department": 15,
+      "level": 7,
+      "parcours": 5,
+      "gpa": "2.98"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 10,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 4,
+      "academic_year": 1,
+      "department": 13,
+      "level": 2,
+      "parcours": 2,
+      "gpa": "3.50"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 11,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 4,
+      "academic_year": 2,
+      "department": 13,
+      "level": 5,
+      "parcours": 2,
+      "gpa": "3.58"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 12,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 4,
+      "academic_year": 3,
+      "department": 13,
+      "level": 7,
+      "parcours": 2,
+      "gpa": "3.64"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 13,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 5,
+      "academic_year": 1,
+      "department": 14,
+      "level": 2,
+      "parcours": 4,
+      "gpa": "2.58"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 14,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 5,
+      "academic_year": 2,
+      "department": 14,
+      "level": 5,
+      "parcours": 4,
+      "gpa": "2.70"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 15,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 5,
+      "academic_year": 3,
+      "department": 14,
+      "level": 7,
+      "parcours": 4,
+      "gpa": "2.82"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 16,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 6,
+      "academic_year": 1,
+      "department": 13,
+      "level": 5,
+      "parcours": 1,
+      "gpa": "3.12"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 17,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 6,
+      "academic_year": 2,
+      "department": 13,
+      "level": 7,
+      "parcours": 1,
+      "gpa": "3.26"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 18,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 7,
+      "academic_year": 1,
+      "department": 14,
+      "level": 5,
+      "parcours": 3,
+      "gpa": "2.94"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 19,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 7,
+      "academic_year": 2,
+      "department": 14,
+      "level": 7,
+      "parcours": 3,
+      "gpa": "3.02"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 20,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 8,
+      "academic_year": 1,
+      "department": 13,
+      "level": 1,
+      "parcours": 1,
+      "gpa": "3.36"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 21,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 8,
+      "academic_year": 2,
+      "department": 13,
+      "level": 4,
+      "parcours": 1,
+      "gpa": "3.48"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 22,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 9,
+      "academic_year": 1,
+      "department": 14,
+      "level": 1,
+      "parcours": 3,
+      "gpa": "3.06"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 23,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 9,
+      "academic_year": 2,
+      "department": 14,
+      "level": 4,
+      "parcours": 3,
+      "gpa": "3.16"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 24,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 10,
+      "academic_year": 2,
+      "department": 13,
+      "level": 2,
+      "parcours": 1,
+      "gpa": "3.18"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 25,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 10,
+      "academic_year": 3,
+      "department": 13,
+      "level": 5,
+      "parcours": 1,
+      "gpa": "3.28"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 26,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 11,
+      "academic_year": 2,
+      "department": 14,
+      "level": 2,
+      "parcours": 4,
+      "gpa": "2.64"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 27,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 11,
+      "academic_year": 3,
+      "department": 14,
+      "level": 5,
+      "parcours": 4,
+      "gpa": "2.80"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 28,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 12,
+      "academic_year": 2,
+      "department": 15,
+      "level": 2,
+      "parcours": 5,
+      "gpa": "3.24"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 29,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 12,
+      "academic_year": 3,
+      "department": 15,
+      "level": 5,
+      "parcours": 5,
+      "gpa": "3.38"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 30,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 13,
+      "academic_year": 3,
+      "department": 13,
+      "level": 2,
+      "parcours": 2,
+      "gpa": "2.92"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 31,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 14,
+      "academic_year": 3,
+      "department": 14,
+      "level": 2,
+      "parcours": 3,
+      "gpa": "3.08"
+    }
+  },
+  {
+    "model": "students.annualenrollment",
+    "pk": 32,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "student": 15,
+      "academic_year": 3,
+      "department": 13,
+      "level": 1,
+      "parcours": 1,
+      "gpa": "3.42"
+    }
+  }
+]

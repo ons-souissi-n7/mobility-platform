@@ -1,0 +1,179 @@
+[
+  {
+    "model": "mobility.agreement",
+    "pk": 1,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ TU Munchen",
+      "partner_university": 1,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 4,
+      "inp_institutions": "ENSEEIHT | INP Toulouse",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 2,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ UPM Madrid",
+      "partner_university": 2,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2019-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 3,
+      "inp_institutions": "ENSEEIHT | INP Toulouse",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 3,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention ETH Zurich",
+      "partner_university": 3,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2021-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 4,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention McGill",
+      "partner_university": 4,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT | INP Toulouse",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 5,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ Politecnico di Milano",
+      "partner_university": 5,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2018-09-01",
+      "valid_until": "2028-08-31",
+      "inp_total_places": 5,
+      "inp_institutions": "ENSEEIHT | INP Toulouse",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 6,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ TU Delft",
+      "partner_university": 6,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2022-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "Nouvel accord signe en 2022",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 7,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ KTH Stockholm",
+      "partner_university": 7,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2024-09-01",
+      "valid_until": "2029-08-31",
+      "inp_total_places": 3,
+      "inp_institutions": "ENSEEIHT | INP Toulouse",
+      "remarks": "Nouvel accord signe en 2024",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  }
+]

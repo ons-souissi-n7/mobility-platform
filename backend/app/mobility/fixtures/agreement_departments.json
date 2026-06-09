@@ -1,0 +1,158 @@
+[
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 1,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 1,
+      "department": 13,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 2,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 1,
+      "department": 14,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 3,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 2,
+      "department": 13,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 4,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 3,
+      "department": 14,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 5,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 3,
+      "department": 15,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 6,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 4,
+      "department": 13,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 7,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 5,
+      "department": 13,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 8,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 5,
+      "department": 14,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 9,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 5,
+      "department": 15,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 10,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 6,
+      "department": 14,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 11,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 7,
+      "department": 13,
+      "remarks": ""
+    }
+  },
+  {
+    "model": "mobility.agreementdepartment",
+    "pk": 12,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 7,
+      "department": 14,
+      "remarks": ""
+    }
+  }
+]

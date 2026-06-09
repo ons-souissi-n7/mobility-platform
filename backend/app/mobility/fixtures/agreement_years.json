@@ -1,0 +1,308 @@
+[
+  {
+    "model": "mobility.agreementyear",
+    "pk": 1,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 1,
+      "academic_year": 1,
+      "is_active": true,
+      "n7_places": 3,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2022-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 2,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 1,
+      "academic_year": 2,
+      "is_active": true,
+      "n7_places": 4,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2023-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 3,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 1,
+      "academic_year": 3,
+      "is_active": true,
+      "n7_places": 4,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2024-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 4,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 2,
+      "academic_year": 1,
+      "is_active": true,
+      "n7_places": 2,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2022-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 5,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 2,
+      "academic_year": 2,
+      "is_active": true,
+      "n7_places": 3,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2023-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 6,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 2,
+      "academic_year": 3,
+      "is_active": true,
+      "n7_places": 2,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2024-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 7,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 3,
+      "academic_year": 1,
+      "is_active": true,
+      "n7_places": 1,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2022-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 8,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 3,
+      "academic_year": 2,
+      "is_active": true,
+      "n7_places": 2,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2023-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 9,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 3,
+      "academic_year": 3,
+      "is_active": true,
+      "n7_places": 2,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2024-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 10,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 4,
+      "academic_year": 1,
+      "is_active": true,
+      "n7_places": 1,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2022-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 11,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 4,
+      "academic_year": 2,
+      "is_active": true,
+      "n7_places": 2,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2023-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 12,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 4,
+      "academic_year": 3,
+      "is_active": true,
+      "n7_places": 2,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2024-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 13,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 5,
+      "academic_year": 1,
+      "is_active": true,
+      "n7_places": 4,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2022-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 14,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 5,
+      "academic_year": 2,
+      "is_active": true,
+      "n7_places": 5,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2023-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 15,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 5,
+      "academic_year": 3,
+      "is_active": true,
+      "n7_places": 4,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2024-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 16,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 6,
+      "academic_year": 2,
+      "is_active": true,
+      "n7_places": 2,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2023-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 17,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 6,
+      "academic_year": 3,
+      "is_active": true,
+      "n7_places": 2,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2024-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "mobility.agreementyear",
+    "pk": 18,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "agreement": 7,
+      "academic_year": 3,
+      "is_active": true,
+      "n7_places": 3,
+      "is_validated": true,
+      "validated_by": "admin",
+      "validated_at": "2024-12-01T00:00:00Z"
+    }
+  }
+]
