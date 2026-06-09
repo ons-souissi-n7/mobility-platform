@@ -128,7 +128,7 @@ export function AgreementForm({
           <span className="ml-1 font-normal text-gray-400">(vide = tous)</span>
         </p>
         <div className="flex flex-wrap gap-2">
-          {mobilityLevels.filter((l) => l.is_active).map((level) => (
+          {mobilityLevels.map((level) => (
             <button
               key={level.id}
               className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
@@ -142,7 +142,7 @@ export function AgreementForm({
               {level.code}
             </button>
           ))}
-          {mobilityLevels.filter((l) => l.is_active).length === 0 && (
+          {mobilityLevels.length === 0 && (
             <p className="text-xs italic text-gray-400">Aucun niveau disponible</p>
           )}
         </div>

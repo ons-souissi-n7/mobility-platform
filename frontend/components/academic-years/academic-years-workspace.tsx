@@ -5,6 +5,8 @@ import { useState } from "react";
 
 import { AcademicYearForm } from "@/components/academic-years/academic-year-form";
 import { AcademicYearsTable } from "@/components/academic-years/academic-years-table";
+import { ErrorBanner } from "@/components/ui/alert";
+import { Btn } from "@/components/ui/btn";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import {
@@ -76,28 +78,13 @@ export function AcademicYearsWorkspace({
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <button
-          className="inline-flex items-center gap-2 rounded-md bg-[#1E3A8A] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-900"
-          onClick={() => setModalItem("new")}
-          type="button"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Ajouter une annee
-        </button>
+        <Btn variant="primary" onClick={() => setModalItem("new")}>
+          <Plus className="h-4 w-4" />
+          Ajouter une année
+        </Btn>
       </div>
 
-      {actionError ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start justify-between gap-3">
-          <span>{actionError}</span>
-          <button
-            className="shrink-0 text-red-400 hover:text-red-600"
-            onClick={() => setActionError(null)}
-            type="button"
-          >
-            ✕
-          </button>
-        </div>
-      ) : null}
+      <ErrorBanner message={actionError} onDismiss={() => setActionError(null)} />
 
       <AcademicYearsTable
         onDelete={removeYear}

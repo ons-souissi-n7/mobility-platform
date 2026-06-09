@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, Plus, RefreshCw } from "lucide-react";
+import { Download, FileDown, FileSpreadsheet, Plus, RefreshCw, Upload } from "lucide-react";
 
 import { AgreementForm } from "@/components/mobility/agreement-form";
 import { MobilityCategoryForm } from "@/components/mobility/agreement-framework-form";
@@ -9,6 +9,8 @@ import { MobilityCategorysTable } from "@/components/mobility/agreement-framewor
 import { AgreementsTable } from "@/components/mobility/agreements-table";
 import { MobilityImportErrorsPanel } from "@/components/mobility/mobility-import-errors-panel";
 import { MobilitySection } from "@/components/mobility/mobility-section";
+import { ErrorBanner } from "@/components/ui/alert";
+import { Btn, FileBtn } from "@/components/ui/btn";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { PageTabBar } from "@/components/ui/page-tab-bar";
@@ -20,6 +22,7 @@ import {
   createMobilityCategory,
   deleteMobilityCategory,
   downloadExcelTemplate,
+  exportAgreementsExcel,
   ignoreMobilityImport,
   importAgreementsFromExcel,
   retryMobilityImport,
@@ -82,6 +85,7 @@ export function MobilityWorkspace({
   const [agreementYearDepartments, setAgreementYearDepartments] = useState(initialAgreementYearDepartments);
   const [importErrors, setImportErrors] = useState(initialImportErrors);
   const [excelImportInProgress, setExcelImportInProgress] = useState(false);
+  const [exportInProgress, setExportInProgress] = useState(false);
   const [modal, setModal] = useState<ModalState | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [query, setQuery] = useState("");
@@ -318,6 +322,23 @@ export function MobilityWorkspace({
     }
   }
 
+  async function handleExport() {
+    setSyncError("");
+    setExportInProgress(true);
+    try {
+      await exportAgreementsExcel({
+        yearLabel: yearFilter || undefined,
+        country: countryFilter !== "all" ? countryFilter : undefined,
+        category: categoryFilter !== "all" ? categoryFilter : undefined,
+        activity: activityFilter !== "all" ? activityFilter : undefined,
+      });
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Erreur export.");
+    } finally {
+      setExportInProgress(false);
+    }
+  }
+
   // ── Import Excel ───────────────────────────────────────────────────────────
 
   async function handleExcelImport(file: File) {
@@ -367,6 +388,25 @@ export function MobilityWorkspace({
     <div className="space-y-6">
       {confirmDialog}
 
+      {/* Sélecteur d'année */}
+      <div className="flex items-end gap-4">
+        <label className="block">
+          <span className="text-sm font-medium text-gray-700">Année universitaire</span>
+          <select
+            className="mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[#1E3A8A]"
+            value={yearFilter}
+            onChange={(e) => setYearFilter(e.target.value)}
+          >
+            <option value="">Toutes les années</option>
+            {[...academicYears]
+              .sort((a, b) => b.start_date.localeCompare(a.start_date))
+              .map((y) => (
+                <option key={y.id} value={y.label}>{y.label}</option>
+              ))}
+          </select>
+        </label>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard icon={Landmark} label="Accords total" value={agreements.length} helper="" tone="blue" />
@@ -383,11 +423,7 @@ export function MobilityWorkspace({
         ]}
       />
 
-      {syncError ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {syncError}
-        </div>
-      ) : null}
+      <ErrorBanner message={syncError} />
 
       {/* ── Section Accords ─────────────────────────────────────────────── */}
       <MobilitySection
@@ -396,59 +432,31 @@ export function MobilityWorkspace({
         title="Accords de mobilité"
         toolbar={
           <div className="flex flex-wrap gap-2">
-            <button
-              className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              disabled={syncInProgress}
-              onClick={handleSync}
-              type="button"
-            >
-              <RefreshCw className={syncInProgress ? "animate-spin" : ""} size={12} />
-              Sync MoveON
-            </button>
-            <button
-              className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-              onClick={downloadExcelTemplate}
-              type="button"
-            >
-              <Download size={12} /> Template Excel
-            </button>
-            <label className="flex cursor-pointer items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
-              <input
-                accept=".xlsx,.xls"
-                className="hidden"
-                disabled={excelImportInProgress}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleExcelImport(file);
-                  e.target.value = "";
-                }}
-                type="file"
-              />
-              {excelImportInProgress ? "Import en cours..." : "Import Excel"}
-            </label>
-            <button
-              className="flex items-center gap-1 rounded-md bg-[#1E3A8A] px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-900"
-              onClick={() => setModal({ kind: "agreement" })}
-              type="button"
-            >
-              <Plus size={12} /> Nouvel accord
-            </button>
+            <Btn disabled={syncInProgress} onClick={handleSync}>
+              <RefreshCw className={`h-4 w-4 ${syncInProgress ? "animate-spin" : ""}`} />
+              {syncInProgress ? "Synchronisation..." : "Sync MoveON"}
+            </Btn>
+            <Btn onClick={downloadExcelTemplate}>
+              <Download className="h-4 w-4" />
+              Template
+            </Btn>
+            <FileBtn disabled={excelImportInProgress} onFile={handleExcelImport}>
+              {excelImportInProgress ? <Upload className="h-4 w-4 animate-bounce" /> : <FileSpreadsheet className="h-4 w-4" />}
+              {excelImportInProgress ? "Import..." : "Importer Excel"}
+            </FileBtn>
+            <Btn disabled={exportInProgress} onClick={handleExport}>
+              <FileDown className="h-4 w-4" />
+              {exportInProgress ? "Export..." : "Exporter"}
+            </Btn>
+            <Btn variant="primary" onClick={() => setModal({ kind: "agreement" })}>
+              <Plus className="h-4 w-4" /> Nouvel accord
+            </Btn>
           </div>
         }
       >
         {/* Filtres — une seule ligne */}
         <div className="mb-4 flex items-center gap-2">
           <SearchInput onChange={setQuery} placeholder="Rechercher..." value={query} />
-          <select
-            className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
-            onChange={(e) => setYearFilter(e.target.value)}
-            value={yearFilter}
-          >
-            <option value="">Toutes années</option>
-            {academicYears.map((y) => (
-              <option key={y.id} value={y.label}>{y.label}</option>
-            ))}
-          </select>
           <select
             className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
             onChange={(e) => {
@@ -529,22 +537,13 @@ export function MobilityWorkspace({
         title="Cadres de mobilité"
         toolbar={
           <div className="flex flex-wrap gap-2">
-            <button
-              className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              disabled={categorySyncInProgress}
-              onClick={handleCategorySync}
-              type="button"
-            >
-              <RefreshCw className={categorySyncInProgress ? "animate-spin" : ""} size={12} />
-              Sync MoveON
-            </button>
-            <button
-              className="flex items-center gap-1 rounded-md bg-[#1E3A8A] px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-900"
-              onClick={() => setModal({ kind: "framework" })}
-              type="button"
-            >
-              <Plus size={12} /> Nouveau cadre
-            </button>
+            <Btn disabled={categorySyncInProgress} onClick={handleCategorySync}>
+              <RefreshCw className={`h-4 w-4 ${categorySyncInProgress ? "animate-spin" : ""}`} />
+              {categorySyncInProgress ? "Synchronisation..." : "Sync MoveON"}
+            </Btn>
+            <Btn variant="primary" onClick={() => setModal({ kind: "framework" })}>
+              <Plus className="h-4 w-4" /> Nouveau cadre
+            </Btn>
           </div>
         }
       >

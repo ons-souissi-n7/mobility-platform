@@ -1,4 +1,5 @@
 import { browserApi } from "@/lib/api/browser-client";
+import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
 import type {
   Agreement,
   AgreementYear,
@@ -163,10 +164,6 @@ export function retryMobilityImport(id: number, payload: MobilityImportRetryPayl
 // ── Import Excel ──────────────────────────────────────────────────────────────
 
 export async function importAgreementsFromExcel(file: File) {
-  const publicApiBaseUrl = (
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"
-  ).replace(/\/$/, "");
-
   const formData = new FormData();
   formData.append("file", file);
 
@@ -190,8 +187,19 @@ export async function importAgreementsFromExcel(file: File) {
 }
 
 export function downloadExcelTemplate() {
-  const publicApiBaseUrl = (
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"
-  ).replace(/\/$/, "");
   window.open(`${publicApiBaseUrl}/mobility/excel-template/`, "_blank");
+}
+
+export async function exportAgreementsExcel(filters: {
+  yearLabel?: string;
+  country?: string;
+  category?: string;
+  activity?: string;
+} = {}): Promise<void> {
+  const params = new URLSearchParams();
+  if (filters.yearLabel) params.set("year_label", filters.yearLabel);
+  if (filters.country && filters.country !== "all") params.set("country", filters.country);
+  if (filters.category && filters.category !== "all") params.set("category", filters.category);
+  if (filters.activity && filters.activity !== "all") params.set("activity", filters.activity);
+  await downloadBlob(`${publicApiBaseUrl}/mobility/agreements/export-excel/?${params}`, "accords.xlsx");
 }

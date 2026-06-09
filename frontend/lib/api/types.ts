@@ -101,7 +101,6 @@ export type Level = {
   id: number;
   code: string;
   name: string;
-  is_active: boolean;
   pegase_id: string | null;
   last_sync_pegase: string | null;
   created_at: string;

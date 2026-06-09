@@ -75,20 +75,16 @@ export function ReferenceForm({
       }
 
       if (kind === "department") {
-        const pegaseId = String(formData.get("pegase_id") ?? "").trim();
-
         await onSubmit({
           code: String(formData.get("code") ?? ""),
           name: String(formData.get("name") ?? ""),
-          pegase_id: pegaseId || null,
+          pegase_id: null,
         });
       }
 
       if (kind === "university") {
-        const moveonId = String(formData.get("moveon_id") ?? "").trim();
-
         await onSubmit({
-          moveon_id: moveonId ? Number(moveonId) : null,
+          moveon_id: null,
           name: String(formData.get("name") ?? ""),
           short_name: String(formData.get("short_name") ?? ""),
           translated_name: String(formData.get("translated_name") ?? ""),
@@ -207,11 +203,6 @@ function DepartmentFields({ item }: { item?: Department }) {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <Field defaultValue={item?.code} label="Code departement" name="code" required />
       <Field defaultValue={item?.name} label="Intitule" name="name" required />
-      <Field
-        defaultValue={item?.pegase_id ?? ""}
-        label="Pegase ID"
-        name="pegase_id"
-      />
     </div>
   );
 }
@@ -225,7 +216,6 @@ function UniversityFields({
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <Field defaultValue={item?.moveon_id} label="MoveON ID" name="moveon_id" type="number" />
       <Field defaultValue={item?.name} label="Nom" name="name" required />
       <Field defaultValue={item?.short_name} label="Nom court" name="short_name" />
       <Field

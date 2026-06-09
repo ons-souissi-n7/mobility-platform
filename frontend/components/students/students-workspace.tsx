@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, ChevronLeft, ChevronRight, Download, Eye, GraduationCap, RefreshCw, Users, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react";
+import { BookOpen, Download, Eye, FileDown, FileSpreadsheet, GraduationCap, RefreshCw, Upload, Users, X } from "lucide-react";
 
+import { ErrorBanner } from "@/components/ui/alert";
+import { Btn, FileBtn } from "@/components/ui/btn";
+import { ImportReportPanel } from "@/components/ui/import-report-panel";
+import { Pagination } from "@/components/ui/pagination";
 import { StatCard } from "@/components/ui/stat-card";
-import { SearchInput } from "@/components/ui/search-input";
+import { Toolbar } from "@/components/ui/toolbar";
 import {
   downloadStudentTemplate,
+  exportStudentsExcel,
   getStudentDetail,
   getStudentImportErrors,
   getStudentStatsForYear,
@@ -49,6 +54,7 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
   const [importInProgress, setImportInProgress] = useState(false);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [templateLoading, setTemplateLoading] = useState(false);
+  const [exportInProgress, setExportInProgress] = useState(false);
   const [importReport, setImportReport] = useState<ImportReport | null>(null);
   const [importErrors, setImportErrors] = useState<RawImport[]>([]);
   const [error, setError] = useState("");
@@ -224,6 +230,23 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
     finally { setTemplateLoading(false); }
   }
 
+  async function handleExport() {
+    if (!selectedYear) return;
+    setError("");
+    setExportInProgress(true);
+    try {
+      await exportStudentsExcel(selectedYear.id, {
+        levelId: filterLevel || undefined,
+        deptId: filterDept || undefined,
+        parcoursId: filterParcours || undefined,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur export.");
+    } finally {
+      setExportInProgress(false);
+    }
+  }
+
   const hasFilter = !!(filterLevel || filterDept || filterParcours);
   const isBusy = importInProgress || syncInProgress || isLoading;
 
@@ -288,66 +311,46 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
         </div>
       )}
 
-      {/* Toolbar: search + filters + actions */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-        {/* Row 1: search + action buttons */}
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <SearchInput
-            onChange={setQuery}
-            placeholder="Rechercher par INE, nom, prenom, email..."
-            value={query}
-          />
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+      <Toolbar
+        search={{ value: query, onChange: setQuery, placeholder: "Rechercher par INE, nom, prénom, email..." }}
+        actions={
+          <>
             <TemplateButton isLoading={templateLoading} onClick={handleTemplateDownload} />
             <ExcelImportButton isLoading={importInProgress} onImport={handleExcelImport} />
             <SyncButton isLoading={syncInProgress} onClick={handleSync} />
-          </div>
-        </div>
-
-        {/* Row 2: breakdown filters */}
-        {selectedYear && (
-          <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-gray-100">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide shrink-0">
-              Filtrer :
-            </span>
-
+            <span className="hidden h-6 w-px bg-gray-200 md:block" />
+            <Btn disabled={!selectedYear || exportInProgress || isLoading} onClick={handleExport}>
+              <FileDown className="h-4 w-4" />
+              {exportInProgress ? "Export..." : "Exporter"}
+            </Btn>
+          </>
+        }
+        filters={selectedYear ? (
+          <>
             <select
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-36 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
               value={filterLevel}
-              onChange={(e) => {
-                setFilterLevel(e.target.value);
-                setFilterDept("");
-                setFilterParcours("");
-              }}
+              onChange={(e) => { setFilterLevel(e.target.value); setFilterDept(""); setFilterParcours(""); }}
               disabled={isLoading || levelOptions.length === 0}
             >
               <option value="">Tous les niveaux</option>
               {levelOptions.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.code}{l.name && l.name !== l.code ? ` — ${l.name}` : ""}
-                </option>
+                <option key={l.id} value={l.id}>{l.code}{l.name && l.name !== l.code ? ` — ${l.name}` : ""}</option>
               ))}
             </select>
-
             <select
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-40 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
               value={filterDept}
-              onChange={(e) => {
-                setFilterDept(e.target.value);
-                setFilterParcours("");
-              }}
+              onChange={(e) => { setFilterDept(e.target.value); setFilterParcours(""); }}
               disabled={isLoading || deptOptions.length === 0}
             >
-              <option value="">Tous les departements</option>
+              <option value="">Tous les départements</option>
               {deptOptions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.code}{d.name && d.name !== d.code ? ` — ${d.name}` : ""}
-                </option>
+                <option key={d.id} value={d.id}>{d.code}{d.name && d.name !== d.code ? ` — ${d.name}` : ""}</option>
               ))}
             </select>
-
             <select
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-[#1E3A8A] focus:ring-1 focus:ring-[#1E3A8A]"
+              className="w-40 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
               value={filterParcours}
               onChange={(e) => setFilterParcours(e.target.value)}
               disabled={isLoading || parcoursOptions.length === 0}
@@ -359,36 +362,33 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
                 </option>
               ))}
             </select>
-
             {hasFilter && (
               <button
-                className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+                className="shrink-0 inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
                 onClick={() => { setFilterLevel(""); setFilterDept(""); setFilterParcours(""); }}
                 type="button"
               >
-                <X className="h-3.5 w-3.5" />
-                Reinitialiser
+                <X className="h-3.5 w-3.5" /> Réinitialiser
               </button>
             )}
-
             {hasFilter && (
-              <span className="ml-auto text-xs text-gray-400">
-                {displayEnrollments.length} etudiant{displayEnrollments.length > 1 ? "s" : ""}
+              <span className="shrink-0 text-xs text-gray-400">
+                {displayEnrollments.length} étudiant{displayEnrollments.length > 1 ? "s" : ""}
               </span>
             )}
-          </div>
-        )}
-      </div>
+          </>
+        ) : undefined}
+      />
 
-      {error ? (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      ) : null}
+      <ErrorBanner message={error} />
 
-      {importReport ? (
-        <ImportReportPanel report={importReport} onClose={() => setImportReport(null)} />
-      ) : null}
+      {importReport && (
+        <ImportReportPanel
+          report={importReport}
+          title="Import terminé"
+          onClose={() => setImportReport(null)}
+        />
+      )}
 
       <div id="erreurs">
         <StudentImportErrorsPanel
@@ -428,7 +428,7 @@ function BreakdownCard({
   title: string;
   items: { code: string; label: string; count: number }[];
   isLoading: boolean;
-  icon: React.ElementType;
+  icon: ElementType;
 }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -482,9 +482,6 @@ function EnrollmentTable({
   const totalPages = Math.max(1, Math.ceil(enrollments.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageItems = enrollments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const firstItem = enrollments.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const lastItem = Math.min(currentPage * pageSize, enrollments.length);
-
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPage(1); }, [enrollments]);
 
@@ -559,50 +556,15 @@ function EnrollmentTable({
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
-        <p className="text-sm text-gray-500">
-          {enrollments.length === 0
-            ? "Aucun etudiant"
-            : `${firstItem}–${lastItem} sur ${enrollments.length}`}
-        </p>
-        <div className="flex items-center gap-3">
-          <select
-            className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
-            value={pageSize}
-            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-          >
-            {[10, 25, 50, 100].map((s) => (
-              <option key={s} value={s}>{s} / page</option>
-            ))}
-          </select>
-          <div className="flex items-center gap-1">
-            <PagBtn disabled={currentPage === 1} onClick={() => setPage(1)} title="Premiere page">
-              <ChevronLeft className="h-3.5 w-3.5" /><ChevronLeft className="-ml-2 h-3.5 w-3.5" />
-            </PagBtn>
-            <PagBtn disabled={currentPage === 1} onClick={() => setPage((p) => p - 1)} title="Page precedente">
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </PagBtn>
-            {buildPages(currentPage, totalPages).map((p, i) =>
-              p === "..." ? (
-                <span key={`e${i}`} className="px-1 text-xs text-gray-400">…</span>
-              ) : (
-                <button
-                  key={p}
-                  className={`min-w-[2rem] rounded-md border px-2 py-1 text-xs font-medium ${p === currentPage ? "border-[#1E3A8A] bg-[#1E3A8A] text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
-                  onClick={() => setPage(p as number)}
-                  type="button"
-                >{p}</button>
-              )
-            )}
-            <PagBtn disabled={currentPage === totalPages} onClick={() => setPage((p) => p + 1)} title="Page suivante">
-              <ChevronRight className="h-3.5 w-3.5" />
-            </PagBtn>
-            <PagBtn disabled={currentPage === totalPages} onClick={() => setPage(totalPages)} title="Derniere page">
-              <ChevronRight className="h-3.5 w-3.5" /><ChevronRight className="-ml-2 h-3.5 w-3.5" />
-            </PagBtn>
-          </div>
-        </div>
-      </div>
+      <Pagination
+        page={currentPage}
+        totalPages={totalPages}
+        totalItems={enrollments.length}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+        emptyLabel="Aucun étudiant"
+      />
     </div>
   );
 }
@@ -738,7 +700,7 @@ function StudentDetailPanel({
   );
 }
 
-function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+function DetailSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h3>
@@ -747,7 +709,7 @@ function DetailSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex gap-3">
       <span className="w-28 shrink-0 text-xs text-gray-500">{label}</span>
@@ -760,7 +722,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 // Primitives
 // ---------------------------------------------------------------------------
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({ children }: { children: ReactNode }) {
   return (
     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
       {children}
@@ -768,101 +730,34 @@ function Th({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Td({ children }: { children: React.ReactNode }) {
+function Td({ children }: { children: ReactNode }) {
   return <td className="px-4 py-3">{children}</td>;
-}
-
-function PagBtn({ children, disabled, onClick, title }: { children: React.ReactNode; disabled: boolean; onClick: () => void; title: string }) {
-  return (
-    <button
-      className="flex items-center rounded-md border border-gray-200 bg-white px-1.5 py-1 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-      disabled={disabled} onClick={onClick} title={title} type="button"
-    >
-      {children}
-    </button>
-  );
-}
-
-function buildPages(current: number, total: number): (number | "...")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages: (number | "...")[] = [];
-  const add = (p: number) => { if (!pages.includes(p)) pages.push(p); };
-  add(1);
-  if (current > 4) pages.push("...");
-  for (let p = Math.max(2, current - 2); p <= Math.min(total - 1, current + 2); p++) add(p);
-  if (current < total - 3) pages.push("...");
-  add(total);
-  return pages;
 }
 
 function TemplateButton({ isLoading, onClick }: { isLoading: boolean; onClick: () => void }) {
   return (
-    <button
-      className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-      disabled={isLoading} onClick={onClick} type="button"
-    >
-      <Download className="h-4 w-4" aria-hidden="true" />
-      {isLoading ? "..." : "Template"}
-    </button>
+    <Btn disabled={isLoading} onClick={onClick}>
+      <Download className="h-4 w-4" />
+      Template
+    </Btn>
   );
 }
 
 function ExcelImportButton({ isLoading, onImport }: { isLoading: boolean; onImport: (file: File) => void }) {
   return (
-    <label
-      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 ${isLoading ? "cursor-not-allowed opacity-60" : ""}`}
-      title="Importer depuis Excel"
-    >
-      <input accept=".xlsx,.xls" className="sr-only" disabled={isLoading}
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) { onImport(f); e.target.value = ""; } }}
-        type="file"
-      />
-      {isLoading ? "Import..." : "↑ Import Excel"}
-    </label>
+    <FileBtn disabled={isLoading} onFile={onImport}>
+      {isLoading ? <Upload className="h-4 w-4 animate-bounce" /> : <FileSpreadsheet className="h-4 w-4" />}
+      {isLoading ? "Import..." : "Importer Excel"}
+    </FileBtn>
   );
 }
 
 function SyncButton({ isLoading, onClick }: { isLoading: boolean; onClick: () => void }) {
   return (
-    <button
-      className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-      disabled={isLoading} onClick={onClick} type="button"
-    >
-      <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />
+    <Btn disabled={isLoading} onClick={onClick}>
+      <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
       {isLoading ? "Synchronisation..." : "Sync Pegase"}
-    </button>
+    </Btn>
   );
 }
 
-function ImportReportPanel({ report, onClose }: { report: ImportReport; onClose: () => void }) {
-  const hasIssues = report.unresolved.length > 0 || report.errors.length > 0;
-  return (
-    <div className={`rounded-lg border p-4 text-sm ${hasIssues ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <p className={`font-medium ${hasIssues ? "text-amber-800" : "text-emerald-800"}`}>Import termine</p>
-          <p className={hasIssues ? "text-amber-700" : "text-emerald-700"}>
-            {report.created} cree{report.created > 1 ? "s" : ""},{" "}
-            {report.updated} mis a jour
-            {report.unresolved.length > 0 ? `, ${report.unresolved.length} non resolus` : ""}
-            {report.errors.length > 0 ? `, ${report.errors.length} erreur(s)` : ""}
-          </p>
-          {report.unresolved.length > 0 && (
-            <ul className="mt-2 space-y-0.5 text-xs text-amber-700">
-              {report.unresolved.slice(0, 5).map((item, i) => (
-                <li key={i}>INE {item.ine} — {item.reason}</li>
-              ))}
-              {report.unresolved.length > 5 && <li>… et {report.unresolved.length - 5} autre(s)</li>}
-            </ul>
-          )}
-          {report.errors.length > 0 && (
-            <ul className="mt-2 space-y-0.5 text-xs text-red-700">
-              {report.errors.slice(0, 3).map((err, i) => <li key={i}>{err}</li>)}
-            </ul>
-          )}
-        </div>
-        <button className="shrink-0 text-gray-400 hover:text-gray-600" onClick={onClose} type="button">✕</button>
-      </div>
-    </div>
-  );
-}

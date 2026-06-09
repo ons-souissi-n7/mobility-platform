@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Heart, RefreshCw, TrendingUp, Users, X } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Download, FileDown, FileSpreadsheet, Heart, RefreshCw, TrendingUp, Upload, Users, X } from "lucide-react";
 
-import { SearchInput } from "@/components/ui/search-input";
+import { ErrorBanner } from "@/components/ui/alert";
+import { Btn, FileBtn } from "@/components/ui/btn";
+import { ImportReportPanel } from "@/components/ui/import-report-panel";
+import { Pagination } from "@/components/ui/pagination";
 import { StatCard } from "@/components/ui/stat-card";
+import { Toolbar } from "@/components/ui/toolbar";
 import {
+  downloadWishTemplate,
+  exportWishesExcel,
   getStudentImportErrors,
   getWishesByYear,
   ignoreStudentImportError,
+  importWishesFromExcel,
   syncWishesFromMoveon,
 } from "@/lib/api/student-mutations";
 import type { AcademicYear, AgreementWish, RawImport, StudentWishes, WishSyncReport } from "@/lib/api/types";
@@ -28,6 +35,9 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
   const [isLoading, setIsLoading] = useState(false);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncReport, setSyncReport] = useState<WishSyncReport | null>(null);
+  const [excelInProgress, setExcelInProgress] = useState(false);
+  const [excelReport, setExcelReport] = useState<WishSyncReport | null>(null);
+  const [exportInProgress, setExportInProgress] = useState(false);
   const [wishImportErrors, setWishImportErrors] = useState<RawImport[]>([]);
   const [query, setQuery] = useState("");
   const [filterDept, setFilterDept] = useState("");
@@ -44,6 +54,7 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
     setQuery("");
     setFilterDept("");
     setSyncReport(null);
+    setExcelReport(null);
 
     Promise.all([
       getWishesByYear(selectedYearId),
@@ -79,6 +90,37 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
     return true;
   });
 
+  async function handleTemplateDownload() {
+    if (!selectedYear) return;
+    setError("");
+    try {
+      await downloadWishTemplate(selectedYear.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de télécharger le template.");
+    }
+  }
+
+  async function handleExcelImport(file: File) {
+    if (!selectedYear) return;
+    setError("");
+    setExcelReport(null);
+    setExcelInProgress(true);
+    try {
+      const report = await importWishesFromExcel(selectedYear.id, file);
+      setExcelReport(report);
+      const [updated, errs] = await Promise.all([
+        getWishesByYear(selectedYear.id),
+        getStudentImportErrors(),
+      ]);
+      setWishes(updated);
+      setWishImportErrors(errs.filter((e) => e.source === "moveon_student_wishes"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "L'import Excel a échoué.");
+    } finally {
+      setExcelInProgress(false);
+    }
+  }
+
   async function handleSync() {
     if (!selectedYear) return;
     setError("");
@@ -97,6 +139,19 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
       setError(err instanceof Error ? err.message : "La synchronisation MoveON a échoué.");
     } finally {
       setSyncInProgress(false);
+    }
+  }
+
+  async function handleExport() {
+    if (!selectedYear) return;
+    setError("");
+    setExportInProgress(true);
+    try {
+      await exportWishesExcel(selectedYear.id, { deptCode: filterDept || undefined });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur export.");
+    } finally {
+      setExportInProgress(false);
     }
   }
 
@@ -155,65 +210,69 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
         </div>
       )}
 
-      {/* Barre d&apos;outils */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <SearchInput
-            value={query}
-            onChange={setQuery}
-            placeholder="Rechercher par INE, nom, prénom..."
-          />
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={syncInProgress || !selectedYear}
-              onClick={handleSync}
-              type="button"
-            >
+      <Toolbar
+        search={{ value: query, onChange: setQuery, placeholder: "Rechercher par INE, nom, prénom..." }}
+        actions={
+          <>
+            <Btn disabled={!selectedYear} onClick={handleTemplateDownload} title="Télécharger le template Excel vœux">
+              <Download className="h-4 w-4" />
+              Template
+            </Btn>
+            <FileBtn disabled={!selectedYear || excelInProgress} onFile={(file) => { handleExcelImport(file).catch(() => null); }}>
+              {excelInProgress ? <Upload className="h-4 w-4 animate-bounce" /> : <FileSpreadsheet className="h-4 w-4" />}
+              {excelInProgress ? "Import..." : "Importer Excel"}
+            </FileBtn>
+            <span className="hidden h-6 w-px bg-gray-200 md:block" />
+            <Btn disabled={syncInProgress || !selectedYear} onClick={handleSync}>
               <RefreshCw className={`h-4 w-4 ${syncInProgress ? "animate-spin" : ""}`} />
               {syncInProgress ? "Synchronisation..." : "Sync MoveON"}
-            </button>
-          </div>
-        </div>
-
-        {/* Filtre département */}
-        {selectedYear && deptOptions.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-gray-100">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Filtrer :
-            </span>
+            </Btn>
+            <span className="hidden h-6 w-px bg-gray-200 md:block" />
+            <Btn disabled={!selectedYear || exportInProgress || isLoading} onClick={handleExport}>
+              <FileDown className="h-4 w-4" />
+              {exportInProgress ? "Export..." : "Exporter"}
+            </Btn>
+          </>
+        }
+        filters={selectedYear && deptOptions.length > 0 ? (
+          <>
             <select
-              className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700"
+              className="w-40 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
               value={filterDept}
               onChange={(e) => setFilterDept(e.target.value)}
             >
               <option value="">Tous les départements</option>
-              {deptOptions.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
+              {deptOptions.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
             {filterDept && (
               <button
-                className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
+                className="shrink-0 inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
                 onClick={() => setFilterDept("")}
                 type="button"
               >
-                <X className="h-3.5 w-3.5" />
-                Réinitialiser
+                <X className="h-3.5 w-3.5" /> Réinitialiser
               </button>
             )}
-          </div>
-        )}
-      </div>
+          </>
+        ) : undefined}
+      />
 
-      {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      <ErrorBanner message={error} />
 
       {syncReport && (
-        <SyncReportPanel report={syncReport} onClose={() => setSyncReport(null)} />
+        <ImportReportPanel
+          report={syncReport}
+          title="Synchronisation MoveON terminée"
+          onClose={() => setSyncReport(null)}
+        />
+      )}
+
+      {excelReport && (
+        <ImportReportPanel
+          report={excelReport}
+          title="Import Excel terminé"
+          onClose={() => setExcelReport(null)}
+        />
       )}
 
       <StudentImportErrorsPanel
@@ -255,9 +314,6 @@ function WishesTable({
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageItems = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const firstItem = rows.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const lastItem = Math.min(currentPage * pageSize, rows.length);
-
   // Reset to page 1 when data changes
   const [prevRows, setPrevRows] = useState(rows);
   if (prevRows !== rows) { setPrevRows(rows); setPage(1); }
@@ -340,50 +396,15 @@ function WishesTable({
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
-        <p className="text-sm text-gray-500">
-          {rows.length === 0
-            ? "Aucun étudiant"
-            : `${firstItem}–${lastItem} sur ${rows.length}`}
-        </p>
-        <div className="flex items-center gap-3">
-          <select
-            className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
-            value={pageSize}
-            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-          >
-            {[10, 25, 50, 100].map((s) => (
-              <option key={s} value={s}>{s} / page</option>
-            ))}
-          </select>
-          <div className="flex items-center gap-1">
-            <WPagBtn disabled={currentPage === 1} onClick={() => setPage(1)} title="Premiere page">
-              <ChevronLeft className="h-3.5 w-3.5" /><ChevronLeft className="-ml-2 h-3.5 w-3.5" />
-            </WPagBtn>
-            <WPagBtn disabled={currentPage === 1} onClick={() => setPage((p) => p - 1)} title="Page precedente">
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </WPagBtn>
-            {wBuildPages(currentPage, totalPages).map((p, i) =>
-              p === "..." ? (
-                <span key={`e${i}`} className="px-1 text-xs text-gray-400">…</span>
-              ) : (
-                <button
-                  key={p}
-                  className={`min-w-[2rem] rounded-md border px-2 py-1 text-xs font-medium ${p === currentPage ? "border-[#1E3A8A] bg-[#1E3A8A] text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
-                  onClick={() => setPage(p as number)}
-                  type="button"
-                >{p}</button>
-              )
-            )}
-            <WPagBtn disabled={currentPage === totalPages} onClick={() => setPage((p) => p + 1)} title="Page suivante">
-              <ChevronRight className="h-3.5 w-3.5" />
-            </WPagBtn>
-            <WPagBtn disabled={currentPage === totalPages} onClick={() => setPage(totalPages)} title="Derniere page">
-              <ChevronRight className="h-3.5 w-3.5" /><ChevronRight className="-ml-2 h-3.5 w-3.5" />
-            </WPagBtn>
-          </div>
-        </div>
-      </div>
+      <Pagination
+        page={currentPage}
+        totalPages={totalPages}
+        totalItems={rows.length}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+        emptyLabel="Aucun étudiant"
+      />
     </div>
   );
 }
@@ -404,94 +425,12 @@ function WishCell({ wish }: { wish: AgreementWish }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Rapport de synchronisation
-// ---------------------------------------------------------------------------
-
-function SyncReportPanel({
-  report,
-  onClose,
-}: {
-  report: WishSyncReport;
-  onClose: () => void;
-}) {
-  const hasIssues = report.unresolved.length > 0 || report.errors.length > 0;
-  return (
-    <div
-      className={`rounded-lg border p-4 text-sm ${
-        hasIssues ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <p className={`font-medium ${hasIssues ? "text-amber-800" : "text-emerald-800"}`}>
-            Synchronisation terminée
-          </p>
-          <p className={hasIssues ? "text-amber-700" : "text-emerald-700"}>
-            {report.created} créé{report.created > 1 ? "s" : ""},{" "}
-            {report.updated} mis à jour
-            {report.skipped > 0 ? `, ${report.skipped} ignoré(s) (hors fenêtre)` : ""}
-            {report.unresolved.length > 0
-              ? `, ${report.unresolved.length} non résolu(s)`
-              : ""}
-          </p>
-          {report.unresolved.length > 0 && (
-            <ul className="mt-2 space-y-0.5 text-xs text-amber-700">
-              {report.unresolved.slice(0, 5).map((item, i) => (
-                <li key={i}>
-                  {item["individu"]} rang {item["rank"]} — {item["reason"]}
-                </li>
-              ))}
-              {report.unresolved.length > 5 && (
-                <li>… et {report.unresolved.length - 5} autre(s)</li>
-              )}
-            </ul>
-          )}
-        </div>
-        <button
-          className="shrink-0 text-gray-400 hover:text-gray-600"
-          onClick={onClose}
-          type="button"
-        >
-          ✕
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Pagination helpers (wishes table)
-// ---------------------------------------------------------------------------
-
-function WPagBtn({ children, disabled, onClick, title }: { children: React.ReactNode; disabled: boolean; onClick: () => void; title: string }) {
-  return (
-    <button
-      className="flex items-center rounded-md border border-gray-200 bg-white px-1.5 py-1 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-      disabled={disabled} onClick={onClick} title={title} type="button"
-    >
-      {children}
-    </button>
-  );
-}
-
-function wBuildPages(current: number, total: number): (number | "...")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages: (number | "...")[] = [];
-  const add = (p: number) => { if (!pages.includes(p)) pages.push(p); };
-  add(1);
-  if (current > 4) pages.push("...");
-  for (let p = Math.max(2, current - 2); p <= Math.min(total - 1, current + 2); p++) add(p);
-  if (current < total - 3) pages.push("...");
-  add(total);
-  return pages;
-}
 
 // ---------------------------------------------------------------------------
 // Primitives
 // ---------------------------------------------------------------------------
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({ children }: { children: ReactNode }) {
   return (
     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 whitespace-nowrap">
       {children}
@@ -499,6 +438,6 @@ function Th({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Td({ children }: { children: React.ReactNode }) {
+function Td({ children }: { children: ReactNode }) {
   return <td className="px-4 py-3">{children}</td>;
 }

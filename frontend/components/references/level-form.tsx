@@ -26,7 +26,6 @@ export function LevelForm({
     const payload: LevelPayload = {
       code: String(formData.get("code") ?? "").trim().toUpperCase(),
       name: String(formData.get("name") ?? "").trim(),
-      is_active: formData.get("is_active") === "on",
       pegase_id: item?.pegase_id ?? null,
       last_sync_pegase: item?.last_sync_pegase ?? null,
     };
@@ -74,16 +73,6 @@ export function LevelForm({
           />
         </label>
       </div>
-
-      <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-        <input
-          className="h-4 w-4 rounded border-gray-300 text-[#1E3A8A]"
-          defaultChecked={item?.is_active ?? true}
-          name="is_active"
-          type="checkbox"
-        />
-        Niveau actif
-      </label>
 
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
