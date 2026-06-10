@@ -18,11 +18,16 @@ import {
   getStudentsByYear,
   ignoreStudentImportError,
   importStudentsFromExcel,
+  retryStudentImportError,
   syncStudentsFromPegase,
+  type StudentImportCorrection,
 } from "@/lib/api/student-mutations";
 import type {
   AcademicYear,
+  Department,
   ImportReport,
+  Level,
+  Parcours,
   RawImport,
   StudentDetail,
   StudentStats,
@@ -95,6 +100,34 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
   // ---------------------------------------------------------------------------
   // Filter options derived from current enrollments
   // ---------------------------------------------------------------------------
+
+  // Unique reference lists for correction selectors (unfiltered)
+  const allDepartments = useMemo<Department[]>(() => {
+    const seen = new Map<number, Department>();
+    for (const e of enrollments) {
+      if (!seen.has(e.department_id))
+        seen.set(e.department_id, { id: e.department_id, code: e.department_code, name: e.department_name, pegase_id: null, last_sync_pegase: null, updated_at: "" });
+    }
+    return [...seen.values()].sort((a, b) => a.code.localeCompare(b.code));
+  }, [enrollments]);
+
+  const allLevels = useMemo<Level[]>(() => {
+    const seen = new Map<number, Level>();
+    for (const e of enrollments) {
+      if (!seen.has(e.level_id))
+        seen.set(e.level_id, { id: e.level_id, code: e.level_code, name: e.level_name, pegase_id: null, last_sync_pegase: null, created_at: "", updated_at: "" });
+    }
+    return [...seen.values()].sort((a, b) => a.code.localeCompare(b.code));
+  }, [enrollments]);
+
+  const allParcourses = useMemo<Parcours[]>(() => {
+    const seen = new Map<number, Parcours>();
+    for (const e of enrollments) {
+      if (e.parcours_id !== null && e.parcours_code && !seen.has(e.parcours_id))
+        seen.set(e.parcours_id, { id: e.parcours_id, department_id: e.department_id, code: e.parcours_code, label: e.parcours_label ?? e.parcours_code });
+    }
+    return [...seen.values()].sort((a, b) => a.code.localeCompare(b.code));
+  }, [enrollments]);
 
   const levelOptions = useMemo(() => {
     const seen = new Map<number, { id: number; code: string; name: string }>();
@@ -197,6 +230,12 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
   async function handleIgnoreImportError(err: RawImport) {
     await ignoreStudentImportError(err.id);
     setImportErrors((prev) => prev.filter((e) => e.id !== err.id));
+  }
+
+  async function handleRetryImportError(err: RawImport, correction: StudentImportCorrection) {
+    await retryStudentImportError(err.id, correction);
+    setImportErrors((prev) => prev.filter((e) => e.id !== err.id));
+    await refreshYear();
   }
 
   async function handleExcelImport(file: File) {
@@ -392,9 +431,13 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
 
       <div id="erreurs">
         <StudentImportErrorsPanel
+          departments={allDepartments}
           errors={importErrors}
           isBusy={isBusy}
+          levels={allLevels}
           onIgnore={handleIgnoreImportError}
+          onRetry={handleRetryImportError}
+          parcourses={allParcourses}
         />
       </div>
 

@@ -54,6 +54,10 @@ export type InitYearResult = {
 
 // ── Accords ───────────────────────────────────────────────────────────────────
 
+export function getAgreements(): Promise<Agreement[]> {
+  return browserApi<Agreement[]>("/mobility/agreements/", { method: "GET" });
+}
+
 export function createAgreement(payload: AgreementPayload) {
   return browserApi<Agreement>("/mobility/agreements/", { method: "POST", body: payload });
 }

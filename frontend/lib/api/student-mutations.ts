@@ -69,6 +69,37 @@ export function ignoreStudentImportError(rawImportId: number): Promise<RawImport
   );
 }
 
+export type StudentImportCorrection = {
+  department_id?: number;
+  level_id?: number;
+  parcours_id?: number;
+};
+
+export function retryStudentImportError(
+  rawImportId: number,
+  correction: StudentImportCorrection,
+): Promise<RawImport> {
+  return browserApi<RawImport>(
+    `/students/students/import-errors/${rawImportId}/retry/`,
+    { method: "PUT", body: correction },
+  );
+}
+
+export type WishImportCorrection = {
+  student_id?: number;
+  agreement_id?: number;
+};
+
+export function retryWishImportError(
+  rawImportId: number,
+  correction: WishImportCorrection,
+): Promise<RawImport> {
+  return browserApi<RawImport>(
+    `/students/students/wishes/import-errors/${rawImportId}/retry/`,
+    { method: "PUT", body: correction },
+  );
+}
+
 export async function downloadStudentTemplate(): Promise<void> {
   const response = await fetch(`${publicApiBaseUrl}/students/students/template/`, {
     method: "GET",

@@ -1,43 +1,41 @@
 "use client";
 
-import { AlertTriangle, Check, RotateCw } from "lucide-react";
+import { AlertTriangle, Check, Info, RotateCw } from "lucide-react";
 import { useState } from "react";
 
-import type { Department, Level, Parcours, RawImport } from "@/lib/api/types";
-import type { StudentImportCorrection } from "@/lib/api/student-mutations";
+import type { Agreement, RawImport, StudentWithEnrollment } from "@/lib/api/types";
+import type { WishImportCorrection } from "@/lib/api/student-mutations";
 
-type ErrorKind = "department" | "level" | "parcours" | "no_correction";
+type ErrorKind = "student_not_found" | "no_enrollment" | "agreement_not_found" | "no_correction";
 
-function classifyStudentError(error: RawImport): ErrorKind {
+function classifyWishError(error: RawImport): ErrorKind {
   const msg = (error.error_message ?? "").toLowerCase();
-  if (msg.includes("département introuvable") || msg.includes("departement introuvable")) return "department";
-  if (msg.includes("niveau introuvable")) return "level";
-  if (msg.includes("parcours introuvable")) return "parcours";
+  if (msg.includes("étudiant introuvable") || msg.includes("etudiant introuvable")) return "student_not_found";
+  if (msg.includes("inscription annuelle")) return "no_enrollment";
+  if (msg.includes("accord introuvable") || msg.includes("offre de séjour")) return "agreement_not_found";
   return "no_correction";
 }
 
-export function StudentImportErrorsPanel({
-  departments,
+export function WishImportErrorsPanel({
+  agreements,
   errors,
   isBusy,
-  levels,
   onIgnore,
   onRetry,
-  parcourses,
-  title = "Erreurs d'import étudiants",
+  students,
+  title = "Erreurs d'import vœux",
 }: {
-  departments: Department[];
+  agreements: Agreement[];
   errors: RawImport[];
   isBusy: boolean;
-  levels: Level[];
   onIgnore: (error: RawImport) => Promise<void>;
-  onRetry: (error: RawImport, correction: StudentImportCorrection) => Promise<void>;
-  parcourses: Parcours[];
+  onRetry: (error: RawImport, correction: WishImportCorrection) => Promise<void>;
+  students: StudentWithEnrollment[];
   title?: string;
 }) {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [corrections, setCorrections] = useState<Record<number, StudentImportCorrection>>({});
+  const [corrections, setCorrections] = useState<Record<number, WishImportCorrection>>({});
 
   if (errors.length === 0) return null;
 
@@ -53,7 +51,7 @@ export function StudentImportErrorsPanel({
     }
   }
 
-  function setCorrection(id: number, patch: Partial<StudentImportCorrection>) {
+  function setCorrection(id: number, patch: Partial<WishImportCorrection>) {
     setCorrections((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), ...patch } }));
   }
 
@@ -76,8 +74,7 @@ export function StudentImportErrorsPanel({
         <table className="min-w-full divide-y divide-amber-100 text-sm">
           <thead className="bg-amber-50 text-left text-xs font-semibold uppercase text-amber-900">
             <tr>
-              <th className="px-3 py-2">INE</th>
-              <th className="px-3 py-2">Source</th>
+              <th className="px-3 py-2">Identifiant</th>
               <th className="px-3 py-2">Erreur</th>
               <th className="px-3 py-2">Correction</th>
               <th className="px-3 py-2 text-right">Actions</th>
@@ -86,20 +83,16 @@ export function StudentImportErrorsPanel({
           <tbody className="divide-y divide-gray-100">
             {errors.map((error) => {
               const busy = isBusy || activeId === error.id;
-              const kind = classifyStudentError(error);
+              const kind = classifyWishError(error);
               const correction = corrections[error.id] ?? {};
               const canRetry =
-                (kind === "department" && !!correction.department_id) ||
-                (kind === "level" && !!correction.level_id) ||
-                (kind === "parcours" && !!correction.parcours_id);
+                (kind === "student_not_found" && !!correction.student_id) ||
+                (kind === "agreement_not_found" && !!correction.agreement_id);
 
               return (
                 <tr key={error.id}>
                   <td className="whitespace-nowrap px-3 py-3 font-mono text-xs text-gray-700">
                     {error.external_id || "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-xs text-gray-400">
-                    {error.source}
                   </td>
                   <td className="max-w-xs px-3 py-3">
                     <p className="break-words text-xs text-red-700">
@@ -107,62 +100,55 @@ export function StudentImportErrorsPanel({
                     </p>
                   </td>
                   <td className="px-3 py-3">
-                    {kind === "department" && (
-                      <select
-                        className="w-48 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
-                        disabled={busy}
-                        value={correction.department_id ?? ""}
-                        onChange={(e) =>
-                          setCorrection(error.id, {
-                            department_id: e.target.value ? Number(e.target.value) : undefined,
-                          })
-                        }
-                      >
-                        <option value="">Choisir un département</option>
-                        {departments.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.code} — {d.name}
-                          </option>
-                        ))}
-                      </select>
+                    {kind === "student_not_found" && (
+                      <div>
+                        <p className="mb-1 text-xs text-gray-500">Associer à un étudiant inscrit</p>
+                        <select
+                          className="w-56 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
+                          disabled={busy}
+                          value={correction.student_id ?? ""}
+                          onChange={(e) =>
+                            setCorrection(error.id, {
+                              student_id: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                        >
+                          <option value="">Choisir un étudiant</option>
+                          {students.map((s) => (
+                            <option key={s.student_id} value={s.student_id}>
+                              {s.ine} — {s.last_name} {s.first_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
-                    {kind === "level" && (
-                      <select
-                        className="w-48 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
-                        disabled={busy}
-                        value={correction.level_id ?? ""}
-                        onChange={(e) =>
-                          setCorrection(error.id, {
-                            level_id: e.target.value ? Number(e.target.value) : undefined,
-                          })
-                        }
-                      >
-                        <option value="">Choisir un niveau</option>
-                        {levels.map((l) => (
-                          <option key={l.id} value={l.id}>
-                            {l.code} — {l.name}
-                          </option>
-                        ))}
-                      </select>
+                    {kind === "agreement_not_found" && (
+                      <div>
+                        <p className="mb-1 text-xs text-gray-500">Associer à un accord existant</p>
+                        <select
+                          className="w-56 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
+                          disabled={busy}
+                          value={correction.agreement_id ?? ""}
+                          onChange={(e) =>
+                            setCorrection(error.id, {
+                              agreement_id: e.target.value ? Number(e.target.value) : undefined,
+                            })
+                          }
+                        >
+                          <option value="">Choisir un accord</option>
+                          {agreements.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     )}
-                    {kind === "parcours" && (
-                      <select
-                        className="w-48 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
-                        disabled={busy}
-                        value={correction.parcours_id ?? ""}
-                        onChange={(e) =>
-                          setCorrection(error.id, {
-                            parcours_id: e.target.value ? Number(e.target.value) : undefined,
-                          })
-                        }
-                      >
-                        <option value="">Choisir un parcours</option>
-                        {parcourses.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.code} — {p.label}
-                          </option>
-                        ))}
-                      </select>
+                    {kind === "no_enrollment" && (
+                      <div className="flex items-center gap-1.5 text-xs text-blue-700">
+                        <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                        Synchronisez d&apos;abord les inscriptions Pégase
+                      </div>
                     )}
                     {kind === "no_correction" && (
                       <span className="text-xs italic text-gray-400">
@@ -172,7 +158,7 @@ export function StudentImportErrorsPanel({
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex justify-end gap-2">
-                      {kind !== "no_correction" && (
+                      {(kind === "student_not_found" || kind === "agreement_not_found") && (
                         <button
                           className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
                           disabled={!canRetry || busy}
