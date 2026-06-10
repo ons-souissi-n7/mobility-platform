@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -14,22 +13,15 @@ from app.imports.models import (
 )
 from app.integrations.pegase import PegaseClient
 from app.reference.models import Level
-
-
-@dataclass
-class LevelSyncResult:
-    created: int = 0
-    updated: int = 0
-    failed: int = 0
-    total: int = 0
+from app.shared.sync import SyncResult, mark_raw_import
 
 
 def sync_pegase_levels(
     client: PegaseClient | None = None,
     triggered_by: str = "",
-) -> LevelSyncResult:
+) -> SyncResult:
     client = client or PegaseClient()
-    result = LevelSyncResult()
+    result = SyncResult()
 
     report = ImportReport.objects.create(
         source=ImportSource.PEGASE,
@@ -46,7 +38,7 @@ def sync_pegase_levels(
             created = _upsert_level(payload)
         except (IntegrityError, DjangoValidationError, ValueError, KeyError) as exc:
             result.failed += 1
-            _mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
+            mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
             report.record_error(raw_import.external_id, str(exc), raw_import.id)
             continue
 
@@ -55,7 +47,7 @@ def sync_pegase_levels(
         else:
             result.updated += 1
 
-        _mark_raw_import(raw_import, RawImportStatus.IMPORTED)
+        mark_raw_import(raw_import, RawImportStatus.IMPORTED)
         report.record_success()
 
     report.finalize()
@@ -96,17 +88,4 @@ def _create_raw_import(
         payload=payload,
         entity=RawImportEntity.LEVEL,
         import_report=import_report,
-    )
-
-
-def _mark_raw_import(
-    raw_import: RawImport, status: str, error_message: str = ""
-) -> None:
-    raw_import.status = status
-    raw_import.error_message = error_message
-    raw_import.imported_at = (
-        timezone.now() if status == RawImportStatus.IMPORTED else None
-    )
-    raw_import.save(
-        update_fields=["status", "error_message", "imported_at", "updated_at"]
     )

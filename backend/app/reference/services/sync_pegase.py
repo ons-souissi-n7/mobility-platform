@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -14,19 +13,11 @@ from app.imports.models import (
 )
 from app.integrations.pegase import PegaseClient
 from app.reference.models import Department
+from app.shared.sync import SyncResult, mark_raw_import
+from app.shared.validators import ValidationError
 
 from .pegase_transformer import transform_department
-from .pegase_validator import ValidationError as PegaseValidationError
 from .pegase_validator import validate_department
-
-
-@dataclass
-class SyncResult:
-    created: int = 0
-    updated: int = 0
-    failed: int = 0
-    ignored: int = 0
-    total: int = 0
 
 
 def sync_pegase_departments(
@@ -53,12 +44,12 @@ def sync_pegase_departments(
         except (
             IntegrityError,
             DjangoValidationError,
-            PegaseValidationError,
+            ValidationError,
             ValueError,
             KeyError,
         ) as exc:
             result.failed += 1
-            _mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
+            mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
             report.record_error(raw_import.external_id, str(exc), raw_import.id)
             continue
 
@@ -67,7 +58,7 @@ def sync_pegase_departments(
         else:
             result.updated += 1
 
-        _mark_raw_import(raw_import, RawImportStatus.IMPORTED)
+        mark_raw_import(raw_import, RawImportStatus.IMPORTED)
         report.record_success()
 
     report.finalize()
@@ -86,26 +77,6 @@ def _create_raw_import(
         entity=RawImportEntity.DEPARTMENT,
         import_report=import_report,
     )
-
-
-def _mark_raw_import(
-    raw_import: RawImport,
-    status: str,
-    error_message: str = "",
-) -> None:
-    raw_import.status = status
-    raw_import.error_message = error_message
-    raw_import.imported_at = (
-        timezone.now() if status == RawImportStatus.IMPORTED else None
-    )
-    raw_import.save(
-        update_fields=["status", "error_message", "imported_at", "updated_at"]
-    )
-
-
-# public aliases used in api.py (retry endpoint)
-create_raw_import = _create_raw_import
-mark_raw_import = _mark_raw_import
 
 
 @transaction.atomic

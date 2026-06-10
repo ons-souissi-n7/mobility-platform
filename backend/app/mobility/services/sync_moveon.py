@@ -21,6 +21,7 @@ from app.mobility.models import (
     MobilityCategory,
 )
 from app.reference.models import Department, Level
+from app.shared.sync import SyncResult, mark_raw_import
 
 from .moveon_transformer import (
     TransformedAgreement,
@@ -36,16 +37,6 @@ from .moveon_validator import (
     validate_agreement_quota,
     validate_mobility_category,
 )
-
-
-@dataclass
-class SyncResult:
-    created: int = 0
-    updated: int = 0
-    failed: int = 0
-    ignored: int = 0
-    total: int = 0
-
 
 _N7_TOKENS = frozenset({"n7", "enseeiht", "inp toulouse n7", "inp n7"})
 
@@ -144,7 +135,7 @@ def sync_moveon_mobility_categories(
             KeyError,
         ) as exc:
             result.failed += 1
-            _mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
+            mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
             report.record_error(raw_import.external_id, str(exc), raw_import.id)
             continue
 
@@ -153,7 +144,7 @@ def sync_moveon_mobility_categories(
         else:
             result.updated += 1
         report.record_success()
-        _mark_raw_import(raw_import, RawImportStatus.IMPORTED)
+        mark_raw_import(raw_import, RawImportStatus.IMPORTED)
 
     result.total = result.created + result.updated + result.failed
     report.finalize()
@@ -203,13 +194,13 @@ def sync_moveon_agreements(
             KeyError,
         ) as exc:
             result.failed += 1
-            _mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
+            mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
             report.record_error(raw_import.external_id, str(exc), raw_import.id)
             continue
 
         if not _n7_is_present(transformed.inp_institutions):
             result.ignored += 1
-            _mark_raw_import(
+            mark_raw_import(
                 raw_import,
                 RawImportStatus.IGNORED,
                 "N7/ENSEEIHT absent des établissements INP de cet accord",
@@ -226,7 +217,7 @@ def sync_moveon_agreements(
             KeyError,
         ) as exc:
             result.failed += 1
-            _mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
+            mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
             report.record_error(raw_import.external_id, str(exc), raw_import.id)
             continue
 
@@ -235,7 +226,7 @@ def sync_moveon_agreements(
         else:
             result.updated += 1
         report.record_success()
-        _mark_raw_import(raw_import, RawImportStatus.IMPORTED)
+        mark_raw_import(raw_import, RawImportStatus.IMPORTED)
 
     result.total = result.created + result.updated + result.failed + result.ignored
     report.finalize()
@@ -386,19 +377,6 @@ def _create_raw_import(
         payload=payload,
         import_report=import_report,
         academic_year=academic_year,
-    )
-
-
-def _mark_raw_import(
-    raw_import: RawImport, status: RawImportStatus, error_message: str = ""
-) -> None:
-    raw_import.status = status
-    raw_import.error_message = error_message
-    raw_import.imported_at = (
-        timezone.now() if status == RawImportStatus.IMPORTED else None
-    )
-    raw_import.save(
-        update_fields=["status", "error_message", "imported_at", "updated_at"]
     )
 
 

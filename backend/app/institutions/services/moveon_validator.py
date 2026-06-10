@@ -4,13 +4,9 @@ Cette couche valide que les données transformées respectent les contraintes m�
 Séparé de la transformation car les règles sont métier, pas structurelles.
 """
 
+from app.shared.validators import ValidationError
+
 from .moveon_transformer import TransformedInstitution
-
-
-class ValidationError(Exception):
-    """Levée quand les données ne respectent pas les règles métier."""
-
-    pass
 
 
 def validate_institution(data: TransformedInstitution) -> None:

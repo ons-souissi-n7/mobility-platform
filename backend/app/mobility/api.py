@@ -12,6 +12,7 @@ from app.audit.logger import log_action
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.institutions.models import PartnerUniversity
 from app.reference.models import Level
+from app.shared.api_helpers import get_or_404, save_validated
 from app.shared.excel_utils import build_filename, workbook_response, write_header_row
 
 from .models import (
@@ -65,22 +66,6 @@ def safe_delete(instance) -> None:
         instance.delete()
     except ProtectedError as exc:
         raise HttpError(409, PROTECTED_DELETE_MSG) from exc
-
-
-def save_validated(instance):
-    try:
-        instance.full_clean()
-        instance.save()
-    except (IntegrityError, ValidationError) as exc:
-        raise HttpError(400, str(exc)) from exc
-    return instance
-
-
-def get_or_404(model, pk: int, message: str):
-    try:
-        return model.objects.get(pk=pk)
-    except model.DoesNotExist as exc:
-        raise HttpError(404, message) from exc
 
 
 def validate_year_consistency(agreement_year: AgreementYear) -> None:

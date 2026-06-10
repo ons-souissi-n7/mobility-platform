@@ -6,6 +6,7 @@ from ninja import Router
 from ninja.errors import HttpError
 
 from app.reference.models import Country
+from app.shared.api_helpers import save_validated
 
 from .models import (
     PartnerUniversity,
@@ -29,16 +30,6 @@ from .services.sync_moveon import upsert_partner_university
 from .tasks import enqueue_sync_moveon_institutions
 
 router = Router()
-
-
-def save_validated(instance):
-    try:
-        instance.full_clean()
-        instance.save()
-    except (IntegrityError, ValidationError) as exc:
-        raise HttpError(400, str(exc)) from exc
-
-    return instance
 
 
 @router.get(
