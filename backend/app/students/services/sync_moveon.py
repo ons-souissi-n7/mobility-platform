@@ -15,8 +15,11 @@ from app.imports.models import (
 )
 from app.integrations.moveon import MoveOnClient
 from app.mobility.models import Agreement
+from app.shared.cleaning import normalize_ine, normalize_string
+from app.shared.validators import ValidationError
 
 from ..models import AnnualEnrollment, Student, StudentWish
+from .student_validator import validate_wish
 
 
 @dataclass
@@ -28,6 +31,11 @@ class WishRow:
     rank: int
     # student INE — MoveOn: Numéro étudiant (primary match, may be empty)
     ine: str = ""
+
+    def __post_init__(self) -> None:
+        self.ine = normalize_ine(self.ine)
+        self.individu = normalize_string(self.individu)
+        self.offre_de_sejour = normalize_string(self.offre_de_sejour)
 
 
 @dataclass
@@ -123,6 +131,25 @@ def _import_wish_rows(
             import_report=db_report,
             academic_year=academic_year,
         )
+
+        try:
+            validate_wish(row)
+        except ValidationError as exc:
+            reason = str(exc)
+            report.unresolved.append(
+                {
+                    "individu": row.individu,
+                    "ine": row.ine,
+                    "rank": row.rank,
+                    "reason": reason,
+                }
+            )
+            raw.status = RawImportStatus.FAILED
+            raw.error_message = reason
+            raw.save()
+            if db_report:
+                db_report.record_error(identifier, reason)
+            continue
 
         student = _resolve_student(row.ine, row.individu, student_cache)
         if student is None:

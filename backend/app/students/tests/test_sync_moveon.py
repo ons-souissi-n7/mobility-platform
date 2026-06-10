@@ -9,7 +9,7 @@ from app.institutions.models import PartnerUniversity
 from app.mobility.models import Agreement
 from app.reference.models import Country, CTIRegion, Department, Level
 from app.students.models import AnnualEnrollment, Student, StudentWish
-from app.students.services.sync_moveon_wishes import WishRow, import_wish_rows
+from app.students.services.sync_moveon import WishRow, import_wish_rows
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -335,7 +335,7 @@ class TestSyncWishesAPI:
         self.enrollment = make_enrollment(self.student, self.year)
 
     def test_sync_creates_wishes(self, monkeypatch):
-        from app.students.services import sync_moveon_wishes as wishes_mod
+        from app.students.services import sync_moveon as wishes_mod
 
         monkeypatch.setattr(
             wishes_mod,
@@ -376,7 +376,7 @@ class TestSyncWishesAPI:
         # The text "Période de début" is NOT used for year filtering.
         # Filtering is done via creation/modification date vs the academic year window.
         # A record with no date is always included.
-        from app.students.services import sync_moveon_wishes as wishes_mod
+        from app.students.services import sync_moveon as wishes_mod
 
         monkeypatch.setattr(
             wishes_mod,
@@ -405,7 +405,7 @@ class TestSyncWishesAPI:
     def test_sync_skips_records_outside_year_window(self, monkeypatch):
         # Year 2026-2027 (start 2026-09-01): window begins 2025-09-01.
         # A wish created in 2022 is outside the window and must be skipped.
-        from app.students.services import sync_moveon_wishes as wishes_mod
+        from app.students.services import sync_moveon as wishes_mod
 
         monkeypatch.setattr(
             wishes_mod,
@@ -433,7 +433,7 @@ class TestSyncWishesAPI:
 
     def test_sync_includes_record_within_year_window(self, monkeypatch):
         # A wish created in November 2025 is within the 2026-2027 window.
-        from app.students.services import sync_moveon_wishes as wishes_mod
+        from app.students.services import sync_moveon as wishes_mod
 
         monkeypatch.setattr(
             wishes_mod,

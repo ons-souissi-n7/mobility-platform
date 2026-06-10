@@ -14,8 +14,14 @@ from app.imports.models import (
     RawImportStatus,
 )
 from app.reference.models import Country, Department, Level, Parcours
+from app.shared.cleaning import (
+    normalize_country_code,
+    normalize_ine,
+    normalize_string,
+)
 
 from ..models import AnnualEnrollment, Student
+from .student_validator import validate_student
 
 
 @dataclass
@@ -33,6 +39,18 @@ class StudentRow:
     # Source tracking (may be empty for Excel imports)
     source_id: str | None = None  # e.g. Pegase internal student ID
     source_sync_at: datetime | None = None  # timestamp from the source system
+
+    def __post_init__(self) -> None:
+        self.ine = normalize_ine(self.ine)
+        self.first_name = normalize_string(self.first_name)
+        self.last_name = normalize_string(self.last_name)
+        self.email = self.email.strip().lower() if self.email else ""
+        self.department_code = normalize_string(self.department_code).upper()
+        self.level_code = normalize_string(self.level_code).upper()
+        if self.parcours_code:
+            self.parcours_code = normalize_string(self.parcours_code).upper()
+        if self.nationality_iso2:
+            self.nationality_iso2 = normalize_country_code(self.nationality_iso2)
 
 
 @dataclass
@@ -80,6 +98,7 @@ def import_students(
         )
 
         try:
+            validate_student(row)
             department = _resolve_department(row.department_code, dept_cache)
             if department is None:
                 reason = f"Département introuvable: {row.department_code}"

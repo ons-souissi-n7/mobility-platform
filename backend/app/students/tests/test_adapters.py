@@ -401,7 +401,7 @@ class TestPegaseParseRows:
                 }
             ]
         )
-        assert rows[0].nationality_iso2 == "France"
+        assert rows[0].nationality_iso2 == "FR"
 
     def test_nationality_iso2(self):
         rows = self._parse(
