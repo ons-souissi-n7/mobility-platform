@@ -1,6 +1,7 @@
 import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type { Agreement, AgreementYear } from "@/lib/api/types";
+import { createIdMap } from "@/lib/utils";
 
 type QuotaRow = AgreementYear & {
   agreementName: string;
@@ -69,7 +70,7 @@ export function AgreementQuotasTable({
   onEdit: (quota: AgreementYear) => void;
   quotas: AgreementYear[];
 }) {
-  const agreementsById = new Map(agreements.map((agreement) => [agreement.id, agreement]));
+  const agreementsById = createIdMap(agreements);
   const rows = quotas.map((quota) => ({
     ...quota,
     agreementName: agreementsById.get(quota.agreement_id)?.name ?? "Accord inconnu",

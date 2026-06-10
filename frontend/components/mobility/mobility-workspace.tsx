@@ -49,6 +49,7 @@ import type {
   PartnerUniversity,
   RawImport,
 } from "@/lib/api/types";
+import { createIdMap } from "@/lib/utils";
 
 type ModalState =
   | { kind: "agreement"; item?: Agreement }
@@ -99,7 +100,7 @@ export function MobilityWorkspace({
   const [activityFilter, setActivityFilter] = useState<string>("all");
 
   const universitiesById = useMemo(
-    () => new Map(universities.map((u) => [u.id, u])),
+    () => createIdMap(universities),
     [universities],
   );
 

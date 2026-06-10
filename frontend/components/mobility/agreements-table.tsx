@@ -5,6 +5,7 @@ import { Check, Eye, Lock, ToggleLeft, ToggleRight } from "lucide-react";
 
 import { AgreementDetailModal } from "@/components/mobility/agreement-detail-modal";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { createIdMap } from "@/lib/utils";
 import type {
   Agreement,
   AgreementYear,
@@ -54,10 +55,10 @@ export function AgreementsTable({
   const [deptEditValue, setDeptEditValue] = useState("");
   const [viewingRow, setViewingRow] = useState<AgreementRow | null>(null);
 
-  const universityById  = new Map(universities.map((u) => [u.id, u]));
-  const categoryById    = new Map(categories.map((c) => [c.id, c]));
-  const departmentById  = new Map(departments.map((d) => [d.id, d]));
-  const levelById       = new Map(levels.map((l) => [l.id, l]));
+  const universityById  = createIdMap(universities);
+  const categoryById    = createIdMap(categories);
+  const departmentById  = createIdMap(departments);
+  const levelById       = createIdMap(levels);
 
   const yearInstanceMap = new Map<number, AgreementYear>();
   for (const yi of agreementYears) {

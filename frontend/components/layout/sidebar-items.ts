@@ -2,11 +2,13 @@ import {
   BarChart3,
   CalendarRange,
   ClipboardCheck,
+  FileBarChart,
   FileText,
   Heart,
   LayoutDashboard,
   PlaneLanding,
   PlaneTakeoff,
+  ScrollText,
   Settings,
   Users,
 } from "lucide-react";
@@ -61,5 +63,15 @@ export const adminNavigation = [
     href: "/academic-years",
     label: "Annees universitaires",
     icon: CalendarRange,
+  },
+  {
+    href: "/rapports-import",
+    label: "Rapports d'import",
+    icon: FileBarChart,
+  },
+  {
+    href: "/audit",
+    label: "Journal d'audit",
+    icon: ScrollText,
   },
 ];
