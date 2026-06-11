@@ -255,6 +255,42 @@ export type WishSyncReport = {
   errors: string[];
 };
 
+export type AuditLog = {
+  id: number;
+  timestamp: string;
+  actor_username: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  entity_repr: string;
+  changes: Record<string, [unknown, unknown]> | null;
+};
+
+export type ImportErrorItem = {
+  external_id: string;
+  reason: string;
+  raw_import_id: number | null;
+};
+
+export type ImportReportList = {
+  id: number;
+  source: string;
+  source_display: string;
+  academic_year_id: number | null;
+  academic_year_label: string | null;
+  total: number;
+  success_count: number;
+  error_count: number;
+  duplicate_count: number;
+  triggered_by: string;
+  created_at: string;
+};
+
+export type ImportReportDetail = ImportReportList & {
+  errors: ImportErrorItem[];
+  updated_at: string;
+};
+
 export type AcademicYear = {
   id: number;
   label: string;

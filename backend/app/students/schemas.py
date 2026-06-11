@@ -186,3 +186,14 @@ class StudentEnrollmentOut(Schema):
     parcours_code: str | None
     parcours_label: str | None
     gpa: Decimal | None
+
+
+class StudentImportRetryIn(Schema):
+    department_id: int | None = None
+    level_id: int | None = None
+    parcours_id: int | None = None
+
+
+class WishImportRetryIn(Schema):
+    student_id: int | None = None
+    agreement_id: int | None = None

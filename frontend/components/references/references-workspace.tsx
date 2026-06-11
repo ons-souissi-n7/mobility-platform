@@ -66,6 +66,7 @@ import type {
   PartnerUniversity,
   RawImport,
 } from "@/lib/api/types";
+import { createIdMap } from "@/lib/utils";
 
 type LevelModalState = { kind: "mobilityLevel"; item?: Level };
 type ParcoursModalState = { kind: "parcours"; item?: Parcours };
@@ -142,7 +143,7 @@ export function ReferencesWorkspace({
 
   const filteredUniversities = useMemo(() => {
     if (!normalizedQuery) return universities;
-    const countriesById = new Map(countries.map((c) => [c.id, c]));
+    const countriesById = createIdMap(countries);
     return universities.filter((u) => {
       const c = countriesById.get(u.country_id);
       return [
@@ -171,7 +172,7 @@ export function ReferencesWorkspace({
 
   const filteredParcours = useMemo(() => {
     if (!normalizedQuery) return parcours;
-    const deptMap = new Map(departments.map((d) => [d.id, d]));
+    const deptMap = createIdMap(departments);
     return parcours.filter((p) => {
       const d = deptMap.get(p.department_id);
       return [p.code, p.label, d?.code ?? ""]

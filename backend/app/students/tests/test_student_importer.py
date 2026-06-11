@@ -6,7 +6,7 @@ from app.academic.models import AcademicYear
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.reference.models import Department, Level, Parcours
 from app.students.models import AnnualEnrollment, Student
-from app.students.services.etl import StudentRow, import_students
+from app.students.services.student_importer import StudentRow, import_students
 
 
 def make_row(**kwargs) -> StudentRow:

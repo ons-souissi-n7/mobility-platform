@@ -10,7 +10,7 @@ from io import BytesIO
 
 import openpyxl
 
-from ..etl import StudentRow
+from ..student_importer import StudentRow
 
 logger = logging.getLogger(__name__)
 

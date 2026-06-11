@@ -14,7 +14,7 @@ from urllib.request import Request, urlopen
 
 from django.conf import settings
 
-from ..etl import StudentRow
+from ..student_importer import StudentRow
 
 logger = logging.getLogger(__name__)
 

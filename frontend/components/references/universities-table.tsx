@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react";
 import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type { Country, PartnerUniversity } from "@/lib/api/types";
+import { createIdMap } from "@/lib/utils";
 
 type UniversityRow = PartnerUniversity & {
   countryName: string;
@@ -93,7 +94,7 @@ export function UniversitiesTable({
   onEdit,
   universities,
 }: UniversitiesTableProps) {
-  const countriesById = new Map(countries.map((country) => [country.id, country]));
+  const countriesById = createIdMap(countries);
   const rows = universities.map((university) => ({
     ...university,
     countryName: countriesById.get(university.country_id)?.name_fr ?? "-",

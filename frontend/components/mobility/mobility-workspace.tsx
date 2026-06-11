@@ -49,6 +49,7 @@ import type {
   PartnerUniversity,
   RawImport,
 } from "@/lib/api/types";
+import { createIdMap } from "@/lib/utils";
 
 type ModalState =
   | { kind: "agreement"; item?: Agreement }
@@ -93,13 +94,19 @@ export function MobilityWorkspace({
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [categorySyncInProgress, setCategorySyncInProgress] = useState(false);
   const [yearFilter, setYearFilter] = useState<string>(currentYear?.label ?? "");
+
+  const isYearClosed = useMemo(() => {
+    if (!yearFilter) return false;
+    return academicYears.find((y) => y.label === yearFilter)?.status === "closed";
+  }, [academicYears, yearFilter]);
+
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [universityFilter, setUniversityFilter] = useState<string>("all");
   const [activityFilter, setActivityFilter] = useState<string>("all");
 
   const universitiesById = useMemo(
-    () => new Map(universities.map((u) => [u.id, u])),
+    () => createIdMap(universities),
     [universities],
   );
 
@@ -401,7 +408,8 @@ export function MobilityWorkspace({
             {[...academicYears]
               .sort((a, b) => b.start_date.localeCompare(a.start_date))
               .map((y) => (
-                <option key={y.id} value={y.label}>{y.label}</option>
+                <option key={y.id} value={y.label}>
+                  {y.label}{y.status === "closed" ? " (clôturée)" : ""}</option>
               ))}
           </select>
         </label>
@@ -425,6 +433,12 @@ export function MobilityWorkspace({
 
       <ErrorBanner message={syncError} />
 
+      {isYearClosed && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          <span className="font-semibold">Année clôturée</span> — consultation seule, toutes les modifications sont désactivées.
+        </div>
+      )}
+
       {/* ── Section Accords ─────────────────────────────────────────────── */}
       <MobilitySection
         description="Accords de mobilité, quotas annuels et répartition par département."
@@ -432,7 +446,7 @@ export function MobilityWorkspace({
         title="Accords de mobilité"
         toolbar={
           <div className="flex flex-wrap gap-2">
-            <Btn disabled={syncInProgress} onClick={handleSync}>
+            <Btn disabled={syncInProgress || isYearClosed} onClick={handleSync}>
               <RefreshCw className={`h-4 w-4 ${syncInProgress ? "animate-spin" : ""}`} />
               {syncInProgress ? "Synchronisation..." : "Sync MoveON"}
             </Btn>
@@ -440,7 +454,7 @@ export function MobilityWorkspace({
               <Download className="h-4 w-4" />
               Template
             </Btn>
-            <FileBtn disabled={excelImportInProgress} onFile={handleExcelImport}>
+            <FileBtn disabled={excelImportInProgress || isYearClosed} onFile={handleExcelImport}>
               {excelImportInProgress ? <Upload className="h-4 w-4 animate-bounce" /> : <FileSpreadsheet className="h-4 w-4" />}
               {excelImportInProgress ? "Import..." : "Importer Excel"}
             </FileBtn>
@@ -448,7 +462,7 @@ export function MobilityWorkspace({
               <FileDown className="h-4 w-4" />
               {exportInProgress ? "Export..." : "Exporter"}
             </Btn>
-            <Btn variant="primary" onClick={() => setModal({ kind: "agreement" })}>
+            <Btn variant="primary" disabled={isYearClosed} onClick={() => setModal({ kind: "agreement" })}>
               <Plus className="h-4 w-4" /> Nouvel accord
             </Btn>
           </div>
@@ -512,6 +526,7 @@ export function MobilityWorkspace({
           levels={mobilityLevels}
           universities={universities}
           yearFilter={yearFilter}
+          isYearClosed={isYearClosed}
           onToggleYearActive={handleToggleYearActive}
           onEditYear={handleEditYear}
           onValidateYear={handleValidateYear}
@@ -537,11 +552,11 @@ export function MobilityWorkspace({
         title="Cadres de mobilité"
         toolbar={
           <div className="flex flex-wrap gap-2">
-            <Btn disabled={categorySyncInProgress} onClick={handleCategorySync}>
+            <Btn disabled={categorySyncInProgress || isYearClosed} onClick={handleCategorySync}>
               <RefreshCw className={`h-4 w-4 ${categorySyncInProgress ? "animate-spin" : ""}`} />
               {categorySyncInProgress ? "Synchronisation..." : "Sync MoveON"}
             </Btn>
-            <Btn variant="primary" onClick={() => setModal({ kind: "framework" })}>
+            <Btn variant="primary" disabled={isYearClosed} onClick={() => setModal({ kind: "framework" })}>
               <Plus className="h-4 w-4" /> Nouveau cadre
             </Btn>
           </div>
@@ -549,6 +564,7 @@ export function MobilityWorkspace({
       >
         <MobilityCategorysTable
           agreementFrameworks={mobilityCategories}
+          isYearClosed={isYearClosed}
           onDelete={removeFramework}
           onEdit={(c) => setModal({ kind: "framework", item: c })}
         />

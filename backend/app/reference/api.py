@@ -7,6 +7,7 @@ from ninja.errors import HttpError
 
 from app.audit.logger import log_action
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
+from app.shared.api_helpers import save_validated
 
 from .models import Country, Department, Level, Parcours
 from .schemas import (
@@ -26,16 +27,6 @@ from .services.sync_pegase import upsert_department
 from .tasks import enqueue_sync_pegase_departments, enqueue_sync_pegase_levels
 
 router = Router()
-
-
-def save_validated(instance):
-    try:
-        instance.full_clean()
-        instance.save()
-    except (IntegrityError, ValidationError) as exc:
-        raise HttpError(400, str(exc)) from exc
-
-    return instance
 
 
 @router.get("/countries/", response=list[CountryOut], summary="Liste des pays")

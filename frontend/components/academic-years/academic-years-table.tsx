@@ -1,8 +1,7 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
-
 import { nextTransitions, statusLabels, statusTone } from "@/components/academic-years/status";
+import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type { AcademicYearTransition } from "@/lib/api/academic-year-mutations";
 import type { AcademicYear } from "@/lib/api/types";
@@ -90,26 +89,19 @@ function getColumns({
       key: "actions",
       header: "Actions",
       align: "right",
-      render: (year) => (
-        <div className="flex items-center justify-end gap-2">
-          <button
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-[#1E3A8A]"
-            onClick={() => onEdit(year)}
-            type="button"
-          >
-            <Pencil className="h-4 w-4" aria-hidden="true" />
-            Modifier
-          </button>
-          <button
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-red-50 hover:text-red-700"
-            onClick={() => onDelete(year)}
-            type="button"
-          >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-            Supprimer
-          </button>
-        </div>
-      ),
+      render: (year) => {
+        const isClosed = year.status === "closed";
+        return (
+          <ActionButtons
+            onEdit={() => onEdit(year)}
+            editDisabled={isClosed}
+            editDisabledTitle="Année clôturée — modification non autorisée"
+            onDelete={() => onDelete(year)}
+            deleteDisabled={isClosed}
+            deleteDisabledTitle="Année clôturée — suppression non autorisée"
+          />
+        );
+      },
     },
   ];
 }

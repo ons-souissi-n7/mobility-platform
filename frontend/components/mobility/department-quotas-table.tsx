@@ -6,6 +6,7 @@ import type {
   AgreementYearDepartment,
   Department,
 } from "@/lib/api/types";
+import { createIdMap } from "@/lib/utils";
 
 type DepartmentQuotaRow = AgreementYearDepartment & {
   agreementName: string;
@@ -66,9 +67,9 @@ export function DepartmentQuotasTable({
   onEdit: (quota: AgreementYearDepartment) => void;
   yearInstances: AgreementYear[];
 }) {
-  const agreementsById = new Map(agreements.map((a) => [a.id, a]));
-  const departmentsById = new Map(departments.map((d) => [d.id, d]));
-  const yearInstancesById = new Map(yearInstances.map((y) => [y.id, y]));
+  const agreementsById = createIdMap(agreements);
+  const departmentsById = createIdMap(departments);
+  const yearInstancesById = createIdMap(yearInstances);
 
   const rows = departmentQuotas.map((dq) => {
     const yearInstance = yearInstancesById.get(dq.agreement_year_id);

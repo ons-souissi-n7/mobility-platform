@@ -19,8 +19,10 @@ from app.imports.models import (
     RawImportEntity,
     RawImportStatus,
 )
-from app.reference.models import Department, Level
+from app.mobility.models import Agreement
+from app.reference.models import Department, Level, Parcours
 from app.shared.excel_utils import build_filename, workbook_response, write_header_row
+from app.shared.validators import ValidationError
 
 from .models import AnnualEnrollment, Student, StudentWish
 from .schemas import (
@@ -32,17 +34,21 @@ from .schemas import (
     ParcoursStatOut,
     StudentDetailOut,
     StudentEnrollmentOut,
+    StudentImportRetryIn,
     StudentOut,
     StudentRawImportOut,
     StudentStatsOut,
     StudentWishesOut,
+    WishImportRetryIn,
     WishSyncReportOut,
 )
 from .services.adapters import excel as excel_adapter
 from .services.adapters import excel_wishes as excel_wishes_adapter
 from .services.adapters import pegase as pegase_adapter
-from .services.etl import import_students
-from .services.sync_moveon_wishes import import_wish_rows, sync_moveon_wishes
+from .services.student_importer import StudentRow, import_students
+from .services.student_transformer import transform_student, transform_wish
+from .services.student_validator import validate_student, validate_wish
+from .services.sync_moveon import WishRow, import_wish_rows, sync_moveon_wishes
 
 router = Router()
 
@@ -395,6 +401,169 @@ def ignore_student_import_error(request, raw_import_id: int):
         f"{raw_import.error_message}\nTraité manuellement par l'administrateur."
     ).strip()
     raw_import.save(update_fields=["status", "error_message", "updated_at"])
+    return raw_import
+
+
+@router.put(
+    "/students/import-errors/{raw_import_id}/retry/",
+    response=StudentRawImportOut,
+    summary="Relancer un import étudiant en corrigeant le département, niveau ou parcours",
+)
+def retry_student_import_error(
+    request, raw_import_id: int, payload: StudentImportRetryIn
+):
+    try:
+        raw_import = RawImport.objects.get(
+            pk=raw_import_id,
+            entity=RawImportEntity.STUDENT,
+            status=RawImportStatus.FAILED,
+        )
+    except RawImport.DoesNotExist as exc:
+        raise HttpError(404, "Erreur d'import étudiant introuvable.") from exc
+
+    if raw_import.academic_year_id is None:
+        raise HttpError(400, "Cet import n'est pas associé à une année universitaire.")
+
+    corrected = dict(raw_import.payload)
+    if payload.department_id is not None:
+        dept = Department.objects.filter(pk=payload.department_id).first()
+        if dept is None:
+            raise HttpError(400, f"Département {payload.department_id} introuvable.")
+        corrected["department_code"] = dept.code
+
+    if payload.level_id is not None:
+        level = Level.objects.filter(pk=payload.level_id).first()
+        if level is None:
+            raise HttpError(400, f"Niveau {payload.level_id} introuvable.")
+        corrected["level_code"] = level.code
+
+    if payload.parcours_id is not None:
+        parcours = Parcours.objects.filter(pk=payload.parcours_id).first()
+        if parcours is None:
+            raise HttpError(400, f"Parcours {payload.parcours_id} introuvable.")
+        corrected["parcours_code"] = parcours.code
+
+    from app.academic.models import AcademicYear as AcademicYearModel
+
+    academic_year = AcademicYearModel.objects.get(pk=raw_import.academic_year_id)
+
+    try:
+        ts = transform_student(corrected)
+        validate_student(ts)
+    except (ValueError, ValidationError) as exc:
+        raise HttpError(400, str(exc)) from exc
+
+    row = StudentRow(
+        ine=ts.ine,
+        first_name=ts.first_name,
+        last_name=ts.last_name,
+        email=ts.email,
+        gender=ts.gender,
+        department_code=ts.department_code,
+        level_code=ts.level_code,
+        parcours_code=ts.parcours_code,
+        gpa=ts.gpa,
+        nationality_iso2=ts.nationality_iso2,
+    )
+
+    report = import_students([row], academic_year)
+    if report.errors or report.unresolved:
+        reason = (report.errors or [str(report.unresolved[0])])[0]
+        raw_import.payload = corrected
+        raw_import.error_message = reason
+        raw_import.save(update_fields=["payload", "error_message", "updated_at"])
+        raise HttpError(400, reason)
+
+    raw_import.payload = corrected
+    raw_import.status = RawImportStatus.IMPORTED
+    raw_import.error_message = ""
+    from django.utils import timezone as tz
+
+    raw_import.imported_at = tz.now()
+    raw_import.save(
+        update_fields=[
+            "payload",
+            "status",
+            "error_message",
+            "imported_at",
+            "updated_at",
+        ]
+    )
+    return raw_import
+
+
+@router.put(
+    "/students/wishes/import-errors/{raw_import_id}/retry/",
+    response=StudentRawImportOut,
+    summary="Relancer un import vœu en corrigeant l'étudiant ou l'accord",
+)
+def retry_wish_import_error(request, raw_import_id: int, payload: WishImportRetryIn):
+    try:
+        raw_import = RawImport.objects.get(
+            pk=raw_import_id,
+            entity=RawImportEntity.STUDENT,
+            status=RawImportStatus.FAILED,
+        )
+    except RawImport.DoesNotExist as exc:
+        raise HttpError(404, "Erreur d'import vœu introuvable.") from exc
+
+    if raw_import.academic_year_id is None:
+        raise HttpError(400, "Cet import n'est pas associé à une année universitaire.")
+
+    corrected = dict(raw_import.payload)
+
+    if payload.student_id is not None:
+        student = Student.objects.filter(pk=payload.student_id).first()
+        if student is None:
+            raise HttpError(400, f"Étudiant {payload.student_id} introuvable.")
+        corrected["ine"] = student.ine
+
+    if payload.agreement_id is not None:
+        agreement = Agreement.objects.filter(pk=payload.agreement_id).first()
+        if agreement is None:
+            raise HttpError(400, f"Accord {payload.agreement_id} introuvable.")
+        corrected["offre_de_sejour"] = agreement.name
+
+    from app.academic.models import AcademicYear as AcademicYearModel
+
+    academic_year = AcademicYearModel.objects.get(pk=raw_import.academic_year_id)
+
+    try:
+        tw = transform_wish(corrected)
+        validate_wish(tw)
+    except (ValueError, ValidationError) as exc:
+        raise HttpError(400, str(exc)) from exc
+
+    row = WishRow(
+        individu=tw.individu,
+        offre_de_sejour=tw.offre_de_sejour,
+        rank=tw.rank,
+        ine=tw.ine,
+    )
+
+    report = import_wish_rows([row], academic_year)
+    if report.errors or report.unresolved:
+        reason = (report.errors or [str(report.unresolved[0])])[0]
+        raw_import.payload = corrected
+        raw_import.error_message = reason
+        raw_import.save(update_fields=["payload", "error_message", "updated_at"])
+        raise HttpError(400, reason)
+
+    raw_import.payload = corrected
+    raw_import.status = RawImportStatus.IMPORTED
+    raw_import.error_message = ""
+    from django.utils import timezone as tz
+
+    raw_import.imported_at = tz.now()
+    raw_import.save(
+        update_fields=[
+            "payload",
+            "status",
+            "error_message",
+            "imported_at",
+            "updated_at",
+        ]
+    )
     return raw_import
 
 

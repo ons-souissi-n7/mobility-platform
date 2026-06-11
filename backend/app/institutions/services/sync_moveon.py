@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Any
 
 from django.core.exceptions import ValidationError
@@ -11,24 +10,12 @@ from app.institutions.models import (
     PartnerUniversityRawImportStatus,
 )
 from app.integrations.moveon import MoveOnClient
+from app.shared.sync import SyncResult
 
 from .moveon_country import resolve_country
 from .moveon_transformer import TransformedInstitution, transform_institution
-from .moveon_validator import (
-    ValidationError as MoveOnValidationError,
-)
-from .moveon_validator import (
-    validate_institution,
-)
-
-
-@dataclass
-class SyncResult:
-    created: int = 0
-    updated: int = 0
-    failed: int = 0
-    ignored: int = 0
-    total: int = 0
+from .moveon_validator import ValidationError as MoveOnValidationError
+from .moveon_validator import validate_institution
 
 
 def sync_moveon_institutions(client: MoveOnClient | None = None) -> SyncResult:

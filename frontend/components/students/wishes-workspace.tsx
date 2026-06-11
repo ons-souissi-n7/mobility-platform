@@ -13,13 +13,17 @@ import {
   downloadWishTemplate,
   exportWishesExcel,
   getStudentImportErrors,
+  getStudentsByYear,
   getWishesByYear,
   ignoreStudentImportError,
   importWishesFromExcel,
+  retryWishImportError,
   syncWishesFromMoveon,
+  type WishImportCorrection,
 } from "@/lib/api/student-mutations";
-import type { AcademicYear, AgreementWish, RawImport, StudentWishes, WishSyncReport } from "@/lib/api/types";
-import { StudentImportErrorsPanel } from "./student-import-errors-panel";
+import { getAgreements } from "@/lib/api/mobility-mutations";
+import type { Agreement, AcademicYear, AgreementWish, RawImport, StudentWithEnrollment, StudentWishes, WishSyncReport } from "@/lib/api/types";
+import { WishImportErrorsPanel } from "./wish-import-errors-panel";
 
 
 // ---------------------------------------------------------------------------
@@ -32,6 +36,8 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
 
   const [selectedYearId, setSelectedYearId] = useState<number | null>(defaultYear?.id ?? null);
   const [wishes, setWishes] = useState<StudentWishes[]>([]);
+  const [enrolledStudents, setEnrolledStudents] = useState<StudentWithEnrollment[]>([]);
+  const [agreements, setAgreements] = useState<Agreement[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncReport, setSyncReport] = useState<WishSyncReport | null>(null);
@@ -59,10 +65,14 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
     Promise.all([
       getWishesByYear(selectedYearId),
       getStudentImportErrors(),
+      getStudentsByYear(selectedYearId),
+      getAgreements(),
     ])
-      .then(([w, errs]) => {
+      .then(([w, errs, students, agr]) => {
         setWishes(w);
         setWishImportErrors(errs.filter((e) => e.source === "moveon_student_wishes"));
+        setEnrolledStudents(students);
+        setAgreements(agr);
       })
       .catch((err: unknown) =>
         setError(err instanceof Error ? err.message : "Erreur de chargement."),
@@ -275,12 +285,18 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
         />
       )}
 
-      <StudentImportErrorsPanel
+      <WishImportErrorsPanel
+        agreements={agreements}
         errors={wishImportErrors}
         isBusy={syncInProgress}
+        students={enrolledStudents}
         title="Erreurs d'import vœux MoveON"
         onIgnore={async (err) => {
           await ignoreStudentImportError(err.id);
+          setWishImportErrors((prev) => prev.filter((e) => e.id !== err.id));
+        }}
+        onRetry={async (err, correction: WishImportCorrection) => {
+          await retryWishImportError(err.id, correction);
           setWishImportErrors((prev) => prev.filter((e) => e.id !== err.id));
         }}
       />

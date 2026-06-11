@@ -5,6 +5,7 @@ import { Check, Eye, Lock, ToggleLeft, ToggleRight } from "lucide-react";
 
 import { AgreementDetailModal } from "@/components/mobility/agreement-detail-modal";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { createIdMap } from "@/lib/utils";
 import type {
   Agreement,
   AgreementYear,
@@ -30,6 +31,7 @@ export function AgreementsTable({
   levels,
   universities,
   yearFilter,
+  isYearClosed = false,
   onToggleYearActive,
   onEditYear,
   onValidateYear,
@@ -43,6 +45,7 @@ export function AgreementsTable({
   levels: Level[];
   universities: PartnerUniversity[];
   yearFilter?: string;
+  isYearClosed?: boolean;
   onToggleYearActive: (yi: AgreementYear) => Promise<void>;
   onEditYear: (yi: AgreementYear, n7Places: number) => Promise<void>;
   onValidateYear: (yi: AgreementYear) => Promise<void>;
@@ -54,10 +57,10 @@ export function AgreementsTable({
   const [deptEditValue, setDeptEditValue] = useState("");
   const [viewingRow, setViewingRow] = useState<AgreementRow | null>(null);
 
-  const universityById  = new Map(universities.map((u) => [u.id, u]));
-  const categoryById    = new Map(categories.map((c) => [c.id, c]));
-  const departmentById  = new Map(departments.map((d) => [d.id, d]));
-  const levelById       = new Map(levels.map((l) => [l.id, l]));
+  const universityById  = createIdMap(universities);
+  const categoryById    = createIdMap(categories);
+  const departmentById  = createIdMap(departments);
+  const levelById       = createIdMap(levels);
 
   const yearInstanceMap = new Map<number, AgreementYear>();
   for (const yi of agreementYears) {
@@ -199,20 +202,22 @@ export function AgreementsTable({
           return (
             <div className="flex flex-wrap items-center gap-2">
               <YearStatusBadge instance={yearInstance} />
-              <button
-                className="rounded border border-gray-200 bg-white px-2 py-0.5 text-[10px] text-gray-600 hover:bg-gray-50"
-                onClick={() => onToggleYearActive(yearInstance)}
-                type="button"
-              >
-                <ToggleLeft className="mr-0.5 inline text-gray-400" size={10} />
-                Activer
-              </button>
+              {!isYearClosed && (
+                <button
+                  className="rounded border border-gray-200 bg-white px-2 py-0.5 text-[10px] text-gray-600 hover:bg-gray-50"
+                  onClick={() => onToggleYearActive(yearInstance)}
+                  type="button"
+                >
+                  <ToggleLeft className="mr-0.5 inline text-gray-400" size={10} />
+                  Activer
+                </button>
+              )}
             </div>
           );
         }
 
         // ── Actif ou validé : affichage complet ───────────────────────────────
-        const locked = yearInstance.is_validated;
+        const locked = yearInstance.is_validated || isYearClosed;
         const deptTotal = deptQuotas.reduce((s, dq) => s + dq.estimated_places, 0);
         const isInconsistent = deptQuotas.length > 0 && deptTotal !== yearInstance.n7_places;
 

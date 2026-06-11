@@ -1,13 +1,14 @@
 import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type { Department, Parcours } from "@/lib/api/types";
+import { createIdMap } from "@/lib/utils";
 
 function getColumns(
   departments: Department[],
   onEdit: (p: Parcours) => void,
   onDelete: (p: Parcours) => void,
 ): DataTableColumn<Parcours>[] {
-  const deptMap = new Map(departments.map((d) => [d.id, d]));
+  const deptMap = createIdMap(departments);
   return [
     {
       key: "department",

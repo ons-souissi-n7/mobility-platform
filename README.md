@@ -57,6 +57,10 @@ Check TypeScript types without compilation:
 ```bash
 docker compose -f docker-compose.dev.yml run --rm --no-deps frontend npm run typecheck
 ```
+Run tests
+```bash
+docker compose -f docker-compose.dev.yml build frontend
+```
 
 ### Database Migrations
 Create migration files after model changes:

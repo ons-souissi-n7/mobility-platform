@@ -117,10 +117,29 @@ jobs:
       - name: Check TypeScript
         run: cd frontend && npm run typecheck
 
+  frontend-test:
+    name: Tests frontend (Vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Run tests
+        run: cd frontend && npm test
+
   build:
     name: Build Docker images
     runs-on: ubuntu-latest
-    needs: [test, frontend-lint]
+    needs: [test, frontend-lint, frontend-test]
 
     steps:
       - uses: actions/checkout@v4

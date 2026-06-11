@@ -23,7 +23,7 @@ def list_import_reports(
     request, source: str | None = None, academic_year_id: int | None = None
 ):
     """
-    Retourne la liste des sessions d'import triées de la plus récente à la plus ancienne.
+    Retourne la liste des sessions d'import triees de la plus recente a la plus ancienne.
     Filtres optionnels : source (ex. moveon_accords) et academic_year_id.
     """
     qs = ImportReport.objects.select_related("academic_year").order_by("-created_at")
@@ -36,19 +36,7 @@ def list_import_reports(
     return qs
 
 
-@router.get(
-    "/{report_id}/",
-    response=ImportReportOut,
-    summary="Détail d'un rapport d'import (avec les erreurs)",
-)
-def get_import_report(request, report_id: int):
-    """
-    Retourne un rapport d'import complet avec le détail de toutes les erreurs
-    et le motif de rejet pour chaque enregistrement.
-    """
-    return _get_report_or_404(report_id)
-
-
+# Route litterale declaree AVANT /{report_id}/ pour eviter le conflit de routage
 @router.get(
     "/latest/",
     response=list[ImportReportListOut],
@@ -65,7 +53,6 @@ def latest_import_reports(request, academic_year_id: int | None = None):
     if academic_year_id:
         qs = qs.filter(academic_year_id=academic_year_id)
 
-    # Un rapport par source (le plus récent)
     seen: set[str] = set()
     result = []
     for report in qs:
@@ -74,3 +61,16 @@ def latest_import_reports(request, academic_year_id: int | None = None):
             result.append(report)
 
     return result
+
+
+@router.get(
+    "/{report_id}/",
+    response=ImportReportOut,
+    summary="Detail d'un rapport d'import (avec les erreurs)",
+)
+def get_import_report(request, report_id: int):
+    """
+    Retourne un rapport d'import complet avec le detail de toutes les erreurs
+    et le motif de rejet pour chaque enregistrement.
+    """
+    return _get_report_or_404(report_id)

@@ -27,17 +27,12 @@ class PegaseClient:
         self.api_key = api_key if api_key is not None else settings.PEGASE_API_KEY
 
     def fetch_departments(self) -> list[PegaseDepartment]:
-        try:
-            response = self._get_json("/departments")
-        except PegaseClientError:
-            response = self._get_json("/api/departments")
-
+        response = self._get("/departments")
         if not isinstance(response, list):
             raise PegaseClientError("Pegase departments endpoint must return a list.")
-
         return [PegaseDepartment(payload=item) for item in response]
 
-    def _get_json(self, path: str):
+    def _get(self, path: str) -> Any:
         if not self.base_url:
             raise PegaseClientError("PEGASE_API_URL is not configured.")
 
@@ -54,9 +49,7 @@ class PegaseClient:
             raise PegaseClientError(f"Pegase request failed: {exc}") from exc
 
     def _headers(self) -> dict[str, str]:
-        headers = {"Accept": "application/json"}
-
+        headers: dict[str, str] = {"Accept": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-
         return headers

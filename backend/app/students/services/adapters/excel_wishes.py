@@ -22,7 +22,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from app.academic.models import AcademicYear
 from app.mobility.models import Agreement
 
-from ..sync_moveon_wishes import WishRow
+from ..sync_moveon import WishRow
 
 logger = logging.getLogger(__name__)
 
