@@ -107,7 +107,7 @@ function ReportRow({ report }: { report: ImportReportList }) {
   return (
     <>
       <tr className={`hover:bg-gray-50 ${hasErrors ? "bg-red-50/30" : ""}`}>
-        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{date}</td>
+        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap" suppressHydrationWarning>{date}</td>
         <td className="px-4 py-3">
           <SourceBadge source={report.source} label={report.source_display} />
         </td>

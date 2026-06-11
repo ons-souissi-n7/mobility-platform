@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, Info, RotateCw } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Info, RotateCw } from "lucide-react";
 import { useState } from "react";
 
 import type { Agreement, RawImport, StudentWithEnrollment } from "@/lib/api/types";
@@ -8,12 +8,39 @@ import type { WishImportCorrection } from "@/lib/api/student-mutations";
 
 type ErrorKind = "student_not_found" | "no_enrollment" | "agreement_not_found" | "no_correction";
 
+const WISH_FIELD_LABELS: Record<string, string> = {
+  ine: "INE",
+  individu: "Individu",
+  offre_de_sejour: "Offre de séjour",
+  rank: "Rang",
+};
+
 function classifyWishError(error: RawImport): ErrorKind {
   const msg = (error.error_message ?? "").toLowerCase();
   if (msg.includes("étudiant introuvable") || msg.includes("etudiant introuvable")) return "student_not_found";
   if (msg.includes("inscription annuelle")) return "no_enrollment";
   if (msg.includes("accord introuvable") || msg.includes("offre de séjour")) return "agreement_not_found";
   return "no_correction";
+}
+
+function PayloadGrid({ payload }: { payload: Record<string, unknown> }) {
+  const entries = Object.entries(payload).filter(([, v]) => v !== null && v !== undefined && v !== "");
+  if (entries.length === 0) return <p className="text-xs text-gray-400 italic">Aucune donnée disponible</p>;
+
+  return (
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+      {entries.map(([key, value]) => (
+        <div key={key}>
+          <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+            {WISH_FIELD_LABELS[key] ?? key}
+          </dt>
+          <dd className="mt-0.5 font-mono text-xs text-gray-800 break-all">
+            {String(value)}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 export function WishImportErrorsPanel({
@@ -33,6 +60,7 @@ export function WishImportErrorsPanel({
   students: StudentWithEnrollment[];
   title?: string;
 }) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [corrections, setCorrections] = useState<Record<number, WishImportCorrection>>({});
@@ -55,6 +83,10 @@ export function WishImportErrorsPanel({
     setCorrections((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), ...patch } }));
   }
 
+  function toggleExpand(id: number) {
+    setExpandedId((prev) => (prev === id ? null : id));
+  }
+
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
       <div className="flex items-center gap-2 text-amber-900">
@@ -70,41 +102,74 @@ export function WishImportErrorsPanel({
         </div>
       )}
 
-      <div className="mt-4 overflow-x-auto rounded-md border border-amber-200 bg-white">
-        <table className="min-w-full divide-y divide-amber-100 text-sm">
-          <thead className="bg-amber-50 text-left text-xs font-semibold uppercase text-amber-900">
-            <tr>
-              <th className="px-3 py-2">Identifiant</th>
-              <th className="px-3 py-2">Erreur</th>
-              <th className="px-3 py-2">Correction</th>
-              <th className="px-3 py-2 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {errors.map((error) => {
-              const busy = isBusy || activeId === error.id;
-              const kind = classifyWishError(error);
-              const correction = corrections[error.id] ?? {};
-              const canRetry =
-                (kind === "student_not_found" && !!correction.student_id) ||
-                (kind === "agreement_not_found" && !!correction.agreement_id);
+      <div className="mt-4 space-y-2">
+        {errors.map((error) => {
+          const busy = isBusy || activeId === error.id;
+          const kind = classifyWishError(error);
+          const correction = corrections[error.id] ?? {};
+          const isExpanded = expandedId === error.id;
+          const canRetry =
+            (kind === "student_not_found" && !!correction.student_id) ||
+            (kind === "agreement_not_found" && !!correction.agreement_id);
 
-              return (
-                <tr key={error.id}>
-                  <td className="whitespace-nowrap px-3 py-3 font-mono text-xs text-gray-700">
-                    {error.external_id || "—"}
-                  </td>
-                  <td className="max-w-xs px-3 py-3">
-                    <p className="break-words text-xs text-red-700">
-                      {error.error_message || "Erreur inconnue"}
-                    </p>
-                  </td>
-                  <td className="px-3 py-3">
+          return (
+            <div
+              key={error.id}
+              className="rounded-md border border-amber-200 bg-white overflow-hidden"
+            >
+              {/* Summary row — click to expand */}
+              <button
+                type="button"
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-50 transition-colors"
+                onClick={() => toggleExpand(error.id)}
+              >
+                <span className="shrink-0 text-amber-500">
+                  {isExpanded
+                    ? <ChevronDown className="h-4 w-4" />
+                    : <ChevronRight className="h-4 w-4" />}
+                </span>
+                <span className="font-mono text-xs text-gray-600 shrink-0 w-40 truncate">
+                  {error.external_id || "—"}
+                </span>
+                <span className="flex-1 text-xs text-red-700 truncate">
+                  {error.error_message || "Erreur inconnue"}
+                </span>
+                <span
+                  className="shrink-0 ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium bg-red-100 text-red-700"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {kind === "no_correction" ? "manuel" : "corrigeable"}
+                </span>
+              </button>
+
+              {/* Expanded detail panel */}
+              {isExpanded && (
+                <div className="border-t border-amber-100 px-4 py-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  {/* Left: full record */}
+                  <div>
+                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Enregistrement complet
+                    </h4>
+                    <div className="rounded-md border border-gray-100 bg-gray-50 p-3">
+                      <PayloadGrid payload={error.payload} />
+                    </div>
+                    <div className="mt-3 rounded-md border border-red-100 bg-red-50 px-3 py-2">
+                      <p className="text-xs font-semibold text-red-700">Motif d&apos;échec</p>
+                      <p className="mt-0.5 text-xs text-red-600">{error.error_message || "Erreur inconnue"}</p>
+                    </div>
+                  </div>
+
+                  {/* Right: correction + actions */}
+                  <div>
+                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Correction proposée
+                    </h4>
+
                     {kind === "student_not_found" && (
-                      <div>
-                        <p className="mb-1 text-xs text-gray-500">Associer à un étudiant inscrit</p>
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-500">Associer à un étudiant inscrit</p>
                         <select
-                          className="w-56 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
+                          className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
                           disabled={busy}
                           value={correction.student_id ?? ""}
                           onChange={(e) =>
@@ -113,7 +178,7 @@ export function WishImportErrorsPanel({
                             })
                           }
                         >
-                          <option value="">Choisir un étudiant</option>
+                          <option value="">Choisir un étudiant…</option>
                           {students.map((s) => (
                             <option key={s.student_id} value={s.student_id}>
                               {s.ine} — {s.last_name} {s.first_name}
@@ -122,11 +187,12 @@ export function WishImportErrorsPanel({
                         </select>
                       </div>
                     )}
+
                     {kind === "agreement_not_found" && (
-                      <div>
-                        <p className="mb-1 text-xs text-gray-500">Associer à un accord existant</p>
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-500">Associer à un accord existant</p>
                         <select
-                          className="w-56 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
+                          className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
                           disabled={busy}
                           value={correction.agreement_id ?? ""}
                           onChange={(e) =>
@@ -135,7 +201,7 @@ export function WishImportErrorsPanel({
                             })
                           }
                         >
-                          <option value="">Choisir un accord</option>
+                          <option value="">Choisir un accord…</option>
                           {agreements.map((a) => (
                             <option key={a.id} value={a.id}>
                               {a.name}
@@ -144,20 +210,23 @@ export function WishImportErrorsPanel({
                         </select>
                       </div>
                     )}
+
                     {kind === "no_enrollment" && (
-                      <div className="flex items-center gap-1.5 text-xs text-blue-700">
-                        <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                        Synchronisez d&apos;abord les inscriptions Pégase
+                      <div className="flex items-start gap-2 rounded-md border border-blue-100 bg-blue-50 px-3 py-2">
+                        <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
+                        <p className="text-xs text-blue-700">
+                          Synchronisez d&apos;abord les inscriptions Pégase pour cet étudiant.
+                        </p>
                       </div>
                     )}
+
                     {kind === "no_correction" && (
-                      <span className="text-xs italic text-gray-400">
-                        Correction manuelle requise
-                      </span>
+                      <p className="text-xs italic text-gray-400">
+                        Ce type d&apos;erreur nécessite une correction manuelle dans la source de données.
+                      </p>
                     )}
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex justify-end gap-2">
+
+                    <div className="mt-4 flex gap-2">
                       {(kind === "student_not_found" || kind === "agreement_not_found") && (
                         <button
                           className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
@@ -181,12 +250,12 @@ export function WishImportErrorsPanel({
                         Ignorer
                       </button>
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

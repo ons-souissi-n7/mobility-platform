@@ -7,6 +7,7 @@ type MobilityCategoryRow = MobilityCategory;
 function getColumns(
   onEdit: (framework: MobilityCategory) => void,
   onDelete: (framework: MobilityCategory) => void,
+  isYearClosed: boolean,
 ): DataTableColumn<MobilityCategoryRow>[] {
   return [
     {
@@ -31,7 +32,14 @@ function getColumns(
       header: "Actions",
       align: "right",
       render: (framework) => (
-        <ActionButtons onEdit={() => onEdit(framework)} onDelete={() => onDelete(framework)} />
+        <ActionButtons
+          onEdit={() => onEdit(framework)}
+          editDisabled={isYearClosed}
+          editDisabledTitle="Année clôturée — modification non autorisée"
+          onDelete={() => onDelete(framework)}
+          deleteDisabled={isYearClosed}
+          deleteDisabledTitle="Année clôturée — suppression non autorisée"
+        />
       ),
     },
   ];
@@ -39,18 +47,20 @@ function getColumns(
 
 type MobilityCategorysTableProps = {
   agreementFrameworks: MobilityCategory[];
+  isYearClosed?: boolean;
   onDelete: (framework: MobilityCategory) => void;
   onEdit: (framework: MobilityCategory) => void;
 };
 
 export function MobilityCategorysTable({
   agreementFrameworks,
+  isYearClosed = false,
   onDelete,
   onEdit,
 }: MobilityCategorysTableProps) {
   return (
     <DataTable
-      columns={getColumns(onEdit, onDelete)}
+      columns={getColumns(onEdit, onDelete, isYearClosed)}
       data={agreementFrameworks}
       emptyLabel="Aucun cadre d'accord configure"
       getRowKey={(framework) => framework.id}

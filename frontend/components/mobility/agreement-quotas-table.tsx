@@ -10,6 +10,7 @@ type QuotaRow = AgreementYear & {
 function getColumns(
   onDelete: (quota: AgreementYear) => void,
   onEdit: (quota: AgreementYear) => void,
+  isYearClosed: boolean,
 ): DataTableColumn<QuotaRow>[] {
   return [
     {
@@ -53,7 +54,14 @@ function getColumns(
       header: "Actions",
       align: "right",
       render: (quota) => (
-        <ActionButtons onDelete={() => onDelete(quota)} onEdit={() => onEdit(quota)} />
+        <ActionButtons
+          onEdit={() => onEdit(quota)}
+          editDisabled={isYearClosed}
+          editDisabledTitle="Année clôturée — modification non autorisée"
+          onDelete={() => onDelete(quota)}
+          deleteDisabled={isYearClosed}
+          deleteDisabledTitle="Année clôturée — suppression non autorisée"
+        />
       ),
     },
   ];
@@ -61,11 +69,13 @@ function getColumns(
 
 export function AgreementQuotasTable({
   agreements,
+  isYearClosed = false,
   onDelete,
   onEdit,
   quotas,
 }: {
   agreements: Agreement[];
+  isYearClosed?: boolean;
   onDelete: (quota: AgreementYear) => void;
   onEdit: (quota: AgreementYear) => void;
   quotas: AgreementYear[];
@@ -78,7 +88,7 @@ export function AgreementQuotasTable({
 
   return (
     <DataTable
-      columns={getColumns(onDelete, onEdit)}
+      columns={getColumns(onDelete, onEdit, isYearClosed)}
       data={rows}
       emptyLabel="Aucun quota d'accord configure"
       getRowKey={(quota) => quota.id}

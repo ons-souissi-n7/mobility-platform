@@ -309,7 +309,8 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
             {[...academicYears]
               .sort((a, b) => b.start_date.localeCompare(a.start_date))
               .map((y) => (
-                <option key={y.id} value={y.id}>{y.label}</option>
+                <option key={y.id} value={y.id}>
+                  {y.label}{y.status === "closed" ? " (clôturée)" : ""}</option>
               ))}
           </select>
         </label>
@@ -317,6 +318,12 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
           <span className="mb-2 text-xs text-gray-400 animate-pulse">Chargement...</span>
         )}
       </div>
+
+      {selectedYear?.status === "closed" && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          <span className="font-semibold">Année clôturée</span> — consultation seule, imports et synchronisation désactivés.
+        </div>
+      )}
 
       {/* Stat cards */}
       {selectedYear && (
@@ -355,8 +362,8 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
         actions={
           <>
             <TemplateButton isLoading={templateLoading} onClick={handleTemplateDownload} />
-            <ExcelImportButton isLoading={importInProgress} onImport={handleExcelImport} />
-            <SyncButton isLoading={syncInProgress} onClick={handleSync} />
+            <ExcelImportButton isLoading={importInProgress} disabled={selectedYear?.status === "closed"} onImport={handleExcelImport} />
+            <SyncButton isLoading={syncInProgress} disabled={selectedYear?.status === "closed"} onClick={handleSync} />
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
             <Btn disabled={!selectedYear || exportInProgress || isLoading} onClick={handleExport}>
               <FileDown className="h-4 w-4" />
@@ -786,18 +793,18 @@ function TemplateButton({ isLoading, onClick }: { isLoading: boolean; onClick: (
   );
 }
 
-function ExcelImportButton({ isLoading, onImport }: { isLoading: boolean; onImport: (file: File) => void }) {
+function ExcelImportButton({ isLoading, disabled, onImport }: { isLoading: boolean; disabled?: boolean; onImport: (file: File) => void }) {
   return (
-    <FileBtn disabled={isLoading} onFile={onImport}>
+    <FileBtn disabled={isLoading || disabled} onFile={onImport}>
       {isLoading ? <Upload className="h-4 w-4 animate-bounce" /> : <FileSpreadsheet className="h-4 w-4" />}
       {isLoading ? "Import..." : "Importer Excel"}
     </FileBtn>
   );
 }
 
-function SyncButton({ isLoading, onClick }: { isLoading: boolean; onClick: () => void }) {
+function SyncButton({ isLoading, disabled, onClick }: { isLoading: boolean; disabled?: boolean; onClick: () => void }) {
   return (
-    <Btn disabled={isLoading} onClick={onClick}>
+    <Btn disabled={isLoading || disabled} onClick={onClick}>
       <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
       {isLoading ? "Synchronisation..." : "Sync Pegase"}
     </Btn>
