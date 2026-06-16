@@ -42,10 +42,11 @@ class TestPartnerUniversityAPI:
         response = self.client.get("/api/v1/institutions/universities/")
 
         assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 2
-        assert data[0]["name"] == "Universidad Politecnica de Madrid"
-        assert data[0]["country_id"] is not None
+        body = response.json()
+        assert body["count"] == 2
+        results = body["results"]
+        assert results[0]["name"] == "Universidad Politecnica de Madrid"
+        assert results[0]["country_id"] is not None
 
     def test_create_university(self):
         payload = {

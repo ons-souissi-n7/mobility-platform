@@ -98,6 +98,44 @@ class TestMoveOnInstitutionSync:
         assert result.created == 1
         assert university.country.iso2 == "NL"
 
+    def test_fallback_finds_manual_university_by_erasmus_code_and_backfills_moveon_id(
+        self,
+    ):
+        # Université créée manuellement sans moveon_id mais avec erasmus_code.
+        country = create_country()
+        PartnerUniversity.objects.create(
+            moveon_id=None,
+            name="Universita di Trento",
+            erasmus_code="I TRENTO01",
+            country=country,
+        )
+
+        result = sync_moveon_institutions(FakeClient([institution_payload()]))
+
+        assert result.created == 0
+        assert result.updated == 1
+        assert PartnerUniversity.objects.count() == 1  # pas de doublon
+        univ = PartnerUniversity.objects.get(erasmus_code__icontains="TRENTO01")
+        assert univ.moveon_id == 1359  # ID renseigné automatiquement
+
+    def test_fallback_finds_manual_university_by_name_and_backfills_moveon_id(self):
+        # Université créée manuellement sans moveon_id et sans erasmus_code.
+        country = create_country()
+        PartnerUniversity.objects.create(
+            moveon_id=None,
+            name="University of Trento",
+            erasmus_code="",
+            country=country,
+        )
+
+        result = sync_moveon_institutions(FakeClient([institution_payload()]))
+
+        assert result.created == 0
+        assert result.updated == 1
+        assert PartnerUniversity.objects.count() == 1
+        univ = PartnerUniversity.objects.get(name="University of Trento")
+        assert univ.moveon_id == 1359
+
     def test_sync_marks_unknown_country_as_failed(self):
         payload = institution_payload(country={"name": "Atlantide"})
 

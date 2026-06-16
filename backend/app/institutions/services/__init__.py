@@ -13,7 +13,7 @@ from .moveon_transformer import (
     transform_institution as transform_institution,
 )
 from .moveon_validator import (
-    ValidationError as ValidationError,
+    DomainValidationError as DomainValidationError,
 )
 from .moveon_validator import (
     validate_institution as validate_institution,
