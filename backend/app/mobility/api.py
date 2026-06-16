@@ -1,9 +1,12 @@
+from datetime import date, timedelta
+
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
+from django.db.models import Q
 from django.db.models.deletion import ProtectedError
 from django.http import HttpResponse
 from django.utils import timezone
-from ninja import File, Router
+from ninja import File, Query, Router
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
 
@@ -12,7 +15,14 @@ from app.audit.logger import log_action
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.institutions.models import PartnerUniversity
 from app.reference.models import Level
-from app.shared.api_helpers import get_or_404, save_validated
+from app.shared.api_helpers import (
+    PagedResponse,
+    PaginationQuery,
+    SelectOption,
+    get_or_404,
+    paginate,
+    save_validated,
+)
 from app.shared.excel_utils import build_filename, workbook_response, write_header_row
 
 from .models import (
@@ -78,7 +88,7 @@ def validate_year_consistency(agreement_year: AgreementYear) -> None:
         agreement_year.department_quotas.values_list("estimated_places", flat=True)
     )
     if not dept_quotas:
-        return  # Aucune répartition définie → validation directe autorisée
+        return
 
     dept_total = sum(dept_quotas)
     if dept_total != agreement_year.n7_places:
@@ -186,13 +196,82 @@ def export_agreements_excel(
     return workbook_response(wb, filename)
 
 
-@router.get("/agreements/", response=list[AgreementOut], summary="Liste des accords")
-def list_agreements(request):
-    return (
-        Agreement.objects.select_related("partner_university", "category")
+@router.get(
+    "/agreements/", response=PagedResponse[AgreementOut], summary="Liste des accords"
+)
+def list_agreements(
+    request,
+    search: str | None = None,
+    country_id: int | None = None,
+    is_active: bool | None = None,
+    valid_only: bool = False,
+    pagination: PaginationQuery = Query(),
+):
+    qs = (
+        Agreement.objects.select_related(
+            "partner_university", "category", "partner_university__country"
+        )
         .prefetch_related("levels", "agreement_departments")
         .all()
     )
+    if search:
+        qs = qs.filter(
+            Q(name__icontains=search) | Q(partner_university__name__icontains=search)
+        )
+    if country_id:
+        qs = qs.filter(partner_university__country_id=country_id)
+    if is_active is not None:
+        qs = qs.filter(year_instances__is_active=is_active).distinct()
+    if valid_only:
+        today = date.today()
+        qs = qs.filter(
+            Q(valid_from__isnull=True) | Q(valid_from__lte=today),
+            Q(valid_until__isnull=True) | Q(valid_until__gte=today),
+        )
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
+
+
+@router.get(
+    "/agreements/expiring-soon/",
+    response=list[AgreementOut],
+    summary="Accords expirant dans les prochains mois",
+)
+def list_expiring_agreements(request, months: int = 4):
+    today = date.today()
+    cutoff = today + timedelta(days=30 * months)
+    qs = (
+        Agreement.objects.select_related(
+            "partner_university", "category", "partner_university__country"
+        )
+        .prefetch_related("levels", "agreement_departments")
+        .filter(valid_until__gte=today, valid_until__lte=cutoff)
+        .order_by("valid_until")
+    )
+    return qs
+
+
+@router.get(
+    "/agreements/select-options/",
+    response=list[SelectOption],
+    summary="Options accords pour dropdown",
+)
+def list_agreements_select(request):
+    qs = Agreement.objects.select_related(
+        "partner_university", "partner_university__country"
+    ).order_by("name")
+    options = []
+    for a in qs:
+        univ = a.partner_university.name if a.partner_university_id else ""
+        country = (
+            f" – {a.partner_university.country.name_fr}"
+            if a.partner_university_id and a.partner_university.country_id
+            else ""
+        )
+        options.append(SelectOption(id=a.id, label=f"{a.name} – {univ}{country}"))
+    return options
 
 
 @router.post("/agreements/", response={201: AgreementOut}, summary="Créer un accord")
@@ -299,21 +378,26 @@ def delete_agreement_department(request, dept_id: int):
 
 @router.get(
     "/agreement-years/",
-    response=list[AgreementYearOut],
+    response=PagedResponse[AgreementYearOut],
     summary="Liste des instances annuelles",
 )
-def list_agreement_years(request):
-    academic_year_label = request.GET.get("academic_year")
-    agreement_id = request.GET.get("agreement_id")
-
+def list_agreement_years(
+    request,
+    academic_year: str | None = None,
+    agreement_id: int | None = None,
+    pagination: PaginationQuery = Query(),
+):
     qs = AgreementYear.objects.select_related("agreement", "academic_year").all()
 
-    if academic_year_label:
-        qs = qs.filter(academic_year__label=academic_year_label)
+    if academic_year:
+        qs = qs.filter(academic_year__label=academic_year)
     if agreement_id:
         qs = qs.filter(agreement_id=agreement_id)
 
-    return qs
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
 
 
 @router.post(
@@ -418,23 +502,28 @@ def delete_agreement_year(request, year_id: int):
 
 @router.get(
     "/agreement-year-departments/",
-    response=list[AgreementYearDepartmentOut],
+    response=PagedResponse[AgreementYearDepartmentOut],
     summary="Liste des quotas par département",
 )
-def list_agreement_year_departments(request):
-    academic_year_label = request.GET.get("academic_year")
-    agreement_year_id = request.GET.get("agreement_year_id")
-
+def list_agreement_year_departments(
+    request,
+    academic_year: str | None = None,
+    agreement_year_id: int | None = None,
+    pagination: PaginationQuery = Query(),
+):
     qs = AgreementYearDepartment.objects.select_related(
         "agreement_year__academic_year", "agreement_department__department"
     ).all()
 
-    if academic_year_label:
-        qs = qs.filter(agreement_year__academic_year__label=academic_year_label)
+    if academic_year:
+        qs = qs.filter(agreement_year__academic_year__label=academic_year)
     if agreement_year_id:
         qs = qs.filter(agreement_year_id=agreement_year_id)
 
-    return qs
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
 
 
 @router.post(
@@ -610,7 +699,11 @@ def list_moveon_import_errors(request):
         if key not in latest:
             latest[key] = ri
 
-    return [ri for ri in latest.values() if ri.status == RawImportStatus.FAILED]
+    return [
+        ri
+        for ri in latest.values()
+        if ri.status in (RawImportStatus.FAILED, RawImportStatus.CONFLICT)
+    ]
 
 
 @router.put("/raw-imports/{raw_import_id}/retry/", response=RawImportOut)
@@ -714,7 +807,7 @@ def download_excel_template(request):
 
 
 @router.post("/import-excel/", response={202: dict})
-def import_agreements_from_excel(request, file: UploadedFile = File(...)):  # noqa: B008
+def import_agreements_from_excel(request, file: UploadedFile = File(...)):
     if not file.name.endswith((".xlsx", ".xls")):
         raise HttpError(400, "Seuls les fichiers .xlsx et .xls sont acceptés.")
 

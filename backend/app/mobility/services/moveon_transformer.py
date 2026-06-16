@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from .moveon_schema import validate_raw_payload
@@ -9,6 +9,7 @@ from .moveon_schema import validate_raw_payload
 class TransformedMobilityCategory:
     moveon_id: str
     name: str
+    source_updated_at: date | None = None
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,7 @@ class TransformedAgreement:
     department_tokens: tuple[str, ...]
     level_tokens: tuple[str, ...]
     availabilities: tuple[TransformedAgreementAvailability, ...]
+    source_updated_at: date | None = None
 
 
 @dataclass(frozen=True)
@@ -75,6 +77,9 @@ def transform_mobility_category(payload: dict[str, Any]) -> TransformedMobilityC
     return TransformedMobilityCategory(
         moveon_id=str(moveon_id).strip(),
         name=text(first_value(raw, "name", "Nom")),
+        source_updated_at=optional_date_flexible(
+            first_value(raw, "updated_at", "date_modification")
+        ),
     )
 
 
@@ -200,6 +205,9 @@ def transform_agreement(payload: dict[str, Any]) -> TransformedAgreement:
         ),
         level_tokens=split_values(first_value(raw, "levels")) or split_values(level),
         availabilities=transform_agreement_availabilities(raw),
+        source_updated_at=optional_date_flexible(
+            first_value(raw, "updated_at", "date_modification", "Derniere modification")
+        ),
     )
 
 
@@ -370,6 +378,25 @@ def optional_date(value: Any) -> date | None:
     if isinstance(value, date):
         return value
     return date.fromisoformat(str(value))
+
+
+def optional_date_flexible(value: Any) -> date | None:
+    """Parse date from ISO, DD/MM/YYYY, or DD/MM/YYYY HH:MM formats."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, date):
+        return value
+    s = str(value).strip()
+    try:
+        return date.fromisoformat(s[:10])
+    except ValueError:
+        pass
+    for fmt in ("%d/%m/%Y %H:%M", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 def bool_value(value: Any, default: bool) -> bool:

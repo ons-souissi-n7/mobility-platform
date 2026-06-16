@@ -70,6 +70,10 @@ class Agreement(TimeStampedModel):
         ordering = ["name"]
         indexes = [
             models.Index(fields=["partner_university"]),
+            models.Index(fields=["name"], name="agreement_name_idx"),
+            models.Index(
+                fields=["partner_university", "name"], name="agreement_univ_name_idx"
+            ),
         ]
 
     def __str__(self) -> str:
@@ -151,6 +155,7 @@ class AgreementYear(TimeStampedModel):
             ),
         ]
         indexes = [
+            models.Index(fields=["academic_year"], name="mobility_agrmt_year_idx"),
             models.Index(fields=["agreement", "academic_year"]),
             models.Index(fields=["is_active"]),
         ]
@@ -172,6 +177,64 @@ class AgreementYear(TimeStampedModel):
     @property
     def academic_year_label(self) -> str:
         return self.academic_year.label
+
+
+class NomenclatureMapping(TimeStampedModel):
+    """
+    Clé sémantique externe → Accord interne.
+
+    Générée automatiquement lors du sync MoveON et éditée manuellement pour les
+    accords créés sans synchronisation (ex: accord Eudonet saisi à la main).
+
+    La résolution des vœux MoveON utilise cette table en dernier recours :
+    si l'accord n'est pas trouvé par moveon_id ni par nom, on cherche ici via
+    moveon_offer_name (le texte exact de l'« Offre de séjour » MoveON).
+    """
+
+    partner_university = models.ForeignKey(
+        PartnerUniversity,
+        on_delete=models.CASCADE,
+        related_name="nomenclature_mappings",
+        verbose_name="Université partenaire",
+    )
+    category = models.ForeignKey(
+        MobilityCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="nomenclature_mappings",
+        verbose_name="Cadre de mobilité",
+    )
+    date_debut = models.DateField(null=True, blank=True, verbose_name="Date de début")
+    date_fin = models.DateField(null=True, blank=True, verbose_name="Date de fin")
+    moveon_offer_name = models.CharField(
+        max_length=500,
+        verbose_name="Nom de l'offre MoveON",
+        help_text="Texte exact reçu dans le champ « Offre de séjour » lors du sync des vœux.",
+    )
+    agreement = models.OneToOneField(
+        Agreement,
+        on_delete=models.CASCADE,
+        related_name="nomenclature",
+        verbose_name="Accord",
+    )
+
+    class Meta:
+        verbose_name = "Nomenclature accord"
+        verbose_name_plural = "Nomenclature accords"
+        ordering = ["partner_university__name", "date_debut"]
+        indexes = [
+            models.Index(
+                fields=["moveon_offer_name"], name="nomenclature_offer_name_idx"
+            ),
+            models.Index(
+                fields=["partner_university", "category"],
+                name="nomenclature_univ_cat_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.moveon_offer_name} → {self.agreement.name}"
 
 
 class AgreementYearDepartment(TimeStampedModel):
