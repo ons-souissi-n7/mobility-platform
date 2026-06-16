@@ -7,7 +7,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+RUN mkdir -p /app/public && npm run build
 
 # ── Runtime stage — production deps only, no root ─────────────────────────────
 FROM node:20-slim
