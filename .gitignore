@@ -41,6 +41,7 @@ logs/
 
 # Tests
 .coverage
+coverage.xml
 htmlcov/
 .pytest_cache/
 
@@ -54,3 +55,4 @@ main.pdf
 Rapport_08-06-2026_corrige.pdf
 
 generate_fixtures.py
+
