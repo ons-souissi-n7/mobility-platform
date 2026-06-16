@@ -14,9 +14,10 @@ from app.imports.models import (
     RawImportStatus,
 )
 from app.integrations.moveon import MoveOnClient
-from app.mobility.models import Agreement
+from app.mobility.models import Agreement, NomenclatureMapping
 from app.shared.cleaning import normalize_ine, normalize_string
-from app.shared.validators import ValidationError
+from app.shared.sync import already_up_to_date
+from app.shared.validators import DomainValidationError
 
 from ..models import AnnualEnrollment, Student, StudentWish
 from .student_validator import validate_wish
@@ -24,13 +25,12 @@ from .student_validator import validate_wish
 
 @dataclass
 class WishRow:
-    # "MARTIN Jean" — MoveOn: Individu (used as name fallback)
     individu: str
-    # agreement name — MoveOn: Offre de séjour
     offre_de_sejour: str
     rank: int
-    # student INE — MoveOn: Numéro étudiant (primary match, may be empty)
     ine: str = ""
+    moveon_offer_id: str = ""
+    source_date: date | None = None
 
     def __post_init__(self) -> None:
         self.ine = normalize_ine(self.ine)
@@ -42,7 +42,6 @@ class WishRow:
 class WishSyncReport:
     created: int = 0
     updated: int = 0
-    # Records whose creation/modification date falls outside the academic year window
     skipped: int = 0
     unresolved: list[dict] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -67,15 +66,12 @@ def sync_moveon_wishes(
 
     raw_records = client.fetch_student_wishes()
 
-    # MoveOn does not expose academic year labels, so we filter by date.
-    # Records whose most recent date (creation or modification) falls outside
-    # the academic year window [start - 12 months, end] are skipped.
     rows: list[WishRow] = []
     skipped = 0
 
     for r in raw_records:
         if not ((r.ine or r.individu) and r.offre_de_sejour and r.rank > 0):
-            continue  # Malformed record
+            continue
 
         record_date = r.date_creation or r.date_modification
         if not _in_year_window(record_date, academic_year):
@@ -88,24 +84,18 @@ def sync_moveon_wishes(
                 offre_de_sejour=r.offre_de_sejour,
                 rank=r.rank,
                 ine=r.ine,
+                moveon_offer_id=r.moveon_offer_id or "",
+                source_date=r.date_modification or r.date_creation,
             )
         )
 
-    report = _import_wish_rows(rows, academic_year, db_report)
+    report = import_wish_rows(rows, academic_year, db_report)
     report.skipped = skipped
     db_report.finalize()
     return report
 
 
 def import_wish_rows(
-    rows: list[WishRow],
-    academic_year: AcademicYear,
-    db_report: DbImportReport | None = None,
-) -> WishSyncReport:
-    return _import_wish_rows(rows, academic_year, db_report)
-
-
-def _import_wish_rows(
     rows: list[WishRow],
     academic_year: AcademicYear,
     db_report: DbImportReport | None = None,
@@ -126,6 +116,7 @@ def _import_wish_rows(
                 "ine": row.ine,
                 "individu": row.individu,
                 "offre_de_sejour": row.offre_de_sejour,
+                "moveon_offer_id": row.moveon_offer_id,
                 "rank": row.rank,
             },
             import_report=db_report,
@@ -134,42 +125,16 @@ def _import_wish_rows(
 
         try:
             validate_wish(row)
-        except ValidationError as exc:
-            reason = str(exc)
-            report.unresolved.append(
-                {
-                    "individu": row.individu,
-                    "ine": row.ine,
-                    "rank": row.rank,
-                    "reason": reason,
-                }
-            )
-            raw.status = RawImportStatus.FAILED
-            raw.error_message = reason
-            raw.save()
-            if db_report:
-                db_report.record_error(identifier, reason)
+        except DomainValidationError as exc:
+            _mark_wish_unresolved(raw, report, db_report, row, identifier, str(exc))
             continue
 
         student = _resolve_student(row.ine, row.individu, student_cache)
         if student is None:
             reason = (
-                f"Étudiant introuvable "
-                f"(INE : {row.ine!r}, Individu : {row.individu!r})"
+                f"Étudiant introuvable (INE : {row.ine!r}, Individu : {row.individu!r})"
             )
-            report.unresolved.append(
-                {
-                    "individu": row.individu,
-                    "ine": row.ine,
-                    "rank": row.rank,
-                    "reason": reason,
-                }
-            )
-            raw.status = RawImportStatus.FAILED
-            raw.error_message = reason
-            raw.save()
-            if db_report:
-                db_report.record_error(identifier, reason)
+            _mark_wish_unresolved(raw, report, db_report, row, identifier, reason)
             continue
 
         enrollment = AnnualEnrollment.objects.filter(
@@ -180,45 +145,38 @@ def _import_wish_rows(
                 f"Aucune inscription annuelle pour {student} en {academic_year}. "
                 "Synchronisez d'abord les inscriptions depuis Pégase."
             )
-            report.unresolved.append(
-                {
-                    "individu": row.individu,
-                    "ine": row.ine,
-                    "rank": row.rank,
-                    "reason": reason,
-                }
-            )
-            raw.status = RawImportStatus.FAILED
-            raw.error_message = reason
-            raw.save()
-            if db_report:
-                db_report.record_error(identifier, reason)
+            _mark_wish_unresolved(raw, report, db_report, row, identifier, reason)
             continue
 
-        agreement = _resolve_agreement(row.offre_de_sejour, agreement_cache)
+        agreement = _resolve_agreement(
+            row.offre_de_sejour, row.moveon_offer_id, agreement_cache
+        )
         if agreement is None:
             reason = (
                 f"Accord introuvable (Offre de séjour : {row.offre_de_sejour!r}). "
                 "Vérifiez que cet accord a été synchronisé depuis MoveON avec ce nom "
                 "ou qu'il a été créé manuellement avec ce même intitulé."
             )
-            report.unresolved.append(
-                {
-                    "individu": row.individu,
-                    "ine": row.ine,
-                    "rank": row.rank,
-                    "reason": reason,
-                }
-            )
-            raw.status = RawImportStatus.FAILED
-            raw.error_message = reason
+            _mark_wish_unresolved(raw, report, db_report, row, identifier, reason)
+            continue
+
+        existing_wish = StudentWish.objects.filter(
+            annual_enrollment=enrollment, rank=row.rank
+        ).first()
+        if existing_wish is not None and already_up_to_date(
+            existing_wish,
+            "last_sync_moveon",
+            row.source_date,
+            agreement_id=agreement.pk,
+        ):
+            raw.status = RawImportStatus.IMPORTED
             raw.save()
             if db_report:
-                db_report.record_error(identifier, reason)
+                db_report.record_success()
             continue
 
         try:
-            _, created = StudentWish.objects.update_or_create(
+            wish, created = StudentWish.objects.update_or_create(
                 annual_enrollment=enrollment,
                 rank=row.rank,
                 defaults={"agreement": agreement},
@@ -232,6 +190,9 @@ def _import_wish_rows(
             if db_report:
                 db_report.record_error(identifier, reason)
             continue
+
+        wish.last_sync_moveon = wish.updated_at
+        wish.save(update_fields=["last_sync_moveon"])
 
         raw.status = RawImportStatus.IMPORTED
         raw.save()
@@ -247,16 +208,35 @@ def _import_wish_rows(
     return report
 
 
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+
+def _mark_wish_unresolved(
+    raw: RawImport,
+    report: WishSyncReport,
+    db_report: DbImportReport | None,
+    row: WishRow,
+    identifier: str,
+    reason: str,
+) -> None:
+    report.unresolved.append(
+        {"individu": row.individu, "ine": row.ine, "rank": row.rank, "reason": reason}
+    )
+    raw.status = RawImportStatus.FAILED
+    raw.error_message = reason
+    raw.save()
+    if db_report:
+        db_report.record_error(identifier, reason)
+
+
 def _in_year_window(d: date | None, academic_year: AcademicYear) -> bool:
     """
     Returns True if d is within [academic_year.start_date - 12 months, academic_year.end_date].
 
-    The 12-month lookback covers the wish-submission campaign, which typically
-    runs the semester before the academic year starts (e.g., November–February
-    for a September start).
-
-    If d is None (external system did not provide a date), the record is
-    included by default so we never silently drop data.
+    The 12-month lookback covers wish-submission campaigns that run the semester
+    before the academic year starts.  If d is None the record is always included.
     """
     if d is None:
         return True
@@ -266,8 +246,7 @@ def _in_year_window(d: date | None, academic_year: AcademicYear) -> bool:
         )
     except ValueError:  # Leap-year edge case (Feb 29)
         window_start = academic_year.start_date.replace(
-            year=academic_year.start_date.year - 1,
-            day=28,
+            year=academic_year.start_date.year - 1, day=28
         )
     return window_start <= d <= academic_year.end_date
 
@@ -301,16 +280,46 @@ def _resolve_student(
 
 
 def _resolve_agreement(
-    offre: str, cache: dict[str, Agreement | None]
+    offre: str,
+    moveon_offer_id: str,
+    cache: dict[str, Agreement | None],
 ) -> Agreement | None:
     """
-    1. Try exact match on Agreement.name (case-insensitive) — covers agreements synced from MoveOn.
-    2. Fallback: try Agreement.moveon_id — covers manually-created agreements whose
-       "Offre de séjour" name happens to equal the stored moveon_id.
+    Résolution en 3 étapes, de la plus fiable à la plus souple :
+
+    1. Par moveon_id (ID stable fourni par MoveON dans le vœu) — le plus rapide.
+    2. Par nom exact de l'accord (insensible à la casse).
+    3. Par NomenclatureMapping.moveon_offer_name — accords créés manuellement.
+
+    Si l'accord est trouvé et que son moveon_id est vide, on le renseigne
+    automatiquement pour accélérer les recherches futures.
     """
-    if offre not in cache:
+    if offre in cache:
+        return cache[offre]
+
+    agreement: Agreement | None = None
+
+    if moveon_offer_id:
+        agreement = Agreement.objects.filter(moveon_id=moveon_offer_id).first()
+
+    if agreement is None and offre:
+        agreement = Agreement.objects.filter(moveon_id=offre.strip()).first()
+
+    if agreement is None:
         agreement = Agreement.objects.filter(name__iexact=offre).first()
-        if agreement is None:
-            agreement = Agreement.objects.filter(moveon_id=offre).first()
-        cache[offre] = agreement
-    return cache[offre]
+
+    if agreement is None:
+        mapping = (
+            NomenclatureMapping.objects.filter(moveon_offer_name__iexact=offre)
+            .select_related("agreement")
+            .first()
+        )
+        if mapping is not None:
+            agreement = mapping.agreement
+
+    if agreement is not None and moveon_offer_id and not agreement.moveon_id:
+        agreement.moveon_id = moveon_offer_id
+        agreement.save(update_fields=["moveon_id", "updated_at"])
+
+    cache[offre] = agreement
+    return agreement

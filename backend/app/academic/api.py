@@ -1,11 +1,10 @@
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.db.models.deletion import ProtectedError
 from django_fsm import TransitionNotAllowed
 from ninja import Router
 from ninja.errors import HttpError
 
 from app.mobility.services.quota_estimator import initialize_new_year_mobility
+from app.shared.api_helpers import SelectOption, save_validated
 
 from .models import AcademicYear
 from .schemas import AcademicYearIn, AcademicYearOut
@@ -20,19 +19,21 @@ def get_academic_year(year_id: int) -> AcademicYear:
         raise HttpError(404, "Academic year introuvable.") from exc
 
 
-def save_validated(instance: AcademicYear) -> AcademicYear:
-    try:
-        instance.full_clean()
-        instance.save()
-    except (IntegrityError, ValidationError) as exc:
-        raise HttpError(400, str(exc)) from exc
-
-    return instance
-
-
 @router.get("/years/", response=list[AcademicYearOut], summary="Liste des annees")
 def list_academic_years(request):
     return AcademicYear.objects.all()
+
+
+@router.get(
+    "/years/select-options/",
+    response=list[SelectOption],
+    summary="Options annees universitaires pour dropdown",
+)
+def list_academic_years_select(request):
+    return [
+        SelectOption(id=y.id, label=y.label)
+        for y in AcademicYear.objects.order_by("-start_date")
+    ]
 
 
 @router.get(

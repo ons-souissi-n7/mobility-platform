@@ -6,7 +6,7 @@ from django.test import Client
 
 from app.academic.models import AcademicYear
 from app.institutions.models import PartnerUniversity
-from app.mobility.models import Agreement
+from app.mobility.models import Agreement, NomenclatureMapping
 from app.reference.models import Country, CTIRegion, Department, Level
 from app.students.models import AnnualEnrollment, Student, StudentWish
 from app.students.services.sync_moveon import WishRow, import_wish_rows
@@ -82,9 +82,14 @@ def make_row(
     offre_de_sejour: str = "Accord REL-001",
     rank: int = 1,
     ine: str = "",
+    moveon_offer_id: str = "",
 ) -> WishRow:
     return WishRow(
-        individu=individu, offre_de_sejour=offre_de_sejour, rank=rank, ine=ine
+        individu=individu,
+        offre_de_sejour=offre_de_sejour,
+        rank=rank,
+        ine=ine,
+        moveon_offer_id=moveon_offer_id,
     )
 
 
@@ -318,6 +323,70 @@ class TestImportWishRows:
 
         assert report.created == 1
         assert len(report.unresolved) == 1
+
+    def test_resolves_agreement_by_moveon_offer_id(self):
+        # L'accord n'a pas le même nom que l'offre, mais le moveon_offer_id correspond.
+        report = import_wish_rows(
+            [make_row(offre_de_sejour="Nom différent", moveon_offer_id="REL-001")],
+            self.year,
+        )
+
+        assert report.created == 1
+
+    def test_resolves_agreement_by_nomenclature(self):
+        # Accord créé manuellement (pas de moveon_id, nom différent) avec un mapping défini.
+        country, _ = Country.objects.get_or_create(
+            iso2="DE",
+            defaults={
+                "name_fr": "Allemagne",
+                "name_en": "Germany",
+                "cti_region": CTIRegion.EUROPE_HORS_FRANCE,
+            },
+        )
+        univ, _ = PartnerUniversity.objects.get_or_create(
+            moveon_id=2001,
+            defaults={"name": "TU Berlin", "country": country},
+        )
+        accord_manuel = Agreement.objects.create(
+            moveon_id=None,
+            name="Accord TUB Interne",
+            partner_university=univ,
+            direction="outgoing",
+            inp_total_places=2,
+        )
+        NomenclatureMapping.objects.create(
+            partner_university=univ,
+            moveon_offer_name="ERASMUS+ TU Berlin 2024",
+            agreement=accord_manuel,
+        )
+
+        report = import_wish_rows(
+            [make_row(offre_de_sejour="ERASMUS+ TU Berlin 2024")],
+            self.year,
+        )
+
+        assert report.created == 1
+        wish = StudentWish.objects.get(annual_enrollment=self.enrollment, rank=1)
+        assert wish.agreement == accord_manuel
+
+    def test_auto_updates_moveon_id_when_empty(self):
+        # Si l'accord n'a pas de moveon_id mais qu'on reçoit un moveon_offer_id dans le vœu,
+        # le moveon_id de l'accord est renseigné automatiquement.
+        self.agreement.moveon_id = None
+        self.agreement.save(update_fields=["moveon_id"])
+
+        report = import_wish_rows(
+            [
+                make_row(
+                    offre_de_sejour="Accord REL-001", moveon_offer_id="REL-AUTO-999"
+                )
+            ],
+            self.year,
+        )
+
+        assert report.created == 1
+        self.agreement.refresh_from_db()
+        assert self.agreement.moveon_id == "REL-AUTO-999"
 
 
 # ---------------------------------------------------------------------------
@@ -582,6 +651,15 @@ class _FakeMoveOnWish:
         return str(
             self._p.get("Offre de séjour") or self._p.get("offre_de_sejour", "")
         ).strip()
+
+    @property
+    def moveon_offer_id(self):
+        val = (
+            self._p.get("Offre de séjour ID")
+            or self._p.get("offre_de_sejour_id")
+            or self._p.get("moveon_offer_id")
+        )
+        return str(val).strip() if val not in (None, "") else None
 
     @property
     def rank(self):

@@ -10,6 +10,7 @@ import type {
   Country,
   Department,
   Level,
+  PagedResponse,
   Parcours,
   PartnerUniversity,
   RawImport,
@@ -18,7 +19,7 @@ import type {
 type ReferencesContainerProps = {
   initialCountries: Country[];
   initialDepartments: Department[];
-  initialUniversities: PartnerUniversity[];
+  initialUniversities: PagedResponse<PartnerUniversity>;
   initialUniversityImportErrors: RawImport[];
   initialDepartmentImportErrors: RawImport[];
   initialMobilityLevels: Level[];
@@ -38,13 +39,9 @@ export function ReferencesContainer({
 }: ReferencesContainerProps) {
   const [countries, setCountries] = useState(initialCountries);
   const [departments, setDepartments] = useState(initialDepartments);
-  const [universities, setUniversities] = useState(initialUniversities);
-  const [universityImportErrors, setUniversityImportErrors] = useState(
-    initialUniversityImportErrors,
-  );
-  const [departmentImportErrors, setDepartmentImportErrors] = useState(
-    initialDepartmentImportErrors,
-  );
+  const [universities, setUniversities] = useState<PagedResponse<PartnerUniversity>>(initialUniversities);
+  const [universityImportErrors, setUniversityImportErrors] = useState(initialUniversityImportErrors);
+  const [departmentImportErrors, setDepartmentImportErrors] = useState(initialDepartmentImportErrors);
   const [mobilityLevels, setMobilityLevels] = useState(initialMobilityLevels);
   const [levelImportErrors, setLevelImportErrors] = useState(initialLevelImportErrors);
   const [parcours, setParcours] = useState(initialParcours);
@@ -71,7 +68,7 @@ export function ReferencesContainer({
           tone="emerald"
           value={parcours.length}
         />
-         <StatCard
+        <StatCard
           helper="Niveaux d'etude"
           icon={BookOpen}
           label="Niveaux"
@@ -83,7 +80,7 @@ export function ReferencesContainer({
           icon={University}
           label="Universites partenaires"
           tone="amber"
-          value={universities.length}
+          value={universities.count}
         />
         <StatCard
           helper="Referentiel international"

@@ -87,7 +87,7 @@ jobs:
           SECRET_KEY: ci-secret-key-not-used-in-prod
         run: |
           cd backend
-          pytest --cov=. --cov-report=xml --cov-fail-under=70 -v
+          pytest --cov=. --cov-report=xml --cov-fail-under=80 -v
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -156,6 +156,7 @@ jobs:
           tags: mobility-backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          load: true
 
       - name: Build frontend image
         uses: docker/build-push-action@v6
@@ -166,4 +167,22 @@ jobs:
           tags: mobility-frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          
+          load: true
+
+      - name: Scan backend image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: mobility-backend:${{ github.sha }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Scan frontend image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: mobility-frontend:${{ github.sha }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true

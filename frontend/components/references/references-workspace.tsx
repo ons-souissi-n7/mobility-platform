@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 
 import { CountriesTable } from "@/components/references/countries-table";
@@ -22,6 +22,7 @@ import { Btn } from "@/components/ui/btn";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { SearchInput } from "@/components/ui/search-input";
+import { DEFAULT_PAGE_SIZE } from "@/lib/config";
 import {
   createCountry,
   createDepartment,
@@ -33,11 +34,14 @@ import {
   deleteLevel,
   deleteParcours,
   deleteUniversity,
+  fetchUniversitiesPage,
+  forceDepartmentImport,
+  forceLevelImport,
+  forceUniversityImport,
   getDepartmentImportErrors,
   getDepartments,
   getLevelImportErrors,
   getLevels,
-  getUniversities,
   getUniversityImportErrors,
   ignoreDepartmentImport,
   ignoreLevelImport,
@@ -62,6 +66,7 @@ import type {
   Country,
   Department,
   Level,
+  PagedResponse,
   Parcours,
   PartnerUniversity,
   RawImport,
@@ -76,8 +81,8 @@ type ReferencesWorkspaceProps = {
   setCountries: Dispatch<SetStateAction<Country[]>>;
   departments: Department[];
   setDepartments: Dispatch<SetStateAction<Department[]>>;
-  universities: PartnerUniversity[];
-  setUniversities: Dispatch<SetStateAction<PartnerUniversity[]>>;
+  universities: PagedResponse<PartnerUniversity>;
+  setUniversities: Dispatch<SetStateAction<PagedResponse<PartnerUniversity>>>;
   universityImportErrors: RawImport[];
   setUniversityImportErrors: Dispatch<SetStateAction<RawImport[]>>;
   departmentImportErrors: RawImport[];
@@ -122,15 +127,20 @@ export function ReferencesWorkspace({
   const [departmentSyncError, setDepartmentSyncError] = useState("");
   const [levelSyncInProgress, setLevelSyncInProgress] = useState(false);
   const [levelSyncError, setLevelSyncError] = useState("");
+
+  // University server-side pagination & filter state
+  const [univPage, setUnivPage] = useState(universities.page);
+  const [univCountryFilter, setUnivCountryFilter] = useState<string>("all");
+  const univSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [univSearch, setUnivSearch] = useState("");
+
   const normalizedQuery = query.trim().toLowerCase();
 
+  // Client-side filters for small reference lists
   const filteredCountries = useMemo(() => {
     if (!normalizedQuery) return countries;
     return countries.filter((c) =>
-      [c.iso2, c.name_fr, c.name_en, c.cti_region]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery)
+      [c.iso2, c.name_fr, c.name_en, c.cti_region].join(" ").toLowerCase().includes(normalizedQuery)
     );
   }, [countries, normalizedQuery]);
 
@@ -140,28 +150,6 @@ export function ReferencesWorkspace({
       [d.code, d.name].join(" ").toLowerCase().includes(normalizedQuery)
     );
   }, [departments, normalizedQuery]);
-
-  const filteredUniversities = useMemo(() => {
-    if (!normalizedQuery) return universities;
-    const countriesById = createIdMap(countries);
-    return universities.filter((u) => {
-      const c = countriesById.get(u.country_id);
-      return [
-        u.name,
-        u.short_name,
-        u.translated_name,
-        u.erasmus_code,
-        u.city,
-        u.email,
-        c?.iso2,
-        c?.name_fr,
-        c?.name_en,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery);
-    });
-  }, [countries, normalizedQuery, universities]);
 
   const filteredLevels = useMemo(() => {
     if (!normalizedQuery) return mobilityLevels;
@@ -175,12 +163,48 @@ export function ReferencesWorkspace({
     const deptMap = createIdMap(departments);
     return parcours.filter((p) => {
       const d = deptMap.get(p.department_id);
-      return [p.code, p.label, d?.code ?? ""]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery);
+      return [p.code, p.label, d?.code ?? ""].join(" ").toLowerCase().includes(normalizedQuery);
     });
   }, [parcours, departments, normalizedQuery]);
+
+  // ---------------------------------------------------------------------------
+  // University server-side fetch
+  // ---------------------------------------------------------------------------
+
+  async function doFetchUniversities(search: string, countryId: string, page: number) {
+    const data = await fetchUniversitiesPage({
+      search: search || undefined,
+      country_id: countryId !== "all" ? Number(countryId) : undefined,
+      page,
+      page_size: DEFAULT_PAGE_SIZE,
+    });
+    setUniversities(data);
+    setUnivPage(data.page);
+  }
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    // Debounce university API call
+    if (univSearchTimer.current) clearTimeout(univSearchTimer.current);
+    univSearchTimer.current = setTimeout(() => {
+      setUnivSearch(value);
+      void doFetchUniversities(value, univCountryFilter, 1);
+    }, 350);
+  }
+
+  function handleUnivCountryChange(value: string) {
+    setUnivCountryFilter(value);
+    void doFetchUniversities(univSearch, value, 1);
+  }
+
+  function handleUnivPageChange(page: number) {
+    setUnivPage(page);
+    void doFetchUniversities(univSearch, univCountryFilter, page);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mutations
+  // ---------------------------------------------------------------------------
 
   async function submitReference(
     payload: CountryPayload | DepartmentPayload | PartnerUniversityPayload
@@ -210,10 +234,10 @@ export function ReferencesWorkspace({
       const p = payload as PartnerUniversityPayload;
       if (modal.item && "country_id" in modal.item) {
         const res = await updateUniversity(modal.item.id, p);
-        setUniversities((prev) => prev.map((i) => (i.id === res.id ? res : i)));
+        setUniversities((prev) => ({ ...prev, results: prev.results.map((i) => (i.id === res.id ? res : i)) }));
       } else {
         const res = await createUniversity(p);
-        setUniversities((prev) => [...prev, res]);
+        setUniversities((prev) => ({ ...prev, results: [...prev.results, res], count: prev.count + 1 }));
       }
     }
     setModal(null);
@@ -258,7 +282,11 @@ export function ReferencesWorkspace({
   async function removeUniversity(university: PartnerUniversity) {
     if (!await confirm(`Supprimer l'universite "${university.name}" ?`)) return;
     await deleteUniversity(university.id);
-    setUniversities((prev) => prev.filter((i) => i.id !== university.id));
+    setUniversities((prev) => ({
+      ...prev,
+      results: prev.results.filter((i) => i.id !== university.id),
+      count: Math.max(0, prev.count - 1),
+    }));
   }
 
   async function removeLevel(level: Level) {
@@ -281,9 +309,7 @@ export function ReferencesWorkspace({
       await syncUniversitiesFromMoveon();
       await waitForUniversitySyncRefresh(prev);
     } catch (error) {
-      setSyncError(
-        error instanceof Error ? error.message : "La synchronisation a echoue.",
-      );
+      setSyncError(error instanceof Error ? error.message : "La synchronisation a echoue.");
     } finally {
       setSyncInProgress(false);
     }
@@ -297,9 +323,7 @@ export function ReferencesWorkspace({
       await syncDepartmentsFromPegase();
       await waitForDepartmentSyncRefresh(prev);
     } catch (error) {
-      setDepartmentSyncError(
-        error instanceof Error ? error.message : "La synchronisation a echoue.",
-      );
+      setDepartmentSyncError(error instanceof Error ? error.message : "La synchronisation a echoue.");
     } finally {
       setDepartmentSyncInProgress(false);
     }
@@ -311,16 +335,11 @@ export function ReferencesWorkspace({
     try {
       await syncLevelsFromPegase();
       await delay(3000);
-      const [nextLevels, nextErrors] = await Promise.all([
-        getLevels(),
-        getLevelImportErrors(),
-      ]);
+      const [nextLevels, nextErrors] = await Promise.all([getLevels(), getLevelImportErrors()]);
       setMobilityLevels(nextLevels);
       setLevelImportErrors(nextErrors);
     } catch (error) {
-      setLevelSyncError(
-        error instanceof Error ? error.message : "La synchronisation a echoue.",
-      );
+      setLevelSyncError(error instanceof Error ? error.message : "La synchronisation a echoue.");
     } finally {
       setLevelSyncInProgress(false);
     }
@@ -343,10 +362,13 @@ export function ReferencesWorkspace({
   }
 
   async function refreshUniversityData() {
-    const [univs, errs] = await Promise.all([getUniversities(), getUniversityImportErrors()]);
-    setUniversities(univs);
+    const [univData, errs] = await Promise.all([
+      fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE }),
+      getUniversityImportErrors(),
+    ]);
+    setUniversities(univData);
     setUniversityImportErrors(errs);
-    return { errors: errs, universities: univs };
+    return { errors: errs, universities: univData };
   }
 
   async function waitForUniversitySyncRefresh(prev: string) {
@@ -361,14 +383,26 @@ export function ReferencesWorkspace({
   async function retryImportError(error: RawImport, correction?: number | string) {
     if (typeof correction !== "number") return;
     await retryUniversityImport(error.id, correction);
-    const refreshed = await getUniversities();
-    setUniversities(refreshed);
+    const [univData] = await Promise.all([
+      fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE }),
+    ]);
+    setUniversities(univData);
     setUniversityImportErrors((prev) => prev.filter((i) => i.id !== error.id));
   }
 
   async function ignoreImportError(error: RawImport) {
     await ignoreUniversityImport(error.id);
     setUniversityImportErrors((prev) => prev.filter((i) => i.id !== error.id));
+  }
+
+  async function forceUniversityImportError(error: RawImport) {
+    await forceUniversityImport(error.id);
+    const [univData, errs] = await Promise.all([
+      fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE }),
+      getUniversityImportErrors(),
+    ]);
+    setUniversities(univData);
+    setUniversityImportErrors(errs);
   }
 
   async function retryDepartmentImportError(error: RawImport, correction?: number | string) {
@@ -384,24 +418,43 @@ export function ReferencesWorkspace({
     setDepartmentImportErrors((prev) => prev.filter((i) => i.id !== error.id));
   }
 
+  async function forceDepartmentImportError(error: RawImport) {
+    await forceDepartmentImport(error.id);
+    const [depts, errs] = await Promise.all([getDepartments(), getDepartmentImportErrors()]);
+    setDepartments(depts);
+    setDepartmentImportErrors(errs);
+  }
+
   async function ignoreLevelImportError(error: RawImport) {
     await ignoreLevelImport(error.id);
     setLevelImportErrors((prev) => prev.filter((i) => i.id !== error.id));
   }
+
+  async function forceLevelImportError(error: RawImport) {
+    await forceLevelImport(error.id);
+    const [levels, errs] = await Promise.all([getLevels(), getLevelImportErrors()]);
+    setMobilityLevels(levels);
+    setLevelImportErrors(errs);
+  }
+
+  const sortedCountries = useMemo(
+    () => [...countries].sort((a, b) => a.name_fr.localeCompare(b.name_fr)),
+    [countries],
+  );
 
   return (
     <>
       <ReferenceTabs
         departmentsCount={departments.length}
         levelsCount={mobilityLevels.length}
-        universitiesCount={universities.length}
+        universitiesCount={universities.count}
         countriesCount={countries.length}
         parcoursCount={parcours.length}
       />
 
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <SearchInput
-          onChange={setQuery}
+          onChange={handleQueryChange}
           placeholder="Rechercher dans les referentiels..."
           value={query}
         />
@@ -436,6 +489,7 @@ export function ReferencesWorkspace({
               isBusy={departmentSyncInProgress}
               onIgnore={ignoreDepartmentImportError}
               onRetry={retryDepartmentImportError}
+              onForce={forceDepartmentImportError}
             />
           </ReferenceSection>
         </div>
@@ -476,17 +530,17 @@ export function ReferencesWorkspace({
               onDelete={removeLevel}
               onEdit={(l) => setLevelModal({ kind: "mobilityLevel", item: l })}
             />
-            {levelImportErrors.length > 0 ? (
+            {levelImportErrors.length > 0 && (
               <ImportErrorsPanel
                 title="Erreurs Pegase (niveaux)"
-                retryField="code"
                 countries={countries}
                 errors={levelImportErrors}
                 isBusy={levelSyncInProgress}
                 onIgnore={ignoreLevelImportError}
                 onRetry={async () => {}}
+                onForce={forceLevelImportError}
               />
-            ) : null}
+            )}
           </ReferenceSection>
         </div>
 
@@ -495,7 +549,17 @@ export function ReferencesWorkspace({
             title="Universites"
             description="Etablissements partenaires."
             toolbar={
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                <select
+                  className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
+                  value={univCountryFilter}
+                  onChange={(e) => handleUnivCountryChange(e.target.value)}
+                >
+                  <option value="all">Tous les pays</option>
+                  {sortedCountries.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name_fr}</option>
+                  ))}
+                </select>
                 <AddButton label="Ajouter" onClick={() => setModal({ kind: "university" })} />
                 <SyncButton label="Sync MoveON" isLoading={syncInProgress} onClick={handleSyncUniversities} />
               </div>
@@ -505,7 +569,13 @@ export function ReferencesWorkspace({
               countries={countries}
               onDelete={removeUniversity}
               onEdit={(u) => setModal({ kind: "university", item: u })}
-              universities={filteredUniversities}
+              universities={universities.results}
+              serverSidePagination={{
+                totalItems: universities.count,
+                page: univPage,
+                pageSize: DEFAULT_PAGE_SIZE,
+                onPageChange: handleUnivPageChange,
+              }}
             />
             <ImportErrorsPanel
               title="Erreurs MoveON"
@@ -515,6 +585,7 @@ export function ReferencesWorkspace({
               isBusy={syncInProgress}
               onIgnore={ignoreImportError}
               onRetry={retryImportError}
+              onForce={forceUniversityImportError}
             />
           </ReferenceSection>
         </div>
@@ -607,10 +678,11 @@ function getModalLabel(kind: ReferenceFormKind) {
   return "une universite";
 }
 
-function getSyncFingerprint(univs: PartnerUniversity[], errs: RawImport[]) {
+function getSyncFingerprint(univs: PagedResponse<PartnerUniversity>, errs: RawImport[]) {
   return JSON.stringify({
     errs: errs.map((e) => ({ id: e.id, status: e.status })),
-    univs: univs.map((u) => ({ id: u.id, updated_at: u.updated_at })),
+    univs: univs.results.map((u) => ({ id: u.id, updated_at: u.updated_at })),
+    count: univs.count,
   });
 }
 

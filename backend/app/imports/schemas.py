@@ -9,6 +9,7 @@ class ImportErrorItem(Schema):
     external_id: str
     reason: str
     raw_import_id: int | None = None
+    is_conflict: bool = False
 
 
 class ImportReportOut(Schema):

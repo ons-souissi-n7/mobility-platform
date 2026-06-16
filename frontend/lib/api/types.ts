@@ -1,3 +1,15 @@
+export type PagedResponse<T> = {
+  count: number;
+  page: number;
+  page_size: number;
+  results: T[];
+};
+
+export type SelectOption = {
+  id: number;
+  label: string;
+};
+
 export type Country = {
   id: number;
   iso2: string;
@@ -270,6 +282,7 @@ export type ImportErrorItem = {
   external_id: string;
   reason: string;
   raw_import_id: number | null;
+  is_conflict?: boolean;
 };
 
 export type ImportReportList = {

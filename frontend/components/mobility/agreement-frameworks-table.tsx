@@ -65,7 +65,6 @@ export function MobilityCategorysTable({
       emptyLabel="Aucun cadre d'accord configure"
       getRowKey={(framework) => framework.id}
       maxHeight="28rem"
-      pageSize={5}
     />
   );
 }

@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertTriangle, Check, ChevronDown, ChevronRight, RotateCw } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, RefreshCw, RotateCw } from "lucide-react";
 import { useState } from "react";
 
 import type { PartnerUniversity, RawImport } from "@/lib/api/types";
 import type { MobilityImportRetryPayload } from "@/lib/api/mobility-mutations";
 
 type ErrorKind =
+  | "conflict"
   | "missing_university"
   | "no_correction"
   | "category_error";
@@ -94,6 +95,7 @@ function PayloadGrid({
 }
 
 function classifyError(error: RawImport): ErrorKind {
+  if (error.status === "conflict") return "conflict";
   const msg = (error.error_message ?? "").toLowerCase();
   if (msg.includes("moveon_id is required") || msg.includes("moveon_id")) return "no_correction";
   if (
@@ -118,12 +120,14 @@ export function MobilityImportErrorsPanel({
   isBusy,
   onIgnore,
   onRetry,
+  onForce,
   universities,
 }: {
   errors: RawImport[];
   isBusy: boolean;
   onIgnore: (error: RawImport) => Promise<void>;
   onRetry: (error: RawImport, payload: MobilityImportRetryPayload) => Promise<void>;
+  onForce?: (error: RawImport) => Promise<void>;
   universities: PartnerUniversity[];
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -181,6 +185,7 @@ export function MobilityImportErrorsPanel({
           const correction = corrections[error.id] ?? {};
           const isExpanded = expandedId === error.id;
           const canRetry = kind === "missing_university" && !!correction.partner_university_id;
+          const isConflict = kind === "conflict";
 
           const entityName =
             String(error.payload?.name ?? error.payload?.reference ?? error.external_id ?? "—");
@@ -188,12 +193,12 @@ export function MobilityImportErrorsPanel({
           return (
             <div
               key={error.id}
-              className="rounded-md border border-amber-200 bg-white overflow-hidden"
+              className={`rounded-md overflow-hidden border ${isConflict ? "border-amber-400 bg-amber-50/60" : "border-amber-200 bg-white"}`}
             >
               {/* Summary row */}
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-50 transition-colors"
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isConflict ? "hover:bg-amber-100/60" : "hover:bg-amber-50"}`}
                 onClick={() => toggleExpand(error.id)}
               >
                 <span className="shrink-0 text-amber-500">
@@ -207,11 +212,17 @@ export function MobilityImportErrorsPanel({
                 <span className="shrink-0 text-xs font-medium text-gray-700 w-48 truncate">
                   {entityName}
                 </span>
-                <span className="flex-1 text-xs text-red-700 truncate">
+                <span className={`flex-1 text-xs truncate ${isConflict ? "text-amber-800" : "text-red-700"}`}>
                   {error.error_message || "Erreur inconnue"}
                 </span>
-                <span className="shrink-0 ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium bg-red-100 text-red-700">
-                  {kind === "missing_university" ? "corrigeable" : "manuel"}
+                <span className={`shrink-0 ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                  isConflict
+                    ? "bg-amber-100 text-amber-800"
+                    : kind === "missing_university"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-red-100 text-red-700"
+                }`}>
+                  {isConflict ? "conflit" : kind === "missing_university" ? "corrigeable" : "manuel"}
                 </span>
               </button>
 
@@ -226,9 +237,11 @@ export function MobilityImportErrorsPanel({
                     <div className="rounded-md border border-gray-100 bg-gray-50 p-3">
                       <PayloadGrid entity={error.entity} payload={error.payload} />
                     </div>
-                    <div className="mt-3 rounded-md border border-red-100 bg-red-50 px-3 py-2">
-                      <p className="text-xs font-semibold text-red-700">Motif d&apos;échec</p>
-                      <p className="mt-0.5 text-xs text-red-600">
+                    <div className={`mt-3 rounded-md border px-3 py-2 ${isConflict ? "border-amber-200 bg-amber-50" : "border-red-100 bg-red-50"}`}>
+                      <p className={`text-xs font-semibold ${isConflict ? "text-amber-800" : "text-red-700"}`}>
+                        {isConflict ? "Détail du conflit" : "Motif d'échec"}
+                      </p>
+                      <p className={`mt-0.5 text-xs ${isConflict ? "text-amber-700" : "text-red-600"}`}>
                         {error.error_message || "Erreur inconnue"}
                       </p>
                     </div>
@@ -237,8 +250,14 @@ export function MobilityImportErrorsPanel({
                   {/* Right: correction */}
                   <div>
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Correction proposée
+                      {isConflict ? "Action requise" : "Correction proposée"}
                     </h4>
+
+                    {isConflict && (
+                      <p className="text-xs text-amber-800">
+                        Cet enregistrement a été modifié localement après la dernière synchronisation. Cliquez sur <strong>Forcer</strong> pour écraser la version locale avec les données de la source.
+                      </p>
+                    )}
 
                     {kind === "missing_university" && (
                       <div className="space-y-2">
@@ -276,6 +295,17 @@ export function MobilityImportErrorsPanel({
                     )}
 
                     <div className="mt-4 flex gap-2">
+                      {isConflict && onForce && (
+                        <button
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-amber-600 px-3 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={busy}
+                          onClick={() => runAction(() => onForce(error), error.id)}
+                          type="button"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          Forcer
+                        </button>
+                      )}
                       {kind === "missing_university" && (
                         <button
                           className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"

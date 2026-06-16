@@ -3,10 +3,27 @@ import type {
   Country,
   Department,
   Level,
+  PagedResponse,
   Parcours,
   PartnerUniversity,
   RawImport,
 } from "@/lib/api/types";
+
+export type UniversityFilters = {
+  search?: string;
+  country_id?: number;
+  page?: number;
+  page_size?: number;
+};
+
+export function fetchUniversitiesPage(filters: UniversityFilters = {}): Promise<PagedResponse<PartnerUniversity>> {
+  const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
+  if (filters.country_id) params.set("country_id", String(filters.country_id));
+  params.set("page", String(filters.page ?? 1));
+  params.set("page_size", String(filters.page_size ?? 25));
+  return browserApi<PagedResponse<PartnerUniversity>>(`/institutions/universities/?${params.toString()}`, { method: "GET" });
+}
 
 export type CountryPayload = Omit<Country, "id">;
 export type DepartmentPayload = Omit<Department, "id" | "last_sync_pegase" | "updated_at">;
@@ -88,6 +105,12 @@ export function ignoreDepartmentImport(id: number) {
   });
 }
 
+export function forceDepartmentImport(id: number) {
+  return browserApi<RawImport>(`/reference/departments/import-errors/${id}/force-overwrite/`, {
+    method: "POST",
+  });
+}
+
 export function createUniversity(payload: PartnerUniversityPayload) {
   return browserApi<PartnerUniversity>("/institutions/universities/", {
     method: "POST",
@@ -106,10 +129,6 @@ export function deleteUniversity(id: number) {
   return browserApi<void>(`/institutions/universities/${id}/`, {
     method: "DELETE",
   });
-}
-
-export function getUniversities() {
-  return browserApi<PartnerUniversity[]>("/institutions/universities/", {});
 }
 
 export function syncUniversitiesFromMoveon() {
@@ -135,6 +154,12 @@ export function retryUniversityImport(id: number, countryId: number) {
 export function ignoreUniversityImport(id: number) {
   return browserApi<RawImport>(`/institutions/import-errors/${id}/ignore/`, {
     method: "PUT",
+  });
+}
+
+export function forceUniversityImport(id: number) {
+  return browserApi<RawImport>(`/institutions/import-errors/${id}/force-overwrite/`, {
+    method: "POST",
   });
 }
 
@@ -175,6 +200,12 @@ export function getLevelImportErrors() {
 export function ignoreLevelImport(id: number) {
   return browserApi<RawImport>(`/reference/levels/import-errors/${id}/ignore/`, {
     method: "PUT",
+  });
+}
+
+export function forceLevelImport(id: number) {
+  return browserApi<RawImport>(`/reference/levels/import-errors/${id}/force-overwrite/`, {
+    method: "POST",
   });
 }
 export function getParcours(departmentId?: number) {

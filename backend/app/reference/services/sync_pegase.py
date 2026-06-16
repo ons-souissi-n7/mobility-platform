@@ -2,7 +2,6 @@ from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 
 from app.imports.models import (
     ImportReport,
@@ -13,8 +12,14 @@ from app.imports.models import (
 )
 from app.integrations.pegase import PegaseClient
 from app.reference.models import Department
-from app.shared.sync import SyncResult, mark_raw_import
-from app.shared.validators import ValidationError
+from app.shared.sync import (
+    SyncConflictError,
+    SyncResult,
+    already_up_to_date,
+    detect_sync_conflict,
+    mark_raw_import,
+)
+from app.shared.validators import DomainValidationError
 
 from .pegase_transformer import transform_department
 from .pegase_validator import validate_department
@@ -41,10 +46,15 @@ def sync_pegase_departments(
             transformed = transform_department(payload)
             validate_department(transformed)
             created = upsert_department(transformed)
+        except SyncConflictError as exc:
+            result.conflicted += 1
+            mark_raw_import(raw_import, RawImportStatus.CONFLICT, str(exc))
+            report.record_conflict(raw_import.external_id, str(exc), raw_import.id)
+            continue
         except (
             IntegrityError,
             DjangoValidationError,
-            ValidationError,
+            DomainValidationError,
             ValueError,
             KeyError,
         ) as exc:
@@ -80,15 +90,42 @@ def _create_raw_import(
 
 
 @transaction.atomic
-def upsert_department(transformed_data: Any) -> bool:
-    department, created = Department.objects.update_or_create(
-        pegase_id=transformed_data.pegase_id,
-        defaults={
-            "code": transformed_data.code,
-            "name": transformed_data.name,
-            "last_sync_pegase": timezone.now(),
-        },
-    )
+def upsert_department(transformed_data: Any, force_overwrite: bool = False) -> bool:
+    if isinstance(transformed_data, dict):
+        transformed_data = transform_department(transformed_data)
+        validate_department(transformed_data)
+
+    # Résolution : pegase_id → code (département créé manuellement sans pegase_id)
+    # Quand trouvé par code, on renseigne le pegase_id pour accélérer les recherches futures.
+    department = Department.objects.filter(pegase_id=transformed_data.pegase_id).first()
+
+    if department is None:
+        department = Department.objects.filter(
+            code__iexact=transformed_data.code
+        ).first()
+
+    created = department is None
+    if created:
+        department = Department(code=transformed_data.code)
+    elif not force_overwrite:
+        if already_up_to_date(
+            department,
+            "last_sync_pegase",
+            transformed_data.source_updated_at,
+            code=transformed_data.code,
+            name=transformed_data.name,
+        ):
+            return False
+        if conflict := detect_sync_conflict(
+            department, "last_sync_pegase", transformed_data.source_updated_at
+        ):
+            raise conflict
+
+    department.pegase_id = transformed_data.pegase_id
+    department.code = transformed_data.code
+    department.name = transformed_data.name
     department.full_clean()
     department.save()
+    department.last_sync_pegase = department.updated_at
+    department.save(update_fields=["last_sync_pegase"])
     return created

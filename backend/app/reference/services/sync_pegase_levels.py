@@ -2,7 +2,6 @@ from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 
 from app.imports.models import (
     ImportReport,
@@ -13,7 +12,13 @@ from app.imports.models import (
 )
 from app.integrations.pegase import PegaseClient
 from app.reference.models import Level
-from app.shared.sync import SyncResult, mark_raw_import
+from app.shared.sync import (
+    SyncConflictError,
+    SyncResult,
+    already_up_to_date,
+    detect_sync_conflict,
+    mark_raw_import,
+)
 
 
 def sync_pegase_levels(
@@ -36,6 +41,11 @@ def sync_pegase_levels(
         try:
             _validate_level_payload(payload)
             created = _upsert_level(payload)
+        except SyncConflictError as exc:
+            result.conflicted += 1
+            mark_raw_import(raw_import, RawImportStatus.CONFLICT, str(exc))
+            report.record_conflict(raw_import.external_id, str(exc), raw_import.id)
+            continue
         except (IntegrityError, DjangoValidationError, ValueError, KeyError) as exc:
             result.failed += 1
             mark_raw_import(raw_import, RawImportStatus.FAILED, str(exc))
@@ -64,16 +74,52 @@ def _validate_level_payload(payload: dict[str, Any]) -> None:
 
 
 @transaction.atomic
-def _upsert_level(payload: dict[str, Any]) -> bool:
+def _upsert_level(payload: dict[str, Any], force_overwrite: bool = False) -> bool:
     pegase_id = str(payload["pegase_id"])
-    _, created = Level.objects.update_or_create(
-        pegase_id=pegase_id,
-        defaults={
-            "code": str(payload["code"]).strip().upper(),
-            "name": str(payload["name"]).strip(),
-            "last_sync_pegase": timezone.now(),
-        },
-    )
+    code = str(payload["code"]).strip().upper()
+    name = str(payload["name"]).strip()
+
+    # Résolution : pegase_id → code (niveau créé manuellement sans pegase_id)
+    # Quand trouvé par code, on renseigne le pegase_id pour accélérer les recherches futures.
+    level = Level.objects.filter(pegase_id=pegase_id).first()
+
+    if level is None:
+        level = Level.objects.filter(code__iexact=code).first()
+
+    created = level is None
+    if created:
+        level = Level(code=code)
+    elif not force_overwrite:
+        source_updated_at = None
+        raw_updated = payload.get("updated_at") or payload.get("date_modification")
+        if raw_updated:
+            from datetime import date, datetime
+
+            s = str(raw_updated).strip()
+            try:
+                source_updated_at = date.fromisoformat(s[:10])
+            except ValueError:
+                for fmt in ("%d/%m/%Y %H:%M", "%d/%m/%Y"):
+                    try:
+                        source_updated_at = datetime.strptime(s, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+        if already_up_to_date(
+            level, "last_sync_pegase", source_updated_at, code=code, name=name
+        ):
+            return False
+        if conflict := detect_sync_conflict(
+            level, "last_sync_pegase", source_updated_at
+        ):
+            raise conflict
+
+    level.pegase_id = pegase_id
+    level.code = code
+    level.name = name
+    level.save()
+    level.last_sync_pegase = level.updated_at
+    level.save(update_fields=["last_sync_pegase"])
     return created
 
 

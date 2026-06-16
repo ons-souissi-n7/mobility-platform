@@ -14,6 +14,7 @@ from app.mobility.models import (
     AgreementYear,
     AgreementYearDepartment,
     MobilityCategory,
+    NomenclatureMapping,
 )
 from app.mobility.services.quota_estimator import initialize_new_year_mobility
 from app.mobility.services.sync_moveon import (
@@ -98,6 +99,71 @@ class TestMoveOnMobilitySync:
             error_message__icontains="université partenaire",
         ).exists()
 
+    def test_fallback_finds_manual_agreement_by_name_and_backfills_moveon_id(self):
+        # Accord créé manuellement sans moveon_id, même nom que l'accord MoveON.
+        university = create_university()
+        Department.objects.create(code="SN", name="Sciences du Numerique")
+        Agreement.objects.create(
+            moveon_id=None,
+            name="Erasmus outgoing agreement",
+            partner_university=university,
+        )
+
+        result = sync_moveon_agreements(FakeClient(agreements=[agreement_payload()]))
+
+        assert result.created == 0
+        assert result.updated == 1
+        assert Agreement.objects.count() == 1  # pas de doublon
+        agreement = Agreement.objects.get(name="Erasmus outgoing agreement")
+        assert agreement.moveon_id == "REL-001"  # ID renseigné automatiquement
+
+    def test_fallback_finds_manual_agreement_by_nomenclature_and_backfills_moveon_id(
+        self,
+    ):
+        # Accord créé manuellement avec un nom DIFFÉRENT, mais même université + dates.
+        # La nomenclature (auto-remplie lors du 1er sync) permet de le retrouver.
+        university = create_university()
+        Department.objects.create(code="SN", name="Sciences du Numerique")
+        accord_manuel = Agreement.objects.create(
+            moveon_id=None,
+            name="Accord Erasmus ENSEEIHT → Trento",  # nom différent de MoveON
+            partner_university=university,
+        )
+        # Simuler une nomenclature déjà remplie (ex: par un sync accord précédent).
+        NomenclatureMapping.objects.create(
+            partner_university=university,
+            date_debut="2026-09-01",
+            date_fin="2027-08-31",
+            moveon_offer_name="Erasmus outgoing agreement",
+            agreement=accord_manuel,
+        )
+
+        result = sync_moveon_agreements(FakeClient(agreements=[agreement_payload()]))
+
+        assert result.created == 0
+        assert result.updated == 1
+        assert Agreement.objects.count() == 1  # pas de doublon
+        accord_manuel.refresh_from_db()
+        assert accord_manuel.moveon_id == "REL-001"
+
+    def test_fallback_finds_manual_category_by_name_and_backfills_moveon_id(self):
+        # Cadre créé manuellement sans moveon_id.
+        MobilityCategory.objects.create(
+            moveon_id=None, name="Job Shadowing - Echange de bonnes pratiques"
+        )
+
+        result = sync_moveon_mobility_categories(
+            FakeClient(frameworks=[framework_payload()])
+        )
+
+        assert result.created == 0
+        assert result.updated == 1
+        assert MobilityCategory.objects.count() == 1
+        category = MobilityCategory.objects.get(
+            name="Job Shadowing - Echange de bonnes pratiques"
+        )
+        assert category.moveon_id == "97"
+
     def test_sync_links_agreement_by_erasmus_code_when_moveon_id_is_missing(self):
         university = create_university()
         university.moveon_id = None
@@ -159,10 +225,14 @@ class TestMoveOnMobilitySync:
             partner_university=another_university,
         )
 
-        request = RequestFactory().get("/agreements/")
-        agreements = list_agreements(request)
+        from app.shared.api_helpers import PaginationQuery
 
-        assert len(agreements) == 2
+        request = RequestFactory().get("/agreements/")
+        result = list_agreements(
+            request, pagination=PaginationQuery(page=1, page_size=200)
+        )
+
+        assert result.count == 2
 
     def test_initialize_new_year_creates_agreement_years(self):
         university = create_university()

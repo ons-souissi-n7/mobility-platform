@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Download, FileDown, FileSpreadsheet, Plus, RefreshCw, Upload } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { AlertTriangle, ChevronDown, ChevronRight, Download, FileDown, FileSpreadsheet, Plus, RefreshCw, Upload } from "lucide-react";
 
 import { AgreementForm } from "@/components/mobility/agreement-form";
 import { MobilityCategoryForm } from "@/components/mobility/agreement-framework-form";
@@ -23,6 +23,7 @@ import {
   deleteMobilityCategory,
   downloadExcelTemplate,
   exportAgreementsExcel,
+  forceMobilityImport,
   ignoreMobilityImport,
   importAgreementsFromExcel,
   retryMobilityImport,
@@ -37,6 +38,7 @@ import {
   type MobilityImportRetryPayload,
   type MobilityCategoryPayload,
 } from "@/lib/api/mobility-mutations";
+import { fetchAgreements } from "@/lib/api/mobility";
 import type {
   AcademicYear,
   Agreement,
@@ -49,7 +51,8 @@ import type {
   PartnerUniversity,
   RawImport,
 } from "@/lib/api/types";
-import { createIdMap } from "@/lib/utils";
+
+const PAGE_LOAD_MS = Date.now();
 
 type ModalState =
   | { kind: "agreement"; item?: Agreement }
@@ -64,6 +67,7 @@ export function MobilityWorkspace({
   initialAgreements,
   initialAgreementYearDepartments,
   initialImportErrors,
+  initialExpiringAgreements,
   departments,
   mobilityLevels,
   universities,
@@ -76,11 +80,13 @@ export function MobilityWorkspace({
   initialAgreements: Agreement[];
   initialAgreementYearDepartments: AgreementYearDepartment[];
   initialImportErrors: RawImport[];
+  initialExpiringAgreements: Agreement[];
   departments: Department[];
   mobilityLevels: Level[];
   universities: PartnerUniversity[];
 }) {
   const [agreements, setAgreements] = useState(initialAgreements);
+  const [expiringAgreements] = useState(initialExpiringAgreements);
   const [mobilityCategories, setMobilityCategories] = useState(initialMobilityCategories);
   const [agreementYears, setAgreementYears] = useState(initialAgreementYears);
   const [agreementYearDepartments, setAgreementYearDepartments] = useState(initialAgreementYearDepartments);
@@ -105,10 +111,7 @@ export function MobilityWorkspace({
   const [universityFilter, setUniversityFilter] = useState<string>("all");
   const [activityFilter, setActivityFilter] = useState<string>("all");
 
-  const universitiesById = useMemo(
-    () => createIdMap(universities),
-    [universities],
-  );
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Séparer les erreurs par type
   const agreementErrors = useMemo(
@@ -120,25 +123,36 @@ export function MobilityWorkspace({
     [importErrors],
   );
 
-  const yearInstanceMap = useMemo(() => {
-    const map = new Map<number, AgreementYear>();
-    for (const yi of agreementYears) {
-      if (!yearFilter || yi.academic_year_label === yearFilter) {
-        map.set(yi.agreement_id, yi);
-      }
-    }
-    return map;
-  }, [agreementYears, yearFilter]);
-
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredAgreements = useMemo(() => {
-    if (!normalizedQuery) return agreements;
-    return agreements.filter((a) => {
-      const u = universitiesById.get(a.partner_university_id);
-      return [a.name, a.reference, a.moveon_id, u?.name, u?.city]
-        .join(" ").toLowerCase().includes(normalizedQuery);
+  async function doFetchAgreements(search?: string, countryId?: number, activity?: string) {
+    const isActive =
+      activity === "active" ? true : activity === "inactive" ? false : undefined;
+    const page = await fetchAgreements({
+      search: search || undefined,
+      country_id: countryId,
+      is_active: isActive,
+      page_size: 200,
     });
-  }, [agreements, normalizedQuery, universitiesById]);
+    setAgreements(page.results);
+  }
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      void doFetchAgreements(value, countryFilter !== "all" ? Number(countryFilter) : undefined, activityFilter);
+    }, 350);
+  }
+
+  function handleCountryFilterChange(value: string) {
+    setCountryFilter(value);
+    setUniversityFilter("all");
+    void doFetchAgreements(query, value !== "all" ? Number(value) : undefined, activityFilter);
+  }
+
+  function handleActivityFilterChange(value: string) {
+    setActivityFilter(value);
+    void doFetchAgreements(query, countryFilter !== "all" ? Number(countryFilter) : undefined, value);
+  }
 
   // Universités filtrées par pays (pour le select université)
   const filteredUniversities = useMemo(() => {
@@ -148,30 +162,15 @@ export function MobilityWorkspace({
     return [...byCountry].sort((a, b) => (a.short_name || a.name).localeCompare(b.short_name || b.name));
   }, [universities, countryFilter]);
 
+  // Client-side secondary filters (category, university, activity, year)
   const agreementsForDisplay = useMemo(() => {
-    let base = filteredAgreements;
-    if (countryFilter !== "all") {
-      const uIds = new Set(
-        universities.filter((u) => String(u.country_id) === countryFilter).map((u) => u.id),
-      );
-      base = base.filter((a) => uIds.has(a.partner_university_id));
-    }
+    let base = agreements;
     if (categoryFilter !== "all") {
       base = base.filter((a) => a.category_id === Number(categoryFilter));
     }
     if (universityFilter !== "all") {
       base = base.filter((a) => a.partner_university_id === Number(universityFilter));
     }
-
-    if (activityFilter === "active") {
-      base = base.filter((a) => yearInstanceMap.get(a.id)?.is_active === true);
-    } else if (activityFilter === "inactive") {
-      base = base.filter((a) => {
-        const yi = yearInstanceMap.get(a.id);
-        return !yi || !yi.is_active;
-      });
-    }
-
     if (yearFilter) {
       const selectedYear = academicYears.find((y) => y.label === yearFilter);
       if (selectedYear?.status === "closed") {
@@ -184,7 +183,7 @@ export function MobilityWorkspace({
       }
     }
     return base;
-  }, [academicYears, activityFilter, agreementYears, filteredAgreements, categoryFilter, countryFilter, universityFilter, universities, yearFilter, yearInstanceMap]);
+  }, [academicYears, agreementYears, agreements, categoryFilter, universityFilter, yearFilter]);
 
   const activeYearInstances = useMemo(() => {
     if (!currentYear) return [];
@@ -369,6 +368,12 @@ export function MobilityWorkspace({
     setImportErrors((items) => items.filter((e) => e.id !== error.id));
   }
 
+  async function handleForceImportError(error: RawImport) {
+    await forceMobilityImport(error.id);
+    setImportErrors((items) => items.filter((e) => e.id !== error.id));
+    await refreshMobilityData();
+  }
+
   async function handleRetryImportError(error: RawImport, payload: MobilityImportRetryPayload) {
     try {
       await retryMobilityImport(error.id, payload);
@@ -381,8 +386,16 @@ export function MobilityWorkspace({
 
   async function refreshMobilityData() {
     const { getMobilityData } = await import("@/lib/api/mobility");
-    const fresh = await getMobilityData();
-    setAgreements(fresh.agreements);
+    const [fresh, agreementsPage] = await Promise.all([
+      getMobilityData(),
+      fetchAgreements({
+        search: query || undefined,
+        country_id: countryFilter !== "all" ? Number(countryFilter) : undefined,
+        is_active: activityFilter === "active" ? true : activityFilter === "inactive" ? false : undefined,
+        page_size: 200,
+      }),
+    ]);
+    setAgreements(agreementsPage.results);
     setAgreementYears(fresh.agreementYears);
     setAgreementYearDepartments(fresh.agreementYearDepartments);
     setMobilityCategories(fresh.mobilityCategories);
@@ -422,6 +435,9 @@ export function MobilityWorkspace({
         <StatCard icon={Gauge} label="Places N7" value={statTotalN7} helper="" tone="blue" />
         <StatCard icon={FileText} label="Cadres" value={mobilityCategories.length} helper="" tone="amber" />
       </div>
+
+      {/* Accords expirant bientôt */}
+      <ExpiringAgreementsBanner agreements={expiringAgreements} universities={universities} nowMs={PAGE_LOAD_MS} />
 
       {/* Section tabs */}
       <PageTabBar
@@ -470,13 +486,10 @@ export function MobilityWorkspace({
       >
         {/* Filtres — une seule ligne */}
         <div className="mb-4 flex items-center gap-2">
-          <SearchInput onChange={setQuery} placeholder="Rechercher..." value={query} />
+          <SearchInput onChange={handleQueryChange} placeholder="Rechercher..." value={query} />
           <select
             className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
-            onChange={(e) => {
-              setCountryFilter(e.target.value);
-              setUniversityFilter("all");
-            }}
+            onChange={(e) => handleCountryFilterChange(e.target.value)}
             value={countryFilter}
           >
             <option value="all">Tous pays</option>
@@ -508,7 +521,7 @@ export function MobilityWorkspace({
           </select>
           <select
             className="w-24 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
-            onChange={(e) => setActivityFilter(e.target.value)}
+            onChange={(e) => handleActivityFilterChange(e.target.value)}
             value={activityFilter}
           >
             <option value="all">Tous</option>
@@ -541,6 +554,7 @@ export function MobilityWorkspace({
           isBusy={syncInProgress || excelImportInProgress}
           onIgnore={handleIgnoreImportError}
           onRetry={handleRetryImportError}
+          onForce={handleForceImportError}
           universities={universities}
         />
       )}
@@ -577,6 +591,7 @@ export function MobilityWorkspace({
           isBusy={categorySyncInProgress}
           onIgnore={handleIgnoreImportError}
           onRetry={handleRetryImportError}
+          onForce={handleForceImportError}
           universities={universities}
         />
       )}
@@ -620,4 +635,83 @@ export function MobilityWorkspace({
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function ExpiringAgreementsBanner({
+  agreements,
+  universities,
+  nowMs,
+}: {
+  agreements: Agreement[];
+  universities: PartnerUniversity[];
+  nowMs: number;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (agreements.length === 0) return null;
+
+  const univById = new Map(universities.map((u) => [u.id, u]));
+
+  function daysUntil(dateStr: string | null): number {
+    if (!dateStr) return Infinity;
+    return Math.ceil(
+      (new Date(dateStr).getTime() - nowMs) / (1000 * 60 * 60 * 24),
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-amber-300 bg-amber-50">
+      <button
+        type="button"
+        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+        <span className="flex-1 text-sm font-semibold text-amber-900">
+          {agreements.length} accord{agreements.length > 1 ? "s expirent" : " expire"} dans les 4 prochains mois
+        </span>
+        {open
+          ? <ChevronDown className="h-4 w-4 text-amber-600" />
+          : <ChevronRight className="h-4 w-4 text-amber-600" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-amber-200 px-4 pb-4">
+          <table className="mt-3 w-full text-xs">
+            <thead>
+              <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                <th className="pb-1 pr-4">Accord</th>
+                <th className="pb-1 pr-4">Université partenaire</th>
+                <th className="pb-1 pr-4">Expire le</th>
+                <th className="pb-1">Délai</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-amber-100">
+              {agreements.map((a) => {
+                const days = daysUntil(a.valid_until);
+                const urgency = days <= 30 ? "text-red-700 font-semibold" : "text-amber-800";
+                const univ = univById.get(a.partner_university_id);
+                return (
+                  <tr key={a.id} className="hover:bg-amber-100/50">
+                    <td className="py-1.5 pr-4 text-gray-900 font-medium max-w-56 truncate">{a.name}</td>
+                    <td className="py-1.5 pr-4 text-gray-600 max-w-48 truncate">
+                      {univ?.short_name ?? univ?.name ?? "—"}
+                    </td>
+                    <td className="py-1.5 pr-4 text-gray-700 whitespace-nowrap">
+                      {a.valid_until
+                        ? new Date(a.valid_until).toLocaleDateString("fr-FR")
+                        : "—"}
+                    </td>
+                    <td className={`py-1.5 whitespace-nowrap ${urgency}`}>
+                      {isFinite(days) ? `${days} j` : "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }

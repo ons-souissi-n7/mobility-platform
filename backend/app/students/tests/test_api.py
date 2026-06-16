@@ -65,7 +65,9 @@ class TestListStudents:
         response = self.client.get("/api/v1/students/students/")
 
         assert response.status_code == 200
-        assert response.json() == []
+        body = response.json()
+        assert body["count"] == 0
+        assert body["results"] == []
 
     def test_list_students(self):
         student = Student.objects.create(
@@ -81,9 +83,9 @@ class TestListStudents:
         response = self.client.get("/api/v1/students/students/")
 
         assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 1
-        assert data[0]["ine"] == "12345678901"
+        body = response.json()
+        assert body["count"] == 1
+        assert body["results"][0]["ine"] == "12345678901"
 
     def test_filter_by_academic_year(self):
         year2 = make_year(
@@ -103,9 +105,9 @@ class TestListStudents:
         )
 
         assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 1
-        assert data[0]["ine"] == "10000000001"
+        body = response.json()
+        assert body["count"] == 1
+        assert body["results"][0]["ine"] == "10000000001"
 
     def test_filter_by_department(self):
         dept2 = Department.objects.create(code="TC", name="Tronc Commun")
@@ -122,9 +124,95 @@ class TestListStudents:
             f"/api/v1/students/students/?department_id={self.dept.id}"
         )
 
+        body = response.json()
+        assert body["count"] == 1
+        assert body["results"][0]["ine"] == "10000000001"
+
+    def test_filter_by_level(self):
+        level2 = Level.objects.create(code="4A", name="Quatrieme annee")
+        s1 = Student.objects.create(ine="10000000001", first_name="A", last_name="A")
+        s2 = Student.objects.create(ine="10000000002", first_name="B", last_name="B")
+        AnnualEnrollment.objects.create(
+            student=s1, academic_year=self.year, department=self.dept, level=self.level
+        )
+        AnnualEnrollment.objects.create(
+            student=s2, academic_year=self.year, department=self.dept, level=level2
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/?level_id={self.level.id}"
+        )
+
+        body = response.json()
+        assert body["count"] == 1
+        assert body["results"][0]["ine"] == "10000000001"
+
+    def test_search_students(self):
+        Student.objects.create(ine="10000000001", first_name="Jean", last_name="Martin")
+        Student.objects.create(
+            ine="10000000002", first_name="Marie", last_name="Dupont"
+        )
+
+        response = self.client.get("/api/v1/students/students/?search=martin")
+
+        body = response.json()
+        assert body["count"] == 1
+        assert body["results"][0]["ine"] == "10000000001"
+
+
+# ---------------------------------------------------------------------------
+# GET /students/students/select-options/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestStudentSelectOptions:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        self.dept = Department.objects.create(code="SN", name="Sciences du Numerique")
+        self.level = Level.objects.create(code="3A", name="Troisieme annee")
+
+    def test_select_options_empty(self):
+        response = self.client.get("/api/v1/students/students/select-options/")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_select_options_with_year_filter(self):
+        student = Student.objects.create(
+            ine="12345678901", first_name="Jean", last_name="Martin"
+        )
+        AnnualEnrollment.objects.create(
+            student=student,
+            academic_year=self.year,
+            department=self.dept,
+            level=self.level,
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/select-options/?academic_year_id={self.year.id}"
+        )
+
+        assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
-        assert data[0]["ine"] == "10000000001"
+        assert "Martin" in data[0]["label"]
+
+    def test_select_options_with_search(self):
+        Student.objects.create(ine="10000000001", first_name="Jean", last_name="Martin")
+        Student.objects.create(
+            ine="10000000002", first_name="Marie", last_name="Dupont"
+        )
+
+        response = self.client.get(
+            "/api/v1/students/students/select-options/?search=dupont"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert "Dupont" in data[0]["label"]
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +259,9 @@ class TestListStudentsByYear:
         response = self.client.get(f"/api/v1/students/students/by-year/{self.year.id}/")
 
         assert response.status_code == 200
-        assert response.json() == []
+        body = response.json()
+        assert body["count"] == 0
+        assert body["results"] == []
 
     def test_by_year_returns_enrollment_details(self):
         student = Student.objects.create(
@@ -188,9 +278,9 @@ class TestListStudentsByYear:
         response = self.client.get(f"/api/v1/students/students/by-year/{self.year.id}/")
 
         assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 1
-        row = data[0]
+        body = response.json()
+        assert body["count"] == 1
+        row = body["results"][0]
         assert row["ine"] == "12345678901"
         assert row["department_code"] == "SN"
         assert row["level_code"] == "3A"
@@ -209,9 +299,77 @@ class TestListStudentsByYear:
 
         response = self.client.get(f"/api/v1/students/students/by-year/{self.year.id}/")
 
-        data = response.json()
-        assert data[0]["last_name"] == "Alpha"
-        assert data[1]["last_name"] == "Zeta"
+        results = response.json()["results"]
+        assert results[0]["last_name"] == "Alpha"
+        assert results[1]["last_name"] == "Zeta"
+
+    def test_filter_by_level(self):
+        level2 = Level.objects.create(code="4A", name="Quatrieme annee")
+        s1 = Student.objects.create(ine="10000000001", first_name="A", last_name="A")
+        s2 = Student.objects.create(ine="10000000002", first_name="B", last_name="B")
+        AnnualEnrollment.objects.create(
+            student=s1, academic_year=self.year, department=self.dept, level=self.level
+        )
+        AnnualEnrollment.objects.create(
+            student=s2, academic_year=self.year, department=self.dept, level=level2
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/by-year/{self.year.id}/?level_id={self.level.id}"
+        )
+
+        body = response.json()
+        assert body["count"] == 1
+        assert body["results"][0]["ine"] == "10000000001"
+
+    def test_filter_by_parcours(self):
+        from app.reference.models import Parcours
+
+        parcours = Parcours.objects.create(
+            department=self.dept, code="SESG", label="Systemes Embarques"
+        )
+        s1 = Student.objects.create(ine="10000000001", first_name="A", last_name="A")
+        s2 = Student.objects.create(ine="10000000002", first_name="B", last_name="B")
+        AnnualEnrollment.objects.create(
+            student=s1,
+            academic_year=self.year,
+            department=self.dept,
+            level=self.level,
+            parcours=parcours,
+        )
+        AnnualEnrollment.objects.create(
+            student=s2, academic_year=self.year, department=self.dept, level=self.level
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/by-year/{self.year.id}/?parcours_id={parcours.id}"
+        )
+
+        body = response.json()
+        assert body["count"] == 1
+        assert body["results"][0]["ine"] == "10000000001"
+
+    def test_search_by_year(self):
+        s1 = Student.objects.create(
+            ine="10000000001", first_name="Jean", last_name="Martin"
+        )
+        s2 = Student.objects.create(
+            ine="10000000002", first_name="Marie", last_name="Dupont"
+        )
+        AnnualEnrollment.objects.create(
+            student=s1, academic_year=self.year, department=self.dept, level=self.level
+        )
+        AnnualEnrollment.objects.create(
+            student=s2, academic_year=self.year, department=self.dept, level=self.level
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/by-year/{self.year.id}/?search=martin"
+        )
+
+        body = response.json()
+        assert body["count"] == 1
+        assert body["results"][0]["ine"] == "10000000001"
 
 
 # ---------------------------------------------------------------------------

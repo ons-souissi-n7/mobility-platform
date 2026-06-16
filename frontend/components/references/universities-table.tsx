@@ -1,7 +1,7 @@
 import { ExternalLink } from "lucide-react";
 
 import { ActionButtons } from "@/components/ui/action-buttons";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { DataTable, type DataTableColumn, type ServerSidePagination } from "@/components/ui/data-table";
 import type { Country, PartnerUniversity } from "@/lib/api/types";
 import { createIdMap } from "@/lib/utils";
 
@@ -86,6 +86,7 @@ type UniversitiesTableProps = {
   onDelete: (university: PartnerUniversity) => void;
   onEdit: (university: PartnerUniversity) => void;
   universities: PartnerUniversity[];
+  serverSidePagination?: ServerSidePagination;
 };
 
 export function UniversitiesTable({
@@ -93,6 +94,7 @@ export function UniversitiesTable({
   onDelete,
   onEdit,
   universities,
+  serverSidePagination,
 }: UniversitiesTableProps) {
   const countriesById = createIdMap(countries);
   const rows = universities.map((university) => ({
@@ -107,7 +109,7 @@ export function UniversitiesTable({
       emptyLabel="Aucune universite partenaire referencee"
       getRowKey={(university) => university.id}
       maxHeight="36rem"
-      pageSize={5}
+      serverSidePagination={serverSidePagination}
     />
   );
 }

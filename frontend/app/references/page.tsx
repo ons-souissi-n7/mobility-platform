@@ -8,7 +8,7 @@ export default async function ReferencesPage() {
   const {
     countries,
     departments,
-    universities,
+    universities,   // now PagedResponse<PartnerUniversity>
     universityImportErrors,
     departmentImportErrors,
     mobilityLevels,

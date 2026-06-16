@@ -3,7 +3,7 @@ from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
-from django.utils import timezone
+from django.db.models import Q
 
 from app.academic.models import AcademicYear
 from app.imports.models import (
@@ -19,9 +19,17 @@ from app.mobility.models import (
     Agreement,
     AgreementDepartment,
     MobilityCategory,
+    NomenclatureMapping,
 )
 from app.reference.models import Department, Level
-from app.shared.sync import SyncResult, mark_raw_import
+from app.shared.cleaning import normalize_for_comparison
+from app.shared.sync import (
+    SyncConflictError,
+    SyncResult,
+    already_up_to_date,
+    detect_sync_conflict,
+    mark_raw_import,
+)
 
 from .moveon_transformer import (
     TransformedAgreement,
@@ -127,6 +135,11 @@ def sync_moveon_mobility_categories(
             transformed = transform_mobility_category(payload)
             validate_mobility_category(transformed)
             created = upsert_mobility_category(transformed)
+        except SyncConflictError as exc:
+            result.conflicted += 1
+            mark_raw_import(raw_import, RawImportStatus.CONFLICT, str(exc))
+            report.record_conflict(raw_import.external_id, str(exc), raw_import.id)
+            continue
         except (
             IntegrityError,
             DjangoValidationError,
@@ -146,7 +159,7 @@ def sync_moveon_mobility_categories(
         report.record_success()
         mark_raw_import(raw_import, RawImportStatus.IMPORTED)
 
-    result.total = result.created + result.updated + result.failed
+    result.total = result.created + result.updated + result.failed + result.conflicted
     report.finalize()
     return result
 
@@ -209,6 +222,11 @@ def sync_moveon_agreements(
 
         try:
             created = upsert_agreement(transformed)
+        except SyncConflictError as exc:
+            result.conflicted += 1
+            mark_raw_import(raw_import, RawImportStatus.CONFLICT, str(exc))
+            report.record_conflict(raw_import.external_id, str(exc), raw_import.id)
+            continue
         except (
             IntegrityError,
             DjangoValidationError,
@@ -228,7 +246,13 @@ def sync_moveon_agreements(
         report.record_success()
         mark_raw_import(raw_import, RawImportStatus.IMPORTED)
 
-    result.total = result.created + result.updated + result.failed + result.ignored
+    result.total = (
+        result.created
+        + result.updated
+        + result.failed
+        + result.ignored
+        + result.conflicted
+    )
     report.finalize()
     return result
 
@@ -279,7 +303,10 @@ def sync_moveon_agreement_inp_quotas(
 
 
 @transaction.atomic
-def upsert_agreement(transformed_data: TransformedAgreement | dict[str, Any]) -> bool:
+def upsert_agreement(
+    transformed_data: TransformedAgreement | dict[str, Any],
+    force_overwrite: bool = False,
+) -> bool:
     if isinstance(transformed_data, dict):
         transformed_data = transform_agreement(transformed_data)
         validate_agreement(transformed_data)
@@ -294,26 +321,74 @@ def upsert_agreement(transformed_data: TransformedAgreement | dict[str, Any]) ->
 
     category = _resolve_mobility_category(transformed_data.category_name)
 
-    defaults = {
-        "name": transformed_data.name,
-        "partner_university": partner_university,
-        "category": category,
-        "direction": transformed_data.direction,
-        "valid_from": transformed_data.start_date,
-        "valid_until": transformed_data.end_date,
-        "inp_institutions": transformed_data.inp_institutions,
-        "remarks": transformed_data.remarks,
-        "last_sync_moveon": timezone.now(),
-    }
+    # ── Résolution en 4 étapes ────────────────────────────────────────────────
+    # 1. Par moveon_id (lien stable vers la source)
+    agreement = Agreement.objects.filter(moveon_id=transformed_data.moveon_id).first()
 
-    agreement, created = Agreement.objects.update_or_create(
-        moveon_id=transformed_data.moveon_id,
-        defaults=defaults,
-    )
+    # 2. Par nom exact pour la même université (accord créé manuellement)
+    if agreement is None:
+        agreement = Agreement.objects.filter(
+            name__iexact=transformed_data.name,
+            partner_university=partner_university,
+        ).first()
+
+    # 3. Par nomenclature structurelle : (université + cadre + date_début + date_fin)
+    #    Clé naturelle externe déterministe — auto-remplie par le sync accords.
+    if agreement is None and transformed_data.start_date and transformed_data.end_date:
+        mapping = (
+            NomenclatureMapping.objects.filter(
+                partner_university=partner_university,
+                category=category,
+                date_debut=transformed_data.start_date,
+                date_fin=transformed_data.end_date,
+            )
+            .select_related("agreement")
+            .first()
+        )
+        if mapping is not None:
+            agreement = mapping.agreement
+
+    # 4. Création si aucun match
+    created = agreement is None
+    if created:
+        agreement = Agreement()
+    elif not force_overwrite:
+        if already_up_to_date(
+            agreement,
+            "last_sync_moveon",
+            transformed_data.source_updated_at,
+            name=transformed_data.name,
+            direction=transformed_data.direction,
+            valid_from=transformed_data.start_date,
+            valid_until=transformed_data.end_date,
+            inp_institutions=transformed_data.inp_institutions,
+            remarks=transformed_data.remarks,
+        ):
+            return False
+        if conflict := detect_sync_conflict(
+            agreement, "last_sync_moveon", transformed_data.source_updated_at
+        ):
+            raise conflict
+
+    # Auto-renseigne moveon_id si l'accord existait sans lui
+    if not agreement.moveon_id:
+        agreement.moveon_id = transformed_data.moveon_id
+
+    agreement.name = transformed_data.name
+    agreement.partner_university = partner_university
+    agreement.category = category
+    agreement.direction = transformed_data.direction
+    agreement.valid_from = transformed_data.start_date
+    agreement.valid_until = transformed_data.end_date
+    agreement.inp_institutions = transformed_data.inp_institutions
+    agreement.remarks = transformed_data.remarks
     agreement.full_clean()
     agreement.save()
+    agreement.last_sync_moveon = agreement.updated_at
+    agreement.save(update_fields=["last_sync_moveon"])
     _sync_departments(agreement, transformed_data.department_tokens)
     _sync_levels(agreement, transformed_data.level_tokens)
+    _upsert_nomenclature(agreement, partner_university, category, transformed_data)
     return created
 
 
@@ -333,20 +408,46 @@ def _update_agreement_inp_quota(transformed_data: TransformedAgreementQuota) -> 
 @transaction.atomic
 def upsert_mobility_category(
     transformed_data: TransformedMobilityCategory | dict[str, Any],
+    force_overwrite: bool = False,
 ) -> bool:
     if isinstance(transformed_data, dict):
         transformed_data = transform_mobility_category(transformed_data)
         validate_mobility_category(transformed_data)
 
-    category, created = MobilityCategory.objects.update_or_create(
-        moveon_id=transformed_data.moveon_id,
-        defaults={
-            "name": transformed_data.name,
-            "last_sync_moveon": timezone.now(),
-        },
-    )
+    # Résolution : moveon_id → nom (cadre créé manuellement sans moveon_id)
+    # Quand trouvé par nom, on renseigne le moveon_id pour accélérer les recherches futures.
+    category = MobilityCategory.objects.filter(
+        moveon_id=transformed_data.moveon_id
+    ).first()
+
+    if category is None:
+        category = MobilityCategory.objects.filter(
+            name__iexact=transformed_data.name.strip(),
+            moveon_id__isnull=True,
+        ).first()
+
+    created = category is None
+    if created:
+        category = MobilityCategory()
+    elif not force_overwrite:
+        if already_up_to_date(
+            category,
+            "last_sync_moveon",
+            transformed_data.source_updated_at,
+            name=transformed_data.name,
+        ):
+            return False
+        if conflict := detect_sync_conflict(
+            category, "last_sync_moveon", transformed_data.source_updated_at
+        ):
+            raise conflict
+
+    category.moveon_id = transformed_data.moveon_id
+    category.name = transformed_data.name
     category.full_clean()
     category.save()
+    category.last_sync_moveon = category.updated_at
+    category.save(update_fields=["last_sync_moveon"])
     return created
 
 
@@ -380,9 +481,29 @@ def _create_raw_import(
     )
 
 
+def _upsert_nomenclature(
+    agreement: Agreement,
+    partner_university: PartnerUniversity,
+    category: MobilityCategory | None,
+    transformed_data: TransformedAgreement,
+) -> None:
+    """Crée ou met à jour l'entrée de nomenclature liée à cet accord."""
+    NomenclatureMapping.objects.update_or_create(
+        agreement=agreement,
+        defaults={
+            "partner_university": partner_university,
+            "category": category,
+            "date_debut": transformed_data.start_date,
+            "date_fin": transformed_data.end_date,
+            "moveon_offer_name": transformed_data.name,
+        },
+    )
+
+
 def _resolve_partner_university(
     transformed_data: TransformedAgreement,
 ) -> PartnerUniversity:
+    # 1. By internal PK
     if transformed_data.partner_university_id:
         try:
             return PartnerUniversity.objects.get(
@@ -391,6 +512,7 @@ def _resolve_partner_university(
         except PartnerUniversity.DoesNotExist:
             pass
 
+    # 2. By MoveON ID (most reliable external key)
     if transformed_data.partner_university_moveon_id:
         try:
             return PartnerUniversity.objects.get(
@@ -399,21 +521,64 @@ def _resolve_partner_university(
         except PartnerUniversity.DoesNotExist:
             pass
 
+    # 3. By Erasmus code — DB case-insensitive first, then whitespace-normalized fallback
+    #    (handles legacy records stored with extra internal spaces, e.g. "I  TRENTO01")
     if transformed_data.partner_university_erasmus_code:
-        code = _normalize(transformed_data.partner_university_erasmus_code)
-        for u in PartnerUniversity.objects.exclude(erasmus_code=""):
-            if _normalize(u.erasmus_code) == code:
-                return u
+        code = transformed_data.partner_university_erasmus_code.strip()
+        university = (
+            PartnerUniversity.objects.exclude(erasmus_code="")
+            .filter(erasmus_code__iexact=code)
+            .first()
+        )
+        if university is None:
+            code_norm = normalize_for_comparison(code)
+            university = next(
+                (
+                    u
+                    for u in PartnerUniversity.objects.exclude(erasmus_code="").only(
+                        "id", "erasmus_code", "moveon_id"
+                    )
+                    if normalize_for_comparison(u.erasmus_code) == code_norm
+                ),
+                None,
+            )
+        if university is not None:
+            _backfill_university_moveon_id(
+                university, transformed_data.partner_university_moveon_id
+            )
+            return university
 
+    # 4. By name across all name fields — DB case-insensitive first, then accent/whitespace fallback
     if transformed_data.partner_university_name:
-        name = _normalize(transformed_data.partner_university_name)
-        for u in PartnerUniversity.objects.all():
-            if any(
-                _normalize(n) == name for n in [u.name, u.short_name, u.translated_name]
-            ):
-                return u
+        name = transformed_data.partner_university_name.strip()
+        university = PartnerUniversity.objects.filter(
+            Q(name__iexact=name)
+            | Q(short_name__iexact=name)
+            | Q(translated_name__iexact=name)
+        ).first()
+        if university is None:
+            name_norm = normalize_for_comparison(name)
+            university = next(
+                (
+                    u
+                    for u in PartnerUniversity.objects.only(
+                        "id", "name", "short_name", "translated_name", "moveon_id"
+                    )
+                    if any(
+                        normalize_for_comparison(v) == name_norm
+                        for v in [u.name, u.short_name, u.translated_name]
+                        if v
+                    )
+                ),
+                None,
+            )
+        if university is not None:
+            _backfill_university_moveon_id(
+                university, transformed_data.partner_university_moveon_id
+            )
+            return university
 
-    # Fallback: if this agreement was already corrected and saved, reuse its university
+    # 5. Reuse the university of an already-corrected agreement with the same moveon_id
     if transformed_data.moveon_id:
         try:
             return Agreement.objects.get(
@@ -428,14 +593,19 @@ def _resolve_partner_university(
     )
 
 
+def _backfill_university_moveon_id(
+    university: PartnerUniversity, moveon_id: int | None
+) -> None:
+    if moveon_id and not university.moveon_id:
+        university.moveon_id = moveon_id
+        university.save(update_fields=["moveon_id", "updated_at"])
+
+
 def _resolve_mobility_category(category_name: str) -> MobilityCategory | None:
-    if not category_name:
+    name = (category_name or "").strip()
+    if not name:
         return None
-    normalized = _normalize(category_name)
-    for c in MobilityCategory.objects.all():
-        if _normalize(c.name) == normalized:
-            return c
-    return None
+    return MobilityCategory.objects.filter(name__iexact=name).first()
 
 
 def _sync_departments(agreement: Agreement, tokens: tuple[str, ...]) -> None:
@@ -475,11 +645,13 @@ def _sync_levels(agreement: Agreement, tokens: tuple[str, ...]) -> None:
 
 
 def _resolve_department(token: str) -> Department | None:
-    norm = _normalize(token)
-    for d in Department.objects.all():
-        if _normalize(d.code) == norm or _normalize(d.name) == norm:
-            return d
-    return None
+    key = token.strip()
+    if not key:
+        return None
+    return (
+        Department.objects.filter(code__iexact=key).first()
+        or Department.objects.filter(name__iexact=key).first()
+    )
 
 
 def _get_or_create_level(token: str) -> Level:
@@ -488,7 +660,3 @@ def _get_or_create_level(token: str) -> Level:
         code=code, defaults={"name": token.strip()}
     )
     return level
-
-
-def _normalize(value: str) -> str:
-    return " ".join(value.strip().casefold().split())

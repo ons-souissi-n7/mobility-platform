@@ -1,17 +1,22 @@
-import { getApi } from "@/lib/api/client";
-import type { AcademicYear, Department, Level } from "@/lib/api/types";
+import {
+  getCachedAcademicYears,
+  getCachedDepartments,
+  getCachedLevels,
+  getCachedParcours,
+} from "@/lib/api/server-cache";
 
 export async function getStudentsData() {
-  const [academicYears, departments, levels] = await Promise.all([
-    getApi<AcademicYear[]>("/academic/years/"),
-    getApi<Department[]>("/reference/departments/"),
-    getApi<Level[]>("/reference/levels/"),
+  const [academicYears, departments, levels, parcourses] = await Promise.all([
+    getCachedAcademicYears(),
+    getCachedDepartments(),
+    getCachedLevels(),
+    getCachedParcours(),
   ]);
 
-  return { academicYears, departments, levels };
+  return { academicYears, departments, levels, parcourses };
 }
 
 export async function getWishesData() {
-  const academicYears = await getApi<AcademicYear[]>("/academic/years/");
+  const academicYears = await getCachedAcademicYears();
   return { academicYears };
 }

@@ -1,9 +1,9 @@
 from io import BytesIO
 
 import openpyxl
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse
-from ninja import File, Router
+from ninja import File, Query, Router
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -21,8 +21,14 @@ from app.imports.models import (
 )
 from app.mobility.models import Agreement
 from app.reference.models import Department, Level, Parcours
+from app.shared.api_helpers import (
+    PagedResponse,
+    PaginationQuery,
+    SelectOption,
+    paginate,
+)
 from app.shared.excel_utils import build_filename, workbook_response, write_header_row
-from app.shared.validators import ValidationError
+from app.shared.validators import DomainValidationError
 
 from .models import AnnualEnrollment, Student, StudentWish
 from .schemas import (
@@ -53,18 +59,60 @@ from .services.sync_moveon import WishRow, import_wish_rows, sync_moveon_wishes
 router = Router()
 
 
-@router.get("/students/", response=list[StudentOut], summary="Liste des etudiants")
+@router.get(
+    "/students/", response=PagedResponse[StudentOut], summary="Liste des etudiants"
+)
 def list_students(
     request,
     academic_year_id: int | None = None,
     department_id: int | None = None,
+    level_id: int | None = None,
+    search: str | None = None,
+    pagination: PaginationQuery = Query(),
 ):
     qs = Student.objects.all()
     if academic_year_id:
         qs = qs.filter(enrollments__academic_year_id=academic_year_id)
     if department_id:
         qs = qs.filter(enrollments__department_id=department_id)
-    return qs.distinct()
+    if level_id:
+        qs = qs.filter(enrollments__level_id=level_id)
+    if search:
+        qs = qs.filter(
+            Q(last_name__icontains=search)
+            | Q(first_name__icontains=search)
+            | Q(ine__icontains=search)
+        )
+    qs = qs.distinct()
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
+
+
+@router.get(
+    "/students/select-options/",
+    response=list[SelectOption],
+    summary="Options etudiants pour dropdown",
+)
+def list_students_select(
+    request,
+    academic_year_id: int | None = None,
+    search: str | None = None,
+):
+    qs = Student.objects.order_by("last_name", "first_name")
+    if academic_year_id:
+        qs = qs.filter(enrollments__academic_year_id=academic_year_id).distinct()
+    if search:
+        qs = qs.filter(
+            Q(last_name__icontains=search)
+            | Q(first_name__icontains=search)
+            | Q(ine__icontains=search)
+        )
+    return [
+        SelectOption(id=s.id, label=f"{s.last_name} {s.first_name} ({s.ine})")
+        for s in qs[:500]
+    ]
 
 
 @router.get(
@@ -324,18 +372,39 @@ def download_student_template(request):
 
 @router.get(
     "/students/by-year/{year_id}/",
-    response=list[StudentEnrollmentOut],
+    response=PagedResponse[StudentEnrollmentOut],
     summary="Etudiants inscrits pour une annee avec details d'inscription",
 )
-def list_students_by_year(request, year_id: int):
-    enrollments = (
+def list_students_by_year(
+    request,
+    year_id: int,
+    department_id: int | None = None,
+    level_id: int | None = None,
+    parcours_id: int | None = None,
+    search: str | None = None,
+    pagination: PaginationQuery = Query(),
+):
+    qs = (
         AnnualEnrollment.objects.filter(academic_year_id=year_id)
         .select_related(
             "student", "student__nationality", "department", "level", "parcours"
         )
         .order_by("student__last_name", "student__first_name")
     )
-    return [
+    if department_id:
+        qs = qs.filter(department_id=department_id)
+    if level_id:
+        qs = qs.filter(level_id=level_id)
+    if parcours_id:
+        qs = qs.filter(parcours_id=parcours_id)
+    if search:
+        qs = qs.filter(
+            Q(student__last_name__icontains=search)
+            | Q(student__first_name__icontains=search)
+            | Q(student__ine__icontains=search)
+        )
+    count, enrollments = paginate(qs, pagination.page, pagination.page_size)
+    items = [
         StudentEnrollmentOut(
             student_id=e.student.id,
             ine=e.student.ine,
@@ -362,6 +431,9 @@ def list_students_by_year(request, year_id: int):
         )
         for e in enrollments
     ]
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
 
 
 @router.get(
@@ -450,7 +522,7 @@ def retry_student_import_error(
     try:
         ts = transform_student(corrected)
         validate_student(ts)
-    except (ValueError, ValidationError) as exc:
+    except (ValueError, DomainValidationError) as exc:
         raise HttpError(400, str(exc)) from exc
 
     row = StudentRow(
@@ -531,7 +603,7 @@ def retry_wish_import_error(request, raw_import_id: int, payload: WishImportRetr
     try:
         tw = transform_wish(corrected)
         validate_wish(tw)
-    except (ValueError, ValidationError) as exc:
+    except (ValueError, DomainValidationError) as exc:
         raise HttpError(400, str(exc)) from exc
 
     row = WishRow(
@@ -590,7 +662,7 @@ def download_wish_template(request, year_id: int):
     response=WishSyncReportOut,
     summary="Importer les vœux depuis un fichier Excel",
 )
-def import_wishes_from_excel(request, year_id: int, file: UploadedFile = File(...)):  # noqa: B008
+def import_wishes_from_excel(request, year_id: int, file: UploadedFile = File(...)):
     academic_year = get_academic_year(year_id)
     rows = excel_wishes_adapter.parse_wish_excel(file.read())
     db_report = DbImportReport.objects.create(
@@ -839,7 +911,7 @@ def sync_from_pegase(request, year_id: int):
     response=ImportReportOut,
     summary="Importer les etudiants depuis un fichier Excel",
 )
-def import_from_excel(request, year_id: int, file: UploadedFile = File(...)):  # noqa: B008
+def import_from_excel(request, year_id: int, file: UploadedFile = File(...)):
     academic_year = get_academic_year(year_id)
     rows = excel_adapter.parse(file.read())
     db_report = DbImportReport.objects.create(

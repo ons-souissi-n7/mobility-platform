@@ -52,6 +52,32 @@ class TestPegaseDepartmentSync:
             error_message__contains="Code du département",
         ).exists()
 
+    def test_fallback_finds_manual_department_by_code_and_backfills_pegase_id(self):
+        # Département créé manuellement sans pegase_id.
+        Department.objects.create(
+            code="SN", name="Sciences du Numerique", pegase_id=None
+        )
+
+        result = sync_pegase_departments(FakeClient([department_payload()]))
+
+        assert result.created == 0
+        assert result.updated == 1
+        assert Department.objects.count() == 1  # pas de doublon
+        dept = Department.objects.get(code="SN")
+        assert dept.pegase_id == "101"  # ID renseigné automatiquement
+
+    def test_fallback_code_match_is_case_insensitive(self):
+        Department.objects.create(
+            code="sn", name="Sciences du Numerique", pegase_id=None
+        )
+
+        result = sync_pegase_departments(FakeClient([department_payload()]))
+
+        assert result.created == 0
+        assert Department.objects.count() == 1
+        dept = Department.objects.first()
+        assert dept.pegase_id == "101"
+
 
 def department_payload(**overrides):
     payload = {

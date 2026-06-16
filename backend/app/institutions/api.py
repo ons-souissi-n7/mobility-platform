@@ -1,12 +1,18 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from django.utils import timezone
-from ninja import Router
+from ninja import Query, Router
 from ninja.errors import HttpError
 
 from app.reference.models import Country
-from app.shared.api_helpers import save_validated
+from app.shared.api_helpers import (
+    PagedResponse,
+    PaginationQuery,
+    SelectOption,
+    paginate,
+    save_validated,
+)
 
 from .models import (
     PartnerUniversity,
@@ -21,7 +27,7 @@ from .schemas import (
 )
 from .services.moveon_transformer import transform_institution
 from .services.moveon_validator import (
-    ValidationError as MoveOnValidationError,
+    DomainValidationError as MoveOnValidationError,
 )
 from .services.moveon_validator import (
     validate_institution,
@@ -34,11 +40,39 @@ router = Router()
 
 @router.get(
     "/universities/",
-    response=list[PartnerUniversityOut],
+    response=PagedResponse[PartnerUniversityOut],
     summary="Liste des universites partenaires",
 )
-def list_universities(request):
-    return PartnerUniversity.objects.select_related("country").all()
+def list_universities(
+    request,
+    search: str | None = None,
+    country_id: int | None = None,
+    pagination: PaginationQuery = Query(),
+):
+    qs = PartnerUniversity.objects.select_related("country").all()
+    if search:
+        qs = qs.filter(Q(name__icontains=search) | Q(erasmus_code__icontains=search))
+    if country_id:
+        qs = qs.filter(country_id=country_id)
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
+
+
+@router.get(
+    "/universities/select-options/",
+    response=list[SelectOption],
+    summary="Options universites pour dropdown",
+)
+def list_universities_select(request):
+    qs = PartnerUniversity.objects.select_related("country").order_by("name")
+    options = []
+    for u in qs:
+        erasmus = f" ({u.erasmus_code})" if u.erasmus_code else ""
+        country = f" – {u.country.name_fr}" if u.country_id else ""
+        options.append(SelectOption(id=u.id, label=f"{u.name}{erasmus}{country}"))
+    return options
 
 
 @router.post(
@@ -105,7 +139,11 @@ def list_university_import_errors(request):
     return [
         raw_import
         for raw_import in latest_by_external_id.values()
-        if raw_import.status == PartnerUniversityRawImportStatus.FAILED
+        if raw_import.status
+        in (
+            PartnerUniversityRawImportStatus.FAILED,
+            PartnerUniversityRawImportStatus.CONFLICT,
+        )
     ]
 
 
@@ -191,13 +229,58 @@ def retry_university_import(
     return raw_import
 
 
+@router.post(
+    "/import-errors/{raw_import_id}/force-overwrite/",
+    response=PartnerUniversityImportOut,
+    summary="Forcer la mise a jour d'une universite partenaire en conflit",
+)
+def force_overwrite_university_import(request, raw_import_id: int):
+    try:
+        raw_import = PartnerUniversityRawImport.objects.get(
+            pk=raw_import_id,
+            status=PartnerUniversityRawImportStatus.CONFLICT,
+        )
+    except PartnerUniversityRawImport.DoesNotExist as exc:
+        raise HttpError(404, "Enregistrement en conflit introuvable.") from exc
+
+    try:
+        transformed = transform_institution(raw_import.payload)
+        validate_institution(transformed)
+        upsert_partner_university(transformed, force_overwrite=True)
+    except (
+        IntegrityError,
+        ValidationError,
+        MoveOnValidationError,
+        ValueError,
+        KeyError,
+    ) as exc:
+        raise HttpError(400, str(exc)) from exc
+
+    raw_import.status = PartnerUniversityRawImportStatus.IMPORTED
+    raw_import.error_message = ""
+    raw_import.imported_at = timezone.now()
+    raw_import.save(
+        update_fields=["status", "error_message", "imported_at", "updated_at"]
+    )
+    return raw_import
+
+
 @router.put(
     "/import-errors/{raw_import_id}/ignore/",
     response=PartnerUniversityImportOut,
     summary="Marquer une erreur d'import MoveON d'universite comme traitee",
 )
 def ignore_university_import(request, raw_import_id: int):
-    raw_import = get_university_raw_import(raw_import_id)
+    try:
+        raw_import = PartnerUniversityRawImport.objects.get(
+            pk=raw_import_id,
+            status__in=[
+                PartnerUniversityRawImportStatus.FAILED,
+                PartnerUniversityRawImportStatus.CONFLICT,
+            ],
+        )
+    except PartnerUniversityRawImport.DoesNotExist as exc:
+        raise HttpError(404, "Erreur d'import universite introuvable.") from exc
     raw_import.status = PartnerUniversityRawImportStatus.IGNORED
     raw_import.error_message = (
         f"{raw_import.error_message}\nTraite manuellement par l'administrateur."
@@ -220,6 +303,7 @@ def sync_universities_from_moveon(request):
 
 
 def get_university_raw_import(raw_import_id: int) -> PartnerUniversityRawImport:
+    """Used by the retry endpoint — only FAILED records can be retried (CONFLICT → force-overwrite)."""
     try:
         return PartnerUniversityRawImport.objects.get(
             pk=raw_import_id,

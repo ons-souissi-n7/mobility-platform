@@ -14,20 +14,11 @@ from urllib.request import Request, urlopen
 
 from django.conf import settings
 
+from app.shared.cleaning import normalize_gender
+
 from ..student_importer import StudentRow
 
 logger = logging.getLogger(__name__)
-
-_GENDER_MAP = {
-    "h": "M",
-    "homme": "M",
-    "m": "M",
-    "masculin": "M",
-    "f": "F",
-    "femme": "F",
-    "féminin": "F",
-    "feminin": "F",
-}
 
 
 def fetch_enrollments(academic_year_label: str) -> list[StudentRow]:
@@ -68,8 +59,7 @@ def _parse_rows(data: list) -> list[StudentRow]:
         if not ine:
             continue
 
-        raw_gender = str(item.get("sexe", item.get("genre", ""))).strip().lower()
-        gender = _GENDER_MAP.get(raw_gender, "")
+        gender = normalize_gender(str(item.get("sexe", item.get("genre", ""))))
 
         raw_gpa = item.get("moyenne", item.get("gpa"))
         gpa: float | None = None

@@ -10,9 +10,9 @@ import pytest
 from app.reference.services.pegase_schema import validate_raw_payload
 from app.reference.services.pegase_transformer import transform_department
 from app.reference.services.pegase_validator import (
-    ValidationError,
     validate_department,
 )
+from app.shared.validators import DomainValidationError as ValidationError
 
 
 class TestPegaseSchema:

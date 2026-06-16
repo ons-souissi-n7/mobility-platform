@@ -1,26 +1,24 @@
 "use client";
 
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronUp, RotateCw } from "lucide-react";
 import { useState } from "react";
 
-import { apiBaseUrl } from "@/lib/config";
+import { Badge, type BadgeStyle } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
+import { apiBaseUrl, DEFAULT_PAGE_SIZE } from "@/lib/config";
 import type { AcademicYear, ImportErrorItem, ImportReportDetail, ImportReportList } from "@/lib/api/types";
+import { formatDateTime, SELECT_CLS } from "@/lib/utils";
 
-const SOURCE_COLORS: Record<string, string> = {
-  moveon_accords: "bg-blue-50 text-blue-700",
-  moveon_categories: "bg-indigo-50 text-indigo-700",
-  moveon_quotas: "bg-violet-50 text-violet-700",
-  pegase: "bg-emerald-50 text-emerald-700",
-  excel: "bg-amber-50 text-amber-700",
+const SOURCE_STYLES: Record<string, BadgeStyle> = {
+  moveon_accords:     { label: "MoveOn Accords",     className: "bg-blue-50 text-blue-700"    },
+  moveon_categories:  { label: "MoveOn Catégories",  className: "bg-indigo-50 text-indigo-700" },
+  moveon_quotas:      { label: "MoveOn Quotas",      className: "bg-violet-50 text-violet-700" },
+  pegase:             { label: "Pégase",              className: "bg-emerald-50 text-emerald-700" },
+  excel:              { label: "Excel",               className: "bg-amber-50 text-amber-700"  },
 };
 
 function SourceBadge({ source, label }: { source: string; label: string }) {
-  const color = SOURCE_COLORS[source] ?? "bg-gray-100 text-gray-600";
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}>
-      {label}
-    </span>
-  );
+  return <Badge value={source} map={SOURCE_STYLES} label={label} />;
 }
 
 function StatusBar({ report }: { report: ImportReportList }) {
@@ -41,35 +39,120 @@ function StatusBar({ report }: { report: ImportReportList }) {
   );
 }
 
+function ConflictRow({ err }: { err: ImportErrorItem }) {
+  const [forcing, setForcing] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleForce() {
+    if (!err.raw_import_id) return;
+    setForcing(true);
+    setError("");
+    try {
+      const res = await fetch(`${apiBaseUrl}/imports/raw/${err.raw_import_id}/force-overwrite/`, {
+        method: "POST",
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { detail?: string }).detail ?? "Erreur lors de la mise à jour forcée.");
+      }
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur inconnue.");
+    } finally {
+      setForcing(false);
+    }
+  }
+
+  return (
+    <tr className={done ? "bg-emerald-50/60" : "bg-amber-50/60 hover:bg-amber-100/40"}>
+      <td className="px-3 py-2 font-mono text-gray-700">{err.external_id || "—"}</td>
+      <td className="px-3 py-2 text-amber-800">
+        <div className="flex items-start gap-1">
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-500" />
+          <span>{err.reason}</span>
+        </div>
+        {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      </td>
+      <td className="px-3 py-2 text-right">
+        {done ? (
+          <span className="text-xs text-emerald-700 font-medium">Mis à jour ✓</span>
+        ) : err.raw_import_id ? (
+          <button
+            onClick={handleForce}
+            disabled={forcing}
+            type="button"
+            className="inline-flex items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+          >
+            <RotateCw className={`h-3 w-3 ${forcing ? "animate-spin" : ""}`} />
+            Forcer
+          </button>
+        ) : null}
+      </td>
+    </tr>
+  );
+}
+
 function ErrorsPanel({ errors }: { errors: ImportErrorItem[] }) {
   if (errors.length === 0) {
     return (
       <p className="text-sm text-emerald-700 italic">Aucune erreur — import complet.</p>
     );
   }
+
+  const conflicts = errors.filter((e) => e.is_conflict);
+  const failures = errors.filter((e) => !e.is_conflict);
+
   return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+    <div className="space-y-3">
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
         {errors.length} enregistrement{errors.length > 1 ? "s" : ""} rejeté{errors.length > 1 ? "s" : ""}
+        {conflicts.length > 0 && (
+          <span className="ml-2 text-amber-600">({conflicts.length} conflit{conflicts.length > 1 ? "s" : ""})</span>
+        )}
       </p>
-      <div className="max-h-48 overflow-y-auto rounded-md border border-red-100 bg-red-50">
-        <table className="w-full text-xs">
-          <thead className="border-b border-red-100 bg-red-100 text-red-700">
-            <tr>
-              <th className="px-3 py-2 text-left font-medium">Identifiant</th>
-              <th className="px-3 py-2 text-left font-medium">Motif de rejet</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-red-50">
-            {errors.map((err, i) => (
-              <tr key={i} className="hover:bg-red-100/50">
-                <td className="px-3 py-1.5 font-mono text-gray-700">{err.external_id || "—"}</td>
-                <td className="px-3 py-1.5 text-red-700">{err.reason}</td>
+
+      {conflicts.length > 0 && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 overflow-hidden">
+          <div className="px-3 py-2 text-xs font-semibold text-amber-800 border-b border-amber-200 bg-amber-100">
+            Conflits — enregistrement modifié localement depuis la dernière sync
+          </div>
+          <table className="w-full text-xs">
+            <thead className="border-b border-amber-100 text-amber-700">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">Identifiant</th>
+                <th className="px-3 py-2 text-left font-medium">Détail</th>
+                <th className="px-3 py-2 text-right font-medium">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-amber-50">
+              {conflicts.map((err, i) => <ConflictRow key={i} err={err} />)}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {failures.length > 0 && (
+        <div className="max-h-48 overflow-y-auto rounded-md border border-red-100 bg-red-50">
+          <table className="w-full text-xs">
+            <thead className="border-b border-red-100 bg-red-100 text-red-700">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">Identifiant</th>
+                <th className="px-3 py-2 text-left font-medium">Motif de rejet</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-red-50">
+              {failures.map((err, i) => (
+                <tr key={i} className="hover:bg-red-100/50">
+                  <td className="px-3 py-1.5 font-mono text-gray-700">{err.external_id || "—"}</td>
+                  <td className="px-3 py-1.5 text-red-700">{err.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -94,13 +177,7 @@ function ReportRow({ report }: { report: ImportReportList }) {
     setExpanded((v) => !v);
   }
 
-  const date = new Date(report.created_at).toLocaleString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const date = formatDateTime(report.created_at);
 
   const hasErrors = report.error_count > 0;
 
@@ -155,6 +232,7 @@ export function ImportReportsWorkspace({
 }) {
   const [sourceFilter, setSourceFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const sources = Array.from(
     new Map(reports.map((r) => [r.source, r.source_display])).entries()
@@ -166,6 +244,20 @@ export function ImportReportsWorkspace({
     return true;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / DEFAULT_PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageItems = filtered.slice((safePage - 1) * DEFAULT_PAGE_SIZE, safePage * DEFAULT_PAGE_SIZE);
+
+  function handleSourceChange(value: string) {
+    setSourceFilter(value);
+    setCurrentPage(1);
+  }
+
+  function handleYearChange(value: string) {
+    setYearFilter(value);
+    setCurrentPage(1);
+  }
+
   return (
     <div className="space-y-4">
       {/* Filtres */}
@@ -173,8 +265,8 @@ export function ImportReportsWorkspace({
         <div className="flex items-center gap-3 overflow-x-auto">
           <select
             value={yearFilter}
-            onChange={(e) => setYearFilter(e.target.value)}
-            className="w-40 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
+            onChange={(e) => handleYearChange(e.target.value)}
+            className={`w-40 shrink-0 ${SELECT_CLS}`}
           >
             <option value="">Toutes les années</option>
             {[...academicYears]
@@ -186,8 +278,8 @@ export function ImportReportsWorkspace({
 
           <select
             value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            className="w-48 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
+            onChange={(e) => handleSourceChange(e.target.value)}
+            className={`w-48 shrink-0 ${SELECT_CLS}`}
           >
             <option value="">Toutes les sources</option>
             {sources.map(([src, label]) => (
@@ -197,7 +289,7 @@ export function ImportReportsWorkspace({
 
           {(sourceFilter || yearFilter) && (
             <button
-              onClick={() => { setSourceFilter(""); setYearFilter(""); }}
+              onClick={() => { setSourceFilter(""); setYearFilter(""); setCurrentPage(1); }}
               className="shrink-0 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-500 hover:bg-gray-50"
               type="button"
             >
@@ -231,13 +323,21 @@ export function ImportReportsWorkspace({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((report) => (
+                {pageItems.map((report) => (
                   <ReportRow key={report.id} report={report} />
                 ))}
               </tbody>
             </table>
           </div>
         )}
+        <Pagination
+          page={safePage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          pageSize={DEFAULT_PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          emptyLabel="Aucun rapport d'import"
+        />
       </div>
     </div>
   );

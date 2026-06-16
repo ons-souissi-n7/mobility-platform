@@ -7,13 +7,14 @@ import { ErrorBanner } from "@/components/ui/alert";
 import { Btn, FileBtn } from "@/components/ui/btn";
 import { ImportReportPanel } from "@/components/ui/import-report-panel";
 import { Pagination } from "@/components/ui/pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/config";
 import { StatCard } from "@/components/ui/stat-card";
 import { Toolbar } from "@/components/ui/toolbar";
 import {
   downloadWishTemplate,
   exportWishesExcel,
   getStudentImportErrors,
-  getStudentsByYear,
+  getStudentSelectOptions,
   getWishesByYear,
   ignoreStudentImportError,
   importWishesFromExcel,
@@ -21,8 +22,8 @@ import {
   syncWishesFromMoveon,
   type WishImportCorrection,
 } from "@/lib/api/student-mutations";
-import { getAgreements } from "@/lib/api/mobility-mutations";
-import type { Agreement, AcademicYear, AgreementWish, RawImport, StudentWithEnrollment, StudentWishes, WishSyncReport } from "@/lib/api/types";
+import { getValidAgreements } from "@/lib/api/mobility-mutations";
+import type { Agreement, AcademicYear, AgreementWish, RawImport, SelectOption, StudentWishes, WishSyncReport } from "@/lib/api/types";
 import { WishImportErrorsPanel } from "./wish-import-errors-panel";
 
 
@@ -36,7 +37,7 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
 
   const [selectedYearId, setSelectedYearId] = useState<number | null>(defaultYear?.id ?? null);
   const [wishes, setWishes] = useState<StudentWishes[]>([]);
-  const [enrolledStudents, setEnrolledStudents] = useState<StudentWithEnrollment[]>([]);
+  const [enrolledStudents, setEnrolledStudents] = useState<SelectOption[]>([]);
   const [agreements, setAgreements] = useState<Agreement[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [syncInProgress, setSyncInProgress] = useState(false);
@@ -65,8 +66,8 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
     Promise.all([
       getWishesByYear(selectedYearId),
       getStudentImportErrors(),
-      getStudentsByYear(selectedYearId),
-      getAgreements(),
+      getStudentSelectOptions(selectedYearId),
+      getValidAgreements(),
     ])
       .then(([w, errs, students, agr]) => {
         setWishes(w);
@@ -285,6 +286,14 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
         />
       )}
 
+      {selectedYear ? (
+        <WishesTable rows={displayed} maxRank={maxRank} isBusy={isLoading || syncInProgress} />
+      ) : (
+        <div className="rounded-md border border-dashed border-gray-300 px-4 py-12 text-center text-sm text-gray-400">
+          Sélectionnez une année universitaire pour afficher les vœux.
+        </div>
+      )}
+
       <WishImportErrorsPanel
         agreements={agreements}
         errors={wishImportErrors}
@@ -300,14 +309,6 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
           setWishImportErrors((prev) => prev.filter((e) => e.id !== err.id));
         }}
       />
-
-      {selectedYear ? (
-        <WishesTable rows={displayed} maxRank={maxRank} isBusy={isLoading || syncInProgress} />
-      ) : (
-        <div className="rounded-md border border-dashed border-gray-300 px-4 py-12 text-center text-sm text-gray-400">
-          Sélectionnez une année universitaire pour afficher les vœux.
-        </div>
-      )}
     </>
   );
 }
@@ -326,7 +327,7 @@ function WishesTable({
   isBusy: boolean;
 }) {
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageItems = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);

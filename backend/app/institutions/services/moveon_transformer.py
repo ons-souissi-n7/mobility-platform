@@ -10,9 +10,29 @@ Si le format des données MoveON change (ex: nouveau nom de champ),
 on ajuste seulement ici.
 """
 
+from datetime import date, datetime
 from typing import Any
 
 from .moveon_schema import validate_raw_payload
+
+
+def _optional_date(value: Any) -> date | None:
+    """Parse date from ISO or DD/MM/YYYY[HH:MM] formats."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, date):
+        return value
+    s = str(value).strip()
+    try:
+        return date.fromisoformat(s[:10])
+    except ValueError:
+        pass
+    for fmt in ("%d/%m/%Y %H:%M", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 class TransformedInstitution:
@@ -29,6 +49,7 @@ class TransformedInstitution:
         url: str,
         email: str,
         country_payload: dict[str, Any],
+        source_updated_at: date | None = None,
     ):
         self.moveon_id = moveon_id
         self.name = name
@@ -39,6 +60,7 @@ class TransformedInstitution:
         self.url = url
         self.email = email
         self.country_payload = country_payload
+        self.source_updated_at = source_updated_at
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -82,4 +104,7 @@ def transform_institution(payload: dict[str, Any]) -> TransformedInstitution:
         url=str(raw.get("url") or "").strip(),
         email=str(raw.get("email") or "").strip(),
         country_payload=country_payload,
+        source_updated_at=_optional_date(
+            raw.get("updated_at") or raw.get("date_modification")
+        ),
     )

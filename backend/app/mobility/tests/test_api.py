@@ -53,7 +53,9 @@ class TestMobilityAgreementAPI:
         response = self.client.get("/api/v1/mobility/agreements/")
 
         assert response.status_code == 200
-        assert response.json()[0]["moveon_id"] == "REL-001"
+        body = response.json()
+        assert body["count"] >= 1
+        assert body["results"][0]["moveon_id"] == "REL-001"
 
     def test_create_agreement(self):
         payload = {
@@ -235,3 +237,105 @@ class TestMobilityAgreementAPI:
         raw_import.refresh_from_db()
         assert raw_import.status == RawImportStatus.IGNORED
         assert "Traité manuellement" in raw_import.error_message
+
+    def test_list_agreements_select_options(self):
+        response = self.client.get("/api/v1/mobility/agreements/select-options/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert "label" in data[0]
+        assert "REL-001" in data[0]["label"] or "Erasmus" in data[0]["label"]
+
+    def test_list_agreements_with_search_filter(self):
+        Agreement.objects.create(
+            moveon_id="REL-002",
+            name="Other agreement",
+            partner_university=self.university,
+        )
+
+        response = self.client.get("/api/v1/mobility/agreements/?search=erasmus")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["count"] == 1
+        assert body["results"][0]["moveon_id"] == "REL-001"
+
+    def test_update_agreement_not_found(self):
+        payload = {
+            "name": "Non existent",
+            "partner_university_id": self.university.id,
+            "direction": "outgoing",
+            "inp_total_places": 5,
+            "inp_institutions": "N7",
+            "remarks": "",
+            "department_ids": [],
+            "level_ids": [],
+        }
+
+        response = self.client.put(
+            "/api/v1/mobility/agreements/99999/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestAgreementDepartmentAPI:
+    def setup_method(self):
+        self.client = Client()
+        self.country = Country.objects.create(
+            iso2="DE",
+            name_fr="Allemagne",
+            name_en="Germany",
+            cti_region=CTIRegion.EUROPE_HORS_FRANCE,
+        )
+        self.university = PartnerUniversity.objects.create(
+            moveon_id=2001,
+            name="TU Berlin",
+            country=self.country,
+        )
+        self.department = Department.objects.create(
+            code="SN", name="Sciences du Numerique"
+        )
+        self.agreement = Agreement.objects.create(
+            moveon_id="REL-DEPT-001",
+            name="Agreement with departments",
+            partner_university=self.university,
+        )
+        from app.mobility.models import AgreementDepartment
+
+        self.ad = AgreementDepartment.objects.create(
+            agreement=self.agreement, department=self.department
+        )
+
+    def test_list_agreement_departments(self):
+        response = self.client.get("/api/v1/mobility/agreement-departments/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["department_id"] == self.department.id
+        assert data[0]["agreement_id"] == self.agreement.id
+
+    def test_list_agreement_departments_filter_by_agreement(self):
+        agreement2 = Agreement.objects.create(
+            moveon_id="REL-DEPT-002",
+            name="Another agreement",
+            partner_university=self.university,
+        )
+        dept2 = Department.objects.create(code="TC", name="Tronc Commun")
+        from app.mobility.models import AgreementDepartment
+
+        AgreementDepartment.objects.create(agreement=agreement2, department=dept2)
+
+        response = self.client.get(
+            f"/api/v1/mobility/agreement-departments/?agreement_id={self.agreement.id}"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["department_id"] == self.department.id

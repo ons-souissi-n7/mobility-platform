@@ -37,6 +37,8 @@ class PartnerUniversity(TimeStampedModel):
         indexes = [
             models.Index(fields=["moveon_id"]),
             models.Index(fields=["country"]),
+            models.Index(fields=["name"], name="univ_name_idx"),
+            models.Index(fields=["erasmus_code"], name="univ_erasmus_idx"),
         ]
 
     def __str__(self) -> str:
@@ -51,6 +53,7 @@ class PartnerUniversityRawImportStatus(models.TextChoices):
     IMPORTED = "imported", "Imported"
     FAILED = "failed", "Failed"
     IGNORED = "ignored", "Ignored"
+    CONFLICT = "conflict", "Conflit"
 
 
 class PartnerUniversityRawImport(TimeStampedModel):

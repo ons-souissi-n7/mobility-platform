@@ -34,6 +34,11 @@ def make_log_entry(model_instance, action=LogEntry.Action.CREATE, actor=None):
     )
 
 
+def get_results(response):
+    """Extract results list from paginated response."""
+    return response.json()["results"]
+
+
 @pytest.mark.django_db
 class TestAuditLogAPI:
     def setup_method(self):
@@ -47,30 +52,32 @@ class TestAuditLogAPI:
         response = self.client.get("/api/v1/audit/logs/")
 
         assert response.status_code == 200
-        data = response.json()
-        assert len(data) >= 2
+        body = response.json()
+        assert "count" in body
+        assert "results" in body
+        assert body["count"] >= 2
 
     def test_filter_by_entity_type(self):
         response = self.client.get("/api/v1/audit/logs/?entity_type=academicyear")
 
         assert response.status_code == 200
-        data = response.json()
-        assert len(data) >= 2
-        assert all(entry["entity_type"] == "academicyear" for entry in data)
+        results = get_results(response)
+        assert len(results) >= 2
+        assert all(entry["entity_type"] == "academicyear" for entry in results)
 
     def test_filter_by_action_create(self):
         response = self.client.get("/api/v1/audit/logs/?action=create")
 
         assert response.status_code == 200
-        data = response.json()
-        assert all(entry["action"] == "create" for entry in data)
+        results = get_results(response)
+        assert all(entry["action"] == "create" for entry in results)
 
     def test_filter_by_action_update(self):
         response = self.client.get("/api/v1/audit/logs/?action=update")
 
         assert response.status_code == 200
-        data = response.json()
-        assert all(entry["action"] == "update" for entry in data)
+        results = get_results(response)
+        assert all(entry["action"] == "update" for entry in results)
 
     def test_filter_by_invalid_action(self):
         response = self.client.get("/api/v1/audit/logs/?action=invalid")
@@ -84,9 +91,9 @@ class TestAuditLogAPI:
         response = self.client.get("/api/v1/audit/logs/?actor_username=testuser")
 
         assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 1
-        assert data[0]["actor_username"] == "testuser"
+        results = get_results(response)
+        assert len(results) == 1
+        assert results[0]["actor_username"] == "testuser"
 
     def test_filter_by_date_range(self):
         today = timezone.now().date()
@@ -98,8 +105,17 @@ class TestAuditLogAPI:
         )
 
         assert response.status_code == 200
-        data = response.json()
-        assert len(data) >= 2
+        body = response.json()
+        assert body["count"] >= 2
+
+    def test_pagination_params(self):
+        response = self.client.get("/api/v1/audit/logs/?page=1&page_size=1")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["page"] == 1
+        assert body["page_size"] == 1
+        assert len(body["results"]) == 1
 
     def test_get_audit_log_detail(self):
         response = self.client.get(f"/api/v1/audit/logs/{self.log_create.id}/")

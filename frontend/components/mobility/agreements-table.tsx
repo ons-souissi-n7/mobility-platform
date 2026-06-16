@@ -354,7 +354,6 @@ export function AgreementsTable({
         data={rows}
         emptyLabel="Aucun accord trouvé."
         getRowKey={(row) => row.agreement.id}
-        pageSize={5}
       />
 
       {viewingRow && (

@@ -5,6 +5,7 @@ import type {
   AgreementYear,
   AgreementYearDepartment,
   MobilityCategory,
+  PagedResponse,
   RawImport,
 } from "@/lib/api/types";
 
@@ -54,8 +55,24 @@ export type InitYearResult = {
 
 // ── Accords ───────────────────────────────────────────────────────────────────
 
-export function getAgreements(): Promise<Agreement[]> {
-  return browserApi<Agreement[]>("/mobility/agreements/", { method: "GET" });
+export function forceMobilityImport(id: number): Promise<{ status: string; message: string }> {
+  return browserApi(`/imports/raw/${id}/force-overwrite/`, { method: "POST" });
+}
+
+export async function getAgreements(): Promise<Agreement[]> {
+  const page = await browserApi<PagedResponse<Agreement>>(
+    "/mobility/agreements/?page_size=500",
+    { method: "GET" },
+  );
+  return page.results;
+}
+
+export async function getValidAgreements(): Promise<Agreement[]> {
+  const page = await browserApi<PagedResponse<Agreement>>(
+    "/mobility/agreements/?valid_only=true&page_size=500",
+    { method: "GET" },
+  );
+  return page.results;
 }
 
 export function createAgreement(payload: AgreementPayload) {

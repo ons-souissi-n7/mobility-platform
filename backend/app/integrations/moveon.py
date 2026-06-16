@@ -128,6 +128,17 @@ class MoveOnStudentWish(MoveOnRecord):
         ).strip()
 
     @property
+    def moveon_offer_id(self) -> str | None:
+        """ID MoveON de l'accord (« Offre de séjour ID ») — absent de certains exports."""
+        val = (
+            self.payload.get("Offre de séjour ID")
+            or self.payload.get("offre_de_sejour_id")
+            or self.payload.get("offre_id")
+            or self.payload.get("moveon_offer_id")
+        )
+        return str(val).strip() if val not in (None, "") else None
+
+    @property
     def date_creation(self) -> date | None:
         return _parse_moveon_date(
             self.payload.get("Crée le")

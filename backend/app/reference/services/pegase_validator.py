@@ -1,12 +1,12 @@
-from app.shared.validators import ValidationError
+from app.shared.validators import DomainValidationError
 
 from .pegase_transformer import TransformedDepartment
 
 
 def validate_department(data: TransformedDepartment) -> None:
     if not data.pegase_id:
-        raise ValidationError("Identifiant Pégase manquant — champ obligatoire.")
+        raise DomainValidationError("Identifiant Pégase manquant — champ obligatoire.")
     if not data.code:
-        raise ValidationError("Code du département manquant — champ obligatoire.")
+        raise DomainValidationError("Code du département manquant — champ obligatoire.")
     if not data.name:
-        raise ValidationError("Nom du département manquant — champ obligatoire.")
+        raise DomainValidationError("Nom du département manquant — champ obligatoire.")

@@ -5,6 +5,7 @@ import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type { AcademicYearTransition } from "@/lib/api/academic-year-mutations";
 import type { AcademicYear } from "@/lib/api/types";
+import { formatDate } from "@/lib/utils";
 
 type AcademicYearsTableProps = {
   years: AcademicYear[];
@@ -12,14 +13,6 @@ type AcademicYearsTableProps = {
   onEdit: (year: AcademicYear) => void;
   onTransition: (year: AcademicYear, transition: AcademicYearTransition) => void;
 };
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("fr-FR").format(new Date(value));
-}
 
 function getColumns({
   onDelete,
@@ -119,7 +112,6 @@ export function AcademicYearsTable({
       emptyLabel="Aucune annee universitaire configuree"
       getRowKey={(year) => year.id}
       maxHeight="32rem"
-      pageSize={5}
     />
   );
 }

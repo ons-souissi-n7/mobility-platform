@@ -9,6 +9,7 @@ class RawImportStatus(models.TextChoices):
     IMPORTED = "imported", "Importé"
     FAILED = "failed", "Échoué"
     IGNORED = "ignored", "Ignoré"
+    CONFLICT = "conflict", "Conflit"
 
 
 class RawImportEntity(models.TextChoices):
@@ -65,6 +66,10 @@ class RawImport(TimeStampedModel):
             models.Index(fields=["status"], name="imports_raw_status_idx"),
             models.Index(fields=["entity"], name="imports_raw_entity_idx"),
             models.Index(fields=["import_report"], name="imports_raw_report_idx"),
+            models.Index(fields=["academic_year"], name="imports_raw_year_idx"),
+            models.Index(
+                fields=["academic_year", "status"], name="imports_raw_year_status_idx"
+            ),
         ]
 
     def __str__(self) -> str:
@@ -142,6 +147,21 @@ class ImportReport(TimeStampedModel):
         self.error_count += 1
         self.total += 1
         entry: dict = {"external_id": external_id, "reason": reason}
+        if raw_import_id is not None:
+            entry["raw_import_id"] = raw_import_id
+        self.errors.append(entry)
+
+    def record_conflict(
+        self, external_id: str, reason: str, raw_import_id: int | None = None
+    ) -> None:
+        """Record a sync conflict — locally-modified record blocked from being overwritten."""
+        self.error_count += 1
+        self.total += 1
+        entry: dict = {
+            "external_id": external_id,
+            "reason": reason,
+            "is_conflict": True,
+        }
         if raw_import_id is not None:
             entry["raw_import_id"] = raw_import_id
         self.errors.append(entry)

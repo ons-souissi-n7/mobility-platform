@@ -93,7 +93,6 @@ export function AgreementQuotasTable({
       emptyLabel="Aucun quota d'accord configure"
       getRowKey={(quota) => quota.id}
       maxHeight="32rem"
-      pageSize={5}
     />
   );
 }

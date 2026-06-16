@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ElementType, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
 import { BookOpen, Download, Eye, FileDown, FileSpreadsheet, GraduationCap, RefreshCw, Upload, Users, X } from "lucide-react";
 
 import { ErrorBanner } from "@/components/ui/alert";
 import { Btn, FileBtn } from "@/components/ui/btn";
 import { ImportReportPanel } from "@/components/ui/import-report-panel";
 import { Pagination } from "@/components/ui/pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/config";
 import { StatCard } from "@/components/ui/stat-card";
 import { Toolbar } from "@/components/ui/toolbar";
 import {
@@ -20,6 +21,7 @@ import {
   importStudentsFromExcel,
   retryStudentImportError,
   syncStudentsFromPegase,
+  type StudentByYearFilters,
   type StudentImportCorrection,
 } from "@/lib/api/student-mutations";
 import type {
@@ -27,6 +29,7 @@ import type {
   Department,
   ImportReport,
   Level,
+  PagedResponse,
   Parcours,
   RawImport,
   StudentDetail,
@@ -39,19 +42,27 @@ import { StudentImportErrorsPanel } from "./student-import-errors-panel";
 // Workspace
 // ---------------------------------------------------------------------------
 
-export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYear[] }) {
+export function StudentsWorkspace({
+  academicYears,
+  departments,
+  levels,
+  parcourses,
+}: {
+  academicYears: AcademicYear[];
+  departments: Department[];
+  levels: Level[];
+  parcourses: Parcours[];
+}) {
   const defaultYear =
     academicYears.find((y) => y.status !== "closed") ?? academicYears[0] ?? null;
 
   const [selectedYearId, setSelectedYearId] = useState<number | null>(defaultYear?.id ?? null);
   const [stats, setStats] = useState<StudentStats | null>(null);
-  const [enrollments, setEnrollments] = useState<StudentWithEnrollment[]>([]);
+  const [pagedData, setPagedData] = useState<PagedResponse<StudentWithEnrollment> | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Text search
   const [query, setQuery] = useState("");
-
-  // Breakdown filters
   const [filterLevel, setFilterLevel] = useState("");
   const [filterDept, setFilterDept] = useState("");
   const [filterParcours, setFilterParcours] = useState("");
@@ -65,144 +76,71 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
   const [error, setError] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<StudentWithEnrollment | null>(null);
 
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const selectedYear = useMemo(
     () => academicYears.find((y) => y.id === selectedYearId) ?? null,
     [academicYears, selectedYearId],
   );
 
+  function buildFilters(overrides: Partial<StudentByYearFilters> = {}): StudentByYearFilters {
+    return {
+      search: (overrides.search ?? query) || undefined,
+      level_id: (overrides.level_id !== undefined ? overrides.level_id : filterLevel ? Number(filterLevel) : undefined),
+      department_id: (overrides.department_id !== undefined ? overrides.department_id : filterDept ? Number(filterDept) : undefined),
+      parcours_id: (overrides.parcours_id !== undefined ? overrides.parcours_id : filterParcours ? Number(filterParcours) : undefined),
+    };
+  }
+
+  async function doFetch(yearId: number, page: number, filters: StudentByYearFilters) {
+    setIsLoading(true);
+    try {
+      const data = await getStudentsByYear(yearId, { ...filters, page, page_size: DEFAULT_PAGE_SIZE });
+      setPagedData(data);
+      setCurrentPage(data.page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur de chargement.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!selectedYearId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsLoading(true);
-    setStats(null);
-    setEnrollments([]);
-    setError("");
-    setFilterLevel("");
-    setFilterDept("");
-    setFilterParcours("");
+    const id = selectedYearId;
+    let cancelled = false;
 
-    Promise.all([
-      getStudentStatsForYear(selectedYearId),
-      getStudentsByYear(selectedYearId),
-      getStudentImportErrors(),
-    ])
-      .then(([s, e, errs]) => {
+    async function load() {
+      setIsLoading(true);
+      setStats(null);
+      setPagedData(null);
+      setCurrentPage(1);
+      setError("");
+      setFilterLevel("");
+      setFilterDept("");
+      setFilterParcours("");
+      setQuery("");
+      try {
+        const [s, data, errs] = await Promise.all([
+          getStudentStatsForYear(id),
+          getStudentsByYear(id, { page: 1, page_size: DEFAULT_PAGE_SIZE }),
+          getStudentImportErrors(),
+        ]);
+        if (cancelled) return;
         setStats(s);
-        setEnrollments(e);
+        setPagedData(data);
         setImportErrors(errs.filter((err) => err.source !== "moveon_student_wishes"));
-      })
-      .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Erreur de chargement."),
-      )
-      .finally(() => setIsLoading(false));
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Erreur de chargement.");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    void load();
+    return () => { cancelled = true; };
   }, [selectedYearId]);
-
-  // ---------------------------------------------------------------------------
-  // Filter options derived from current enrollments
-  // ---------------------------------------------------------------------------
-
-  // Unique reference lists for correction selectors (unfiltered)
-  const allDepartments = useMemo<Department[]>(() => {
-    const seen = new Map<number, Department>();
-    for (const e of enrollments) {
-      if (!seen.has(e.department_id))
-        seen.set(e.department_id, { id: e.department_id, code: e.department_code, name: e.department_name, pegase_id: null, last_sync_pegase: null, updated_at: "" });
-    }
-    return [...seen.values()].sort((a, b) => a.code.localeCompare(b.code));
-  }, [enrollments]);
-
-  const allLevels = useMemo<Level[]>(() => {
-    const seen = new Map<number, Level>();
-    for (const e of enrollments) {
-      if (!seen.has(e.level_id))
-        seen.set(e.level_id, { id: e.level_id, code: e.level_code, name: e.level_name, pegase_id: null, last_sync_pegase: null, created_at: "", updated_at: "" });
-    }
-    return [...seen.values()].sort((a, b) => a.code.localeCompare(b.code));
-  }, [enrollments]);
-
-  const allParcourses = useMemo<Parcours[]>(() => {
-    const seen = new Map<number, Parcours>();
-    for (const e of enrollments) {
-      if (e.parcours_id !== null && e.parcours_code && !seen.has(e.parcours_id))
-        seen.set(e.parcours_id, { id: e.parcours_id, department_id: e.department_id, code: e.parcours_code, label: e.parcours_label ?? e.parcours_code });
-    }
-    return [...seen.values()].sort((a, b) => a.code.localeCompare(b.code));
-  }, [enrollments]);
-
-  const levelOptions = useMemo(() => {
-    const seen = new Map<number, { id: number; code: string; name: string }>();
-    for (const e of enrollments) {
-      if (!seen.has(e.level_id))
-        seen.set(e.level_id, { id: e.level_id, code: e.level_code, name: e.level_name });
-    }
-    return [...seen.values()].sort((a, b) => a.code.localeCompare(b.code));
-  }, [enrollments]);
-
-  const deptOptions = useMemo(() => {
-    const seen = new Map<number, { id: number; code: string; name: string }>();
-    for (const e of enrollments) {
-      if (filterLevel && e.level_id !== Number(filterLevel)) continue;
-      if (!seen.has(e.department_id))
-        seen.set(e.department_id, { id: e.department_id, code: e.department_code, name: e.department_name });
-    }
-    return [...seen.values()].sort((a, b) => a.code.localeCompare(b.code));
-  }, [enrollments, filterLevel]);
-
-  const parcoursOptions = useMemo(() => {
-    const seen = new Map<string, { key: string; code: string | null; label: string | null }>();
-    for (const e of enrollments) {
-      if (filterLevel && e.level_id !== Number(filterLevel)) continue;
-      if (filterDept && e.department_id !== Number(filterDept)) continue;
-      const key = e.parcours_id === null ? "none" : String(e.parcours_id);
-      if (!seen.has(key)) seen.set(key, { key, code: e.parcours_code, label: e.parcours_label });
-    }
-    return [...seen.values()].sort((a, b) => (a.code ?? "").localeCompare(b.code ?? ""));
-  }, [enrollments, filterLevel, filterDept]);
-
-  // ---------------------------------------------------------------------------
-  // Filtered + sorted enrollments
-  // ---------------------------------------------------------------------------
-
-  const displayEnrollments = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let result = enrollments;
-
-    // Text search
-    if (q) {
-      result = result.filter((e) =>
-        [e.ine, e.first_name, e.last_name, e.email, e.department_code, e.level_code, e.parcours_code ?? ""]
-          .join(" ")
-          .toLowerCase()
-          .includes(q),
-      );
-    }
-
-    // Breakdown filters
-    if (filterLevel) result = result.filter((e) => e.level_id === Number(filterLevel));
-    if (filterDept) result = result.filter((e) => e.department_id === Number(filterDept));
-    if (filterParcours) {
-      result = result.filter((e) =>
-        filterParcours === "none" ? e.parcours_id === null : e.parcours_id === Number(filterParcours),
-      );
-    }
-
-    // Sort: breakdown dims then name
-    const hasFilter = filterLevel || filterDept || filterParcours;
-    if (hasFilter) {
-      result = [...result].sort((a, b) => {
-        const lc = a.level_code.localeCompare(b.level_code);
-        if (lc !== 0) return lc;
-        const dc = a.department_code.localeCompare(b.department_code);
-        if (dc !== 0) return dc;
-        const pc = (a.parcours_code ?? "").localeCompare(b.parcours_code ?? "");
-        if (pc !== 0) return pc;
-        const ln = a.last_name.localeCompare(b.last_name);
-        return ln !== 0 ? ln : a.first_name.localeCompare(b.first_name);
-      });
-    }
-
-    return result;
-  }, [enrollments, query, filterLevel, filterDept, filterParcours]);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -212,19 +150,63 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
     if (!selectedYearId) return;
     setIsLoading(true);
     try {
-      const [s, e, errs] = await Promise.all([
+      const [s, data, errs] = await Promise.all([
         getStudentStatsForYear(selectedYearId),
-        getStudentsByYear(selectedYearId),
+        getStudentsByYear(selectedYearId, { ...buildFilters(), page: currentPage, page_size: DEFAULT_PAGE_SIZE }),
         getStudentImportErrors(),
       ]);
       setStats(s);
-      setEnrollments(e);
+      setPagedData(data);
       setImportErrors(errs.filter((err) => err.source !== "moveon_student_wishes"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de rechargement.");
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => {
+      if (!selectedYearId) return;
+      setCurrentPage(1);
+      void doFetch(selectedYearId, 1, buildFilters({ search: value }));
+    }, 350);
+  }
+
+  function handleFilterLevel(value: string) {
+    setFilterLevel(value);
+    setFilterDept("");
+    setFilterParcours("");
+    setCurrentPage(1);
+    if (selectedYearId) void doFetch(selectedYearId, 1, { ...buildFilters(), level_id: value ? Number(value) : undefined, department_id: undefined, parcours_id: undefined });
+  }
+
+  function handleFilterDept(value: string) {
+    setFilterDept(value);
+    setFilterParcours("");
+    setCurrentPage(1);
+    if (selectedYearId) void doFetch(selectedYearId, 1, { ...buildFilters(), department_id: value ? Number(value) : undefined, parcours_id: undefined });
+  }
+
+  function handleFilterParcours(value: string) {
+    setFilterParcours(value);
+    setCurrentPage(1);
+    if (selectedYearId) void doFetch(selectedYearId, 1, { ...buildFilters(), parcours_id: value ? Number(value) : undefined });
+  }
+
+  function handleResetFilters() {
+    setFilterLevel("");
+    setFilterDept("");
+    setFilterParcours("");
+    setCurrentPage(1);
+    if (selectedYearId) void doFetch(selectedYearId, 1, { search: query || undefined });
+  }
+
+  function handlePageChange(page: number) {
+    setCurrentPage(page);
+    if (selectedYearId) void doFetch(selectedYearId, page, buildFilters());
   }
 
   async function handleIgnoreImportError(err: RawImport) {
@@ -289,6 +271,10 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
   const hasFilter = !!(filterLevel || filterDept || filterParcours);
   const isBusy = importInProgress || syncInProgress || isLoading;
 
+  const sortedLevels = useMemo(() => [...levels].sort((a, b) => a.code.localeCompare(b.code)), [levels]);
+  const sortedDepts = useMemo(() => [...departments].sort((a, b) => a.code.localeCompare(b.code)), [departments]);
+  const sortedParcourses = useMemo(() => [...parcourses].sort((a, b) => a.code.localeCompare(b.code)), [parcourses]);
+
   return (
     <>
       {/* Year selector */}
@@ -299,7 +285,6 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
             className="mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[#1E3A8A]"
             onChange={(e) => {
               setSelectedYearId(e.target.value ? Number(e.target.value) : null);
-              setQuery("");
               setImportReport(null);
               setError("");
             }}
@@ -328,7 +313,6 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
       {/* Stat cards */}
       {selectedYear && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
           <StatCard
             helper={`Inscrits en ${selectedYear.label}`}
             icon={Users}
@@ -358,7 +342,7 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
       )}
 
       <Toolbar
-        search={{ value: query, onChange: setQuery, placeholder: "Rechercher par INE, nom, prénom, email..." }}
+        search={{ value: query, onChange: handleQueryChange, placeholder: "Rechercher par INE, nom, prénom..." }}
         actions={
           <>
             <TemplateButton isLoading={templateLoading} onClick={handleTemplateDownload} />
@@ -376,50 +360,48 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
             <select
               className="w-36 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
               value={filterLevel}
-              onChange={(e) => { setFilterLevel(e.target.value); setFilterDept(""); setFilterParcours(""); }}
-              disabled={isLoading || levelOptions.length === 0}
+              onChange={(e) => handleFilterLevel(e.target.value)}
+              disabled={isLoading}
             >
               <option value="">Tous les niveaux</option>
-              {levelOptions.map((l) => (
+              {sortedLevels.map((l) => (
                 <option key={l.id} value={l.id}>{l.code}{l.name && l.name !== l.code ? ` — ${l.name}` : ""}</option>
               ))}
             </select>
             <select
               className="w-40 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
               value={filterDept}
-              onChange={(e) => { setFilterDept(e.target.value); setFilterParcours(""); }}
-              disabled={isLoading || deptOptions.length === 0}
+              onChange={(e) => handleFilterDept(e.target.value)}
+              disabled={isLoading}
             >
               <option value="">Tous les départements</option>
-              {deptOptions.map((d) => (
+              {sortedDepts.map((d) => (
                 <option key={d.id} value={d.id}>{d.code}{d.name && d.name !== d.code ? ` — ${d.name}` : ""}</option>
               ))}
             </select>
             <select
               className="w-40 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
               value={filterParcours}
-              onChange={(e) => setFilterParcours(e.target.value)}
-              disabled={isLoading || parcoursOptions.length === 0}
+              onChange={(e) => handleFilterParcours(e.target.value)}
+              disabled={isLoading}
             >
               <option value="">Tous les parcours</option>
-              {parcoursOptions.map((p) => (
-                <option key={p.key} value={p.key}>
-                  {p.key === "none" ? "Tronc commun" : `${p.code ?? "—"}${p.label && p.label !== p.code ? ` — ${p.label}` : ""}`}
-                </option>
+              {sortedParcourses.map((p) => (
+                <option key={p.id} value={p.id}>{p.code}{p.label && p.label !== p.code ? ` — ${p.label}` : ""}</option>
               ))}
             </select>
             {hasFilter && (
               <button
                 className="shrink-0 inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
-                onClick={() => { setFilterLevel(""); setFilterDept(""); setFilterParcours(""); }}
+                onClick={handleResetFilters}
                 type="button"
               >
                 <X className="h-3.5 w-3.5" /> Réinitialiser
               </button>
             )}
-            {hasFilter && (
+            {pagedData && (
               <span className="shrink-0 text-xs text-gray-400">
-                {displayEnrollments.length} étudiant{displayEnrollments.length > 1 ? "s" : ""}
+                {pagedData.count} étudiant{pagedData.count > 1 ? "s" : ""}
               </span>
             )}
           </>
@@ -436,30 +418,38 @@ export function StudentsWorkspace({ academicYears }: { academicYears: AcademicYe
         />
       )}
 
-      <div id="erreurs">
-        <StudentImportErrorsPanel
-          departments={allDepartments}
-          errors={importErrors}
-          isBusy={isBusy}
-          levels={allLevels}
-          onIgnore={handleIgnoreImportError}
-          onRetry={handleRetryImportError}
-          parcourses={allParcourses}
-        />
-      </div>
-
       {selectedStudent && (
         <StudentDetailPanel student={selectedStudent} onClose={() => setSelectedStudent(null)} />
       )}
 
       <div id="inscriptions">
         {selectedYear ? (
-          <EnrollmentTable enrollments={displayEnrollments} isBusy={isBusy} onView={setSelectedStudent} />
+          <EnrollmentTable
+            items={pagedData?.results ?? []}
+            totalItems={pagedData?.count ?? 0}
+            page={currentPage}
+            pageSize={DEFAULT_PAGE_SIZE}
+            isBusy={isBusy}
+            onView={setSelectedStudent}
+            onPageChange={handlePageChange}
+          />
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-12 text-center text-sm text-gray-400">
             Selectionnez une annee universitaire pour afficher les inscriptions.
           </div>
         )}
+      </div>
+
+      <div id="erreurs">
+        <StudentImportErrorsPanel
+          departments={departments}
+          errors={importErrors}
+          isBusy={isBusy}
+          levels={levels}
+          onIgnore={handleIgnoreImportError}
+          onRetry={handleRetryImportError}
+          parcourses={parcourses}
+        />
       </div>
     </>
   );
@@ -515,27 +505,29 @@ function BreakdownCard({
 }
 
 // ---------------------------------------------------------------------------
-// Enrollment table
+// Enrollment table (server-paginated)
 // ---------------------------------------------------------------------------
 
 function EnrollmentTable({
-  enrollments,
+  items,
+  totalItems,
+  page,
+  pageSize,
   isBusy,
   onView,
+  onPageChange,
 }: {
-  enrollments: StudentWithEnrollment[];
+  items: StudentWithEnrollment[];
+  totalItems: number;
+  page: number;
+  pageSize: number;
   isBusy: boolean;
   onView: (s: StudentWithEnrollment) => void;
+  onPageChange: (page: number) => void;
 }) {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
-  const totalPages = Math.max(1, Math.ceil(enrollments.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const pageItems = enrollments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setPage(1); }, [enrollments]);
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
-  if (enrollments.length === 0 && !isBusy) {
+  if (items.length === 0 && !isBusy) {
     return (
       <div className="rounded-md border border-dashed border-gray-300 px-4 py-10 text-center text-sm text-gray-500">
         Aucun etudiant. Importez un fichier Excel ou synchronisez depuis Pegase.
@@ -544,7 +536,7 @@ function EnrollmentTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className={`overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-opacity ${isBusy ? "opacity-60" : ""}`}>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
@@ -555,7 +547,7 @@ function EnrollmentTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
-            {pageItems.map((e) => (
+            {items.map((e) => (
               <tr key={`${e.student_id}-${e.level_id}`} className="hover:bg-gray-50/50">
                 <Td><span className="font-mono text-xs text-gray-600">{e.ine}</span></Td>
                 <Td><span className="font-medium text-gray-900">{e.last_name.toUpperCase()}</span></Td>
@@ -607,12 +599,11 @@ function EnrollmentTable({
       </div>
 
       <Pagination
-        page={currentPage}
+        page={page}
         totalPages={totalPages}
-        totalItems={enrollments.length}
+        totalItems={totalItems}
         pageSize={pageSize}
-        onPageChange={setPage}
-        onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+        onPageChange={onPageChange}
         emptyLabel="Aucun étudiant"
       />
     </div>
@@ -810,4 +801,3 @@ function SyncButton({ isLoading, disabled, onClick }: { isLoading: boolean; disa
     </Btn>
   );
 }
-

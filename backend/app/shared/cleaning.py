@@ -320,6 +320,25 @@ def normalize_date(value: str | None) -> date | None:
     return None
 
 
+_GENDER_ALIASES: dict[str, str] = {
+    "h": "M",
+    "homme": "M",
+    "m": "M",
+    "masculin": "M",
+    "f": "F",
+    "femme": "F",
+    "féminin": "F",
+    "feminin": "F",
+}
+
+
+def normalize_gender(value: str | None) -> str:
+    """Normalize a raw gender value to 'M', 'F', or '' (unknown)."""
+    if not value:
+        return ""
+    return _GENDER_ALIASES.get(value.strip().lower(), "")
+
+
 def normalize_ine(value: str | None) -> str:
     """Strip, uppercase, and remove internal whitespace from an INE code."""
     if not value:
