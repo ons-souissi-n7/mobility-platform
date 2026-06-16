@@ -7,7 +7,7 @@ from ninja.errors import HttpError
 
 from app.audit.logger import log_action
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
-from app.shared.api_helpers import save_validated
+from app.shared.api_helpers import SelectOption, save_validated
 
 from .models import Country, Department, Level, Parcours
 from .schemas import (
@@ -32,6 +32,18 @@ router = Router()
 @router.get("/countries/", response=list[CountryOut], summary="Liste des pays")
 def list_countries(request):
     return Country.objects.all()
+
+
+@router.get(
+    "/countries/select-options/",
+    response=list[SelectOption],
+    summary="Options pays pour dropdown",
+)
+def list_countries_select(request):
+    return [
+        SelectOption(id=c.id, label=c.name_fr)
+        for c in Country.objects.order_by("name_fr")
+    ]
 
 
 @router.post("/countries/", response={201: CountryOut}, summary="Creer un pays")
@@ -91,7 +103,7 @@ def list_department_import_errors(request):
     return [
         ri
         for ri in latest_by_external_id.values()
-        if ri.status == RawImportStatus.FAILED
+        if ri.status in (RawImportStatus.FAILED, RawImportStatus.CONFLICT)
     ]
 
 
@@ -161,7 +173,14 @@ def retry_department_import(
     summary="Marquer une erreur d'import Pegase de departement comme traitee",
 )
 def ignore_department_import(request, raw_import_id: int):
-    raw_import = get_department_raw_import(raw_import_id)
+    try:
+        raw_import = RawImport.objects.get(
+            pk=raw_import_id,
+            entity=RawImportEntity.DEPARTMENT,
+            status__in=[RawImportStatus.FAILED, RawImportStatus.CONFLICT],
+        )
+    except RawImport.DoesNotExist as exc:
+        raise HttpError(404, "Erreur d'import departement introuvable.") from exc
     raw_import.status = RawImportStatus.IGNORED
     raw_import.error_message = (
         f"{raw_import.error_message}\nTraite manuellement par l'administrateur."
@@ -187,6 +206,7 @@ def sync_departments_from_pegase(request):
 
 
 def get_department_raw_import(raw_import_id: int) -> RawImport:
+    """Used by retry endpoint — only FAILED records can be retried (CONFLICT → force-overwrite)."""
     try:
         return RawImport.objects.get(
             pk=raw_import_id,
@@ -197,6 +217,35 @@ def get_department_raw_import(raw_import_id: int) -> RawImport:
         raise HttpError(404, "Erreur d'import departement introuvable.") from exc
 
 
+@router.post(
+    "/departments/import-errors/{raw_import_id}/force-overwrite/",
+    response=RawImportOut,
+    summary="Forcer la mise a jour d'un departement en conflit",
+)
+def force_overwrite_department_import(request, raw_import_id: int):
+    try:
+        raw_import = RawImport.objects.get(
+            pk=raw_import_id,
+            entity=RawImportEntity.DEPARTMENT,
+            status=RawImportStatus.CONFLICT,
+        )
+    except RawImport.DoesNotExist as exc:
+        raise HttpError(404, "Departement en conflit introuvable.") from exc
+
+    try:
+        upsert_department(raw_import.payload, force_overwrite=True)
+    except (IntegrityError, ValidationError, ValueError, KeyError) as exc:
+        raise HttpError(400, str(exc)) from exc
+
+    raw_import.status = RawImportStatus.IMPORTED
+    raw_import.error_message = ""
+    raw_import.imported_at = timezone.now()
+    raw_import.save(
+        update_fields=["status", "error_message", "imported_at", "updated_at"]
+    )
+    return raw_import
+
+
 @router.get(
     "/departments/",
     response=list[DepartmentOut],
@@ -204,6 +253,18 @@ def get_department_raw_import(raw_import_id: int) -> RawImport:
 )
 def list_departments(request):
     return Department.objects.all()
+
+
+@router.get(
+    "/departments/select-options/",
+    response=list[SelectOption],
+    summary="Options departements pour dropdown",
+)
+def list_departments_select(request):
+    return [
+        SelectOption(id=d.id, label=f"{d.code} – {d.name}")
+        for d in Department.objects.order_by("code")
+    ]
 
 
 @router.post(
@@ -257,6 +318,18 @@ def list_levels(request):
     return Level.objects.all()
 
 
+@router.get(
+    "/levels/select-options/",
+    response=list[SelectOption],
+    summary="Options niveaux pour dropdown",
+)
+def list_levels_select(request):
+    return [
+        SelectOption(id=level.id, label=f"{level.code} – {level.name}")
+        for level in Level.objects.order_by("code")
+    ]
+
+
 @router.post("/levels/", response={201: LevelOut}, summary="Creer un niveau")
 def create_level(request, payload: LevelIn):
     level = Level(**payload.model_dump())
@@ -291,7 +364,42 @@ def list_level_import_errors(request):
         key = ri.external_id or f"raw-{ri.id}"
         if key not in latest:
             latest[key] = ri
-    return [ri for ri in latest.values() if ri.status == RawImportStatus.FAILED]
+    return [
+        ri
+        for ri in latest.values()
+        if ri.status in (RawImportStatus.FAILED, RawImportStatus.CONFLICT)
+    ]
+
+
+@router.post(
+    "/levels/import-errors/{raw_import_id}/force-overwrite/",
+    response=RawImportOut,
+    summary="Forcer la mise a jour d'un niveau en conflit",
+)
+def force_overwrite_level_import(request, raw_import_id: int):
+    try:
+        raw_import = RawImport.objects.get(
+            pk=raw_import_id,
+            entity=RawImportEntity.LEVEL,
+            status=RawImportStatus.CONFLICT,
+        )
+    except RawImport.DoesNotExist as exc:
+        raise HttpError(404, "Niveau en conflit introuvable.") from exc
+
+    try:
+        from .services.sync_pegase_levels import _upsert_level
+
+        _upsert_level(raw_import.payload, force_overwrite=True)
+    except (IntegrityError, ValidationError, ValueError, KeyError) as exc:
+        raise HttpError(400, str(exc)) from exc
+
+    raw_import.status = RawImportStatus.IMPORTED
+    raw_import.error_message = ""
+    raw_import.imported_at = timezone.now()
+    raw_import.save(
+        update_fields=["status", "error_message", "imported_at", "updated_at"]
+    )
+    return raw_import
 
 
 @router.put(
@@ -304,7 +412,7 @@ def ignore_level_import(request, raw_import_id: int):
         raw_import = RawImport.objects.get(
             pk=raw_import_id,
             entity=RawImportEntity.LEVEL,
-            status=RawImportStatus.FAILED,
+            status__in=[RawImportStatus.FAILED, RawImportStatus.CONFLICT],
         )
     except RawImport.DoesNotExist as exc:
         raise HttpError(404, "Erreur d'import niveau introuvable.") from exc
@@ -357,6 +465,21 @@ def list_parcours(request):
     if department_id:
         qs = qs.filter(department_id=department_id)
     return qs
+
+
+@router.get(
+    "/parcours/select-options/",
+    response=list[SelectOption],
+    summary="Options parcours pour dropdown",
+)
+def list_parcours_select(request):
+    department_id = request.GET.get("department_id")
+    qs = Parcours.objects.select_related("department").order_by(
+        "department__code", "code"
+    )
+    if department_id:
+        qs = qs.filter(department_id=department_id)
+    return [SelectOption(id=p.id, label=f"{p.code} – {p.label}") for p in qs]
 
 
 @router.post("/parcours/", response={201: ParcoursOut}, summary="Creer un parcours")

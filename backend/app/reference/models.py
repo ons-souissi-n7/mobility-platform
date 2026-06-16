@@ -89,7 +89,12 @@ class Parcours(TimeStampedModel):
     class Meta:
         verbose_name = "Parcours"
         verbose_name_plural = "Parcours"
-        unique_together = [("department", "code")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["department", "code"],
+                name="unique_parcours_dept_code",
+            )
+        ]
         ordering = ["department", "code"]
 
     def __str__(self) -> str:
