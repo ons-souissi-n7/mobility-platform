@@ -14,6 +14,8 @@ FROM node:20-slim
 
 WORKDIR /app
 
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system appgroup \
     && adduser --system --ingroup appgroup appuser
 
