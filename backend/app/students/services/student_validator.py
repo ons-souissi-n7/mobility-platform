@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from app.shared.validators import ValidationError
+from app.shared.validators import DomainValidationError
 
 
 class _StudentLike(Protocol):
@@ -19,19 +19,19 @@ class _WishLike(Protocol):
 
 def validate_student(data: _StudentLike) -> None:
     if not data.ine:
-        raise ValidationError("L'INE est requis.")
+        raise DomainValidationError("L'INE est requis.")
     if not data.department_code:
-        raise ValidationError("Le code département est requis.")
+        raise DomainValidationError("Le code département est requis.")
     if not data.level_code:
-        raise ValidationError("Le code niveau est requis.")
+        raise DomainValidationError("Le code niveau est requis.")
     if not data.last_name:
-        raise ValidationError("Le nom est requis.")
+        raise DomainValidationError("Le nom est requis.")
 
 
 def validate_wish(data: _WishLike) -> None:
     if not data.offre_de_sejour:
-        raise ValidationError("L'offre de séjour est requise.")
+        raise DomainValidationError("L'offre de séjour est requise.")
     if data.rank < 1:
-        raise ValidationError("Le rang doit être >= 1.")
+        raise DomainValidationError("Le rang doit être >= 1.")
     if not data.ine and not data.individu:
-        raise ValidationError("L'INE ou le nom de l'individu est requis.")
+        raise DomainValidationError("L'INE ou le nom de l'individu est requis.")

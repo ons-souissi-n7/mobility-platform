@@ -10,6 +10,8 @@ from io import BytesIO
 
 import openpyxl
 
+from app.shared.cleaning import normalize_gender
+
 from ..student_importer import StudentRow
 
 logger = logging.getLogger(__name__)
@@ -38,17 +40,6 @@ _COLUMN_MAP = {
     "nationalite_iso2": "nationality_iso2",
 }
 
-_GENDER_MAP = {
-    "h": "M",
-    "homme": "M",
-    "m": "M",
-    "masculin": "M",
-    "f": "F",
-    "femme": "F",
-    "féminin": "F",
-    "feminin": "F",
-}
-
 
 def parse(file_bytes: bytes) -> list[StudentRow]:
     wb = openpyxl.load_workbook(BytesIO(file_bytes), data_only=True)
@@ -72,8 +63,7 @@ def parse(file_bytes: bytes) -> list[StudentRow]:
         if not ine:
             continue
 
-        raw_gender = str(data.get("gender", "")).strip().lower()
-        gender = _GENDER_MAP.get(raw_gender, "")
+        gender = normalize_gender(str(data.get("gender", "")))
 
         try:
             result.append(

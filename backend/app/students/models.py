@@ -48,6 +48,10 @@ class Student(TimeStampedModel):
         verbose_name = "Etudiant"
         verbose_name_plural = "Etudiants"
         ordering = ["last_name", "first_name"]
+        indexes = [
+            models.Index(fields=["last_name", "first_name"], name="student_name_idx"),
+            models.Index(fields=["last_name"], name="student_last_name_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.last_name.upper()} {self.first_name} ({self.ine})"
@@ -83,6 +87,11 @@ class AnnualEnrollment(TimeStampedModel):
         related_name="enrollments",
     )
     gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    last_sync_pegase = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Dernière sync Pégase",
+    )
 
     def clean(self) -> None:
         if self.parcours_id and self.parcours.department_id != self.department_id:
@@ -95,8 +104,29 @@ class AnnualEnrollment(TimeStampedModel):
     class Meta:
         verbose_name = "Inscription annuelle"
         verbose_name_plural = "Inscriptions annuelles"
-        unique_together = [("student", "academic_year")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "academic_year"],
+                name="unique_enrollment_student_year",
+            )
+        ]
         ordering = ["-academic_year__start_date", "student__last_name"]
+        indexes = [
+            models.Index(fields=["academic_year"], name="students_enroll_year_idx"),
+            models.Index(
+                fields=["academic_year", "student"], name="students_enroll_year_stu_idx"
+            ),
+            models.Index(
+                fields=["academic_year", "department"],
+                name="students_enroll_year_dept_idx",
+            ),
+            models.Index(
+                fields=["academic_year", "level"], name="students_enroll_year_level_idx"
+            ),
+            models.Index(
+                fields=["academic_year", "parcours"], name="enroll_year_parcours_idx"
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.student} — {self.academic_year} ({self.level})"
@@ -115,6 +145,11 @@ class StudentWish(TimeStampedModel):
         related_name="student_wishes",
     )
     rank = models.PositiveSmallIntegerField(verbose_name="Rang du vœu")
+    last_sync_moveon = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Dernière sync MoveOn",
+    )
 
     class Meta:
         verbose_name = "Vœu étudiant"
