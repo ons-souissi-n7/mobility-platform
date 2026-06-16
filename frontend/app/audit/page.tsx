@@ -1,4 +1,4 @@
-import { ScrollText } from "lucide-react";
+import { Eye, FilePlus, PenLine, ScrollText, Trash2 } from "lucide-react";
 
 import { AuditLogsWorkspace } from "@/components/audit/audit-logs-workspace";
 import { AdminShell } from "@/components/layout/admin-shell";
@@ -9,11 +9,13 @@ import { getAuditLogs } from "@/lib/api/audit";
 export const dynamic = "force-dynamic";
 
 export default async function AuditPage() {
-  const logs = await getAuditLogs();
-
-  const totalLogs = logs.length;
-  const actors = new Set(logs.map((l) => l.actor_username).filter(Boolean)).size;
-  const creations = logs.filter((l) => l.action === "create").length;
+  const [data, creations, updates, deletions, accesses] = await Promise.all([
+    getAuditLogs({ page: 1, page_size: 50 }),
+    getAuditLogs({ action: "create", page_size: 1 }),
+    getAuditLogs({ action: "update", page_size: 1 }),
+    getAuditLogs({ action: "delete", page_size: 1 }),
+    getAuditLogs({ action: "access", page_size: 1 }),
+  ]);
 
   return (
     <AdminShell>
@@ -23,31 +25,45 @@ export default async function AuditPage() {
           description="Historique des actions effectuées sur les données de la plateforme."
         />
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <StatCard
             helper="Entrées enregistrées au total"
             icon={ScrollText}
-            label="Total événements"
+            label="Total"
             tone="blue"
-            value={totalLogs}
+            value={data.count}
           />
           <StatCard
-            helper="Utilisateurs ayant effectué une action"
-            icon={ScrollText}
-            label="Utilisateurs actifs"
-            tone="blue"
-            value={actors}
-          />
-          <StatCard
-            helper="Nouvelles entités créées"
-            icon={ScrollText}
+            helper="Créations enregistrées"
+            icon={FilePlus}
             label="Créations"
+            tone="emerald"
+            value={creations.count}
+          />
+          <StatCard
+            helper="Modifications enregistrées"
+            icon={PenLine}
+            label="Modifications"
             tone="blue"
-            value={creations}
+            value={updates.count}
+          />
+          <StatCard
+            helper="Suppressions enregistrées"
+            icon={Trash2}
+            label="Suppressions"
+            tone="amber"
+            value={deletions.count}
+          />
+          <StatCard
+            helper="Accès enregistrés"
+            icon={Eye}
+            label="Accès"
+            tone="blue"
+            value={accesses.count}
           />
         </div>
 
-        <AuditLogsWorkspace initialLogs={logs} />
+        <AuditLogsWorkspace initialData={data} />
       </div>
     </AdminShell>
   );

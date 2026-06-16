@@ -1,6 +1,7 @@
 import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type { Department } from "@/lib/api/types";
+import { formatDate } from "@/lib/utils";
 
 function getColumns(
   onEdit: (department: Department) => void,
@@ -27,7 +28,7 @@ function getColumns(
     {
       key: "last_sync_pegase",
       header: "Dernier sync",
-      render: (department) => department.last_sync_pegase ?? "-",
+      render: (department) => formatDate(department.last_sync_pegase),
     },
     {
       key: "actions",
@@ -60,7 +61,6 @@ export function DepartmentsTable({
       data={departments}
       emptyLabel="Aucun departement reference"
       getRowKey={(department) => department.id}
-      pageSize={5}
     />
   );
 }

@@ -1,55 +1,92 @@
 import { getApi } from "@/lib/api/client";
+import {
+  getCachedAcademicYears,
+  getCachedCountries,
+  getCachedCurrentYear,
+  getCachedDepartments,
+  getCachedLevels,
+  getCachedMobilityCategories,
+} from "@/lib/api/server-cache";
 import type {
-  AcademicYear,
   Agreement,
   AgreementYear,
   AgreementYearDepartment,
-  Country,
-  Department,
-  Level,
-  MobilityCategory,
+  PagedResponse,
   PartnerUniversity,
   RawImport,
+  SelectOption,
 } from "@/lib/api/types";
+
+export function getAgreementSelectOptions(): Promise<SelectOption[]> {
+  return getApi<SelectOption[]>("/mobility/agreements/select-options/");
+}
+
+export function getExpiringAgreements(months = 4): Promise<Agreement[]> {
+  return getApi<Agreement[]>(`/mobility/agreements/expiring-soon/?months=${months}`);
+}
+
+export type AgreementFilters = {
+  search?: string;
+  country_id?: number;
+  is_active?: boolean;
+  page?: number;
+  page_size?: number;
+};
+
+export function fetchAgreements(filters: AgreementFilters = {}): Promise<PagedResponse<Agreement>> {
+  const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
+  if (filters.country_id) params.set("country_id", String(filters.country_id));
+  if (filters.is_active !== undefined) params.set("is_active", String(filters.is_active));
+  params.set("page_size", String(filters.page_size ?? 200));
+  if (filters.page) params.set("page", String(filters.page));
+  return getApi<PagedResponse<Agreement>>(`/mobility/agreements/?${params.toString()}`);
+}
 
 export async function getMobilityData() {
   const [
-    agreements,
+    agreementsPage,
     mobilityCategories,
-    agreementYears,
-    agreementYearDepartments,
+    agreementYearsPage,
+    agreementYearDepartmentsPage,
     importErrors,
     mobilityLevels,
-    universities,
+    universitiesPage,
     countries,
     departments,
     academicYears,
     currentYear,
   ] = await Promise.all([
-    getApi<Agreement[]>("/mobility/agreements/"),
-    getApi<MobilityCategory[]>("/mobility/agreement-categories/"),
-    getApi<AgreementYear[]>("/mobility/agreement-years/"),
-    getApi<AgreementYearDepartment[]>("/mobility/agreement-year-departments/"),
+    // Volatile — toujours frais
+    getApi<PagedResponse<Agreement>>("/mobility/agreements/?page_size=200"),
+    // Stable — mise en cache
+    getCachedMobilityCategories(),
+    // Volatile
+    getApi<PagedResponse<AgreementYear>>("/mobility/agreement-years/?page_size=200"),
+    getApi<PagedResponse<AgreementYearDepartment>>("/mobility/agreement-year-departments/?page_size=200"),
     getApi<RawImport[]>("/mobility/raw-imports/moveon-errors/"),
-    getApi<Level[]>("/reference/levels/"),
-    getApi<PartnerUniversity[]>("/institutions/universities/"),
-    getApi<Country[]>("/reference/countries/"),
-    getApi<Department[]>("/reference/departments/"),
-    getApi<AcademicYear[]>("/academic/years/"),
-    getApi<AcademicYear | null>("/academic/years/current/"),
+    // Stable
+    getCachedLevels(),
+    // Volatile
+    getApi<PagedResponse<PartnerUniversity>>("/institutions/universities/?page_size=200"),
+    // Stables
+    getCachedCountries(),
+    getCachedDepartments(),
+    getCachedAcademicYears(),
+    getCachedCurrentYear(),
   ]);
 
   return {
     academicYears,
-    agreementYears,
-    agreementYearDepartments,
+    agreementYears: agreementYearsPage.results,
+    agreementYearDepartments: agreementYearDepartmentsPage.results,
     mobilityCategories,
-    agreements,
+    agreements: agreementsPage.results,
     currentYear,
     countries,
     departments,
     importErrors,
     mobilityLevels,
-    universities,
+    universities: universitiesPage.results,
   };
 }

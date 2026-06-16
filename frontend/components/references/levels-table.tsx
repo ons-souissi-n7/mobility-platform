@@ -1,6 +1,7 @@
 import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type { Level } from "@/lib/api/types";
+import { formatDate } from "@/lib/utils";
 
 function getColumns(
   onEdit: (level: Level) => void,
@@ -29,10 +30,7 @@ function getColumns(
     {
       key: "last_sync_pegase",
       header: "Derniere sync",
-      render: (level) =>
-        level.last_sync_pegase
-          ? new Date(level.last_sync_pegase).toLocaleDateString("fr-FR")
-          : "-",
+      render: (level) => formatDate(level.last_sync_pegase),
     },
     {
       key: "actions",
@@ -60,7 +58,6 @@ export function LevelsTable({
       data={levels}
       emptyLabel="Aucun niveau configure"
       getRowKey={(level) => level.id}
-      pageSize={5}
     />
   );
 }

@@ -1,24 +1,27 @@
 import { AdminShell } from "@/components/layout/admin-shell";
 import { MobilityWorkspace } from "@/components/mobility/mobility-workspace";
 import { PageHeader } from "@/components/ui/page-header";
-import { getMobilityData } from "@/lib/api/mobility";
+import { getExpiringAgreements, getMobilityData } from "@/lib/api/mobility";
 
 export const dynamic = "force-dynamic";
 
 export default async function MobilityPage() {
-  const {
-    academicYears,
-    mobilityCategories,
-    agreementYears,
-    agreementYearDepartments,
-    agreements,
-    countries,
-    currentYear,
-    departments,
-    importErrors,
-    mobilityLevels,
-    universities,
-  } = await getMobilityData();
+  const [
+    {
+      academicYears,
+      mobilityCategories,
+      agreementYears,
+      agreementYearDepartments,
+      agreements,
+      countries,
+      currentYear,
+      departments,
+      importErrors,
+      mobilityLevels,
+      universities,
+    },
+    expiringAgreements,
+  ] = await Promise.all([getMobilityData(), getExpiringAgreements(4)]);
 
   return (
     <AdminShell>
@@ -38,6 +41,7 @@ export default async function MobilityPage() {
           initialAgreements={agreements}
           initialAgreementYearDepartments={agreementYearDepartments}
           initialImportErrors={importErrors}
+          initialExpiringAgreements={expiringAgreements}
           mobilityLevels={mobilityLevels}
           universities={universities}
         />

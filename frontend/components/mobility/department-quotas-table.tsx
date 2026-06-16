@@ -91,7 +91,6 @@ export function DepartmentQuotasTable({
       emptyLabel="Aucun quota departement configure"
       getRowKey={(quota) => quota.id}
       maxHeight="30rem"
-      pageSize={5}
     />
   );
 }

@@ -6,7 +6,7 @@ import { getStudentsData } from "@/lib/api/students";
 export const dynamic = "force-dynamic";
 
 export default async function EtudiantsPage() {
-  const { academicYears } = await getStudentsData();
+  const { academicYears, departments, levels, parcourses } = await getStudentsData();
 
   return (
     <AdminShell>
@@ -15,7 +15,12 @@ export default async function EtudiantsPage() {
           title="Etudiants"
           description="Consultez et importez les donnees academiques des etudiants."
         />
-        <StudentsWorkspace academicYears={academicYears} />
+        <StudentsWorkspace
+          academicYears={academicYears}
+          departments={departments}
+          levels={levels}
+          parcourses={parcourses}
+        />
       </div>
     </AdminShell>
   );

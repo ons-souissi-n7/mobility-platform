@@ -80,6 +80,7 @@ type ImportErrorsPanelProps = {
   isBusy: boolean;
   onIgnore: (error: RawImport) => Promise<void>;
   onRetry: (error: RawImport, correction?: number | string) => Promise<void>;
+  onForce?: (error: RawImport) => Promise<void>;
   title?: string;
   retryField?: "country" | "code";
 };
@@ -90,6 +91,7 @@ export function ImportErrorsPanel({
   isBusy,
   onIgnore,
   onRetry,
+  onForce,
   title,
   retryField,
 }: ImportErrorsPanelProps) {
@@ -141,14 +143,16 @@ export function ImportErrorsPanel({
 
       <div className="mt-4 space-y-2">
         {errors.map((error) => {
+          const isConflict = error.status === "conflict";
           const busy = isBusy || activeId === error.id;
           const isExpanded = expandedId === error.id;
           const countryId = Number(selectedCountries[error.id] || 0);
           const code = selectedCodes[error.id] ?? "";
 
           const canRetry =
-            (retryField === "country" && !!countryId) ||
-            (retryField === "code" && !!code.trim());
+            !isConflict &&
+            ((retryField === "country" && !!countryId) ||
+              (retryField === "code" && !!code.trim()));
 
           const correction =
             retryField === "country" ? countryId : retryField === "code" ? code : undefined;
@@ -158,7 +162,7 @@ export function ImportErrorsPanel({
           return (
             <div
               key={error.id}
-              className="rounded-md border border-amber-200 bg-white overflow-hidden"
+              className={`rounded-md overflow-hidden ${isConflict ? "border border-amber-300 bg-amber-50/30" : "border border-amber-200 bg-white"}`}
             >
               {/* Summary row */}
               <button
@@ -180,8 +184,12 @@ export function ImportErrorsPanel({
                 <span className="flex-1 text-xs text-red-700 truncate">
                   {error.error_message || "Erreur inconnue"}
                 </span>
-                <span className="shrink-0 ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium bg-red-100 text-red-700">
-                  {retryField ? "corrigeable" : "manuel"}
+                <span className={`shrink-0 ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                  isConflict
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-red-100 text-red-700"
+                }`}>
+                  {isConflict ? "conflit" : retryField ? "corrigeable" : "manuel"}
                 </span>
               </button>
 
@@ -254,14 +262,32 @@ export function ImportErrorsPanel({
                       </div>
                     )}
 
-                    {!retryField && (
+                    {isConflict && (
+                      <p className="text-xs text-amber-700">
+                        Cet enregistrement a été modifié localement depuis la dernière synchronisation.
+                        Cliquez sur <strong>Forcer</strong> pour écraser la version locale avec les données de la source externe.
+                      </p>
+                    )}
+
+                    {!isConflict && !retryField && (
                       <p className="text-xs italic text-gray-400">
                         Ce type d&apos;erreur nécessite une correction manuelle dans la source de données.
                       </p>
                     )}
 
                     <div className="mt-4 flex gap-2">
-                      {retryField && (
+                      {isConflict && onForce && (
+                        <button
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-amber-600 px-3 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={busy}
+                          onClick={() => runAction(() => onForce(error), error.id)}
+                          type="button"
+                        >
+                          <RotateCw className="h-3 w-3" />
+                          Forcer la mise à jour
+                        </button>
+                      )}
+                      {!isConflict && retryField && (
                         <button
                           className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
                           disabled={!canRetry || busy}

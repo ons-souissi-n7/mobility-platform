@@ -3,7 +3,7 @@
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Info, RotateCw } from "lucide-react";
 import { useState } from "react";
 
-import type { Agreement, RawImport, StudentWithEnrollment } from "@/lib/api/types";
+import type { Agreement, RawImport, SelectOption } from "@/lib/api/types";
 import type { WishImportCorrection } from "@/lib/api/student-mutations";
 
 type ErrorKind = "student_not_found" | "no_enrollment" | "agreement_not_found" | "no_correction";
@@ -57,7 +57,7 @@ export function WishImportErrorsPanel({
   isBusy: boolean;
   onIgnore: (error: RawImport) => Promise<void>;
   onRetry: (error: RawImport, correction: WishImportCorrection) => Promise<void>;
-  students: StudentWithEnrollment[];
+  students: SelectOption[];
   title?: string;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -180,8 +180,8 @@ export function WishImportErrorsPanel({
                         >
                           <option value="">Choisir un étudiant…</option>
                           {students.map((s) => (
-                            <option key={s.student_id} value={s.student_id}>
-                              {s.ine} — {s.last_name} {s.first_name}
+                            <option key={s.id} value={s.id}>
+                              {s.label}
                             </option>
                           ))}
                         </select>
@@ -190,7 +190,10 @@ export function WishImportErrorsPanel({
 
                     {kind === "agreement_not_found" && (
                       <div className="space-y-2">
-                        <p className="text-xs text-gray-500">Associer à un accord existant</p>
+                        <p className="text-xs text-gray-500">
+                          Associer à un accord en vigueur
+                          <span className="ml-1 text-gray-400">(accords expirés exclus)</span>
+                        </p>
                         <select
                           className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
                           disabled={busy}
@@ -205,6 +208,9 @@ export function WishImportErrorsPanel({
                           {agreements.map((a) => (
                             <option key={a.id} value={a.id}>
                               {a.name}
+                              {a.valid_until
+                                ? ` — jusqu'au ${new Date(a.valid_until).toLocaleDateString("fr-FR")}`
+                                : ""}
                             </option>
                           ))}
                         </select>

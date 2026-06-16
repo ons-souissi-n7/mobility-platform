@@ -57,7 +57,6 @@ export function ParcoursTable({ parcours, departments, onDelete, onEdit }: Parco
       data={parcours}
       emptyLabel="Aucun parcours reference"
       getRowKey={(p) => p.id}
-      pageSize={5}
     />
   );
 }

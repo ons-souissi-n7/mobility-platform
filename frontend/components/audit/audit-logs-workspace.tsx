@@ -1,15 +1,20 @@
 "use client";
 
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-import type { AuditLog } from "@/lib/api/types";
+import { getAuditLogs, type AuditFilters } from "@/lib/api/audit";
+import type { AuditLog, PagedResponse } from "@/lib/api/types";
+import { DEFAULT_PAGE_SIZE } from "@/lib/config";
+import { Badge, type BadgeStyle } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
+import { formatDateTime, SELECT_CLS } from "@/lib/utils";
 
-const ACTION_STYLES: Record<string, { label: string; className: string }> = {
-  create: { label: "Création", className: "bg-emerald-50 text-emerald-700" },
-  update: { label: "Modification", className: "bg-blue-50 text-blue-700" },
-  delete: { label: "Suppression", className: "bg-red-50 text-red-700" },
-  access: { label: "Accès", className: "bg-gray-100 text-gray-600" },
+const ACTION_STYLES: Record<string, BadgeStyle> = {
+  create: { label: "Création",    className: "bg-emerald-50 text-emerald-700" },
+  update: { label: "Modification", className: "bg-blue-50 text-blue-700"     },
+  delete: { label: "Suppression", className: "bg-red-50 text-red-700"        },
+  access: { label: "Accès",       className: "bg-gray-100 text-gray-600"     },
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -29,12 +34,7 @@ const ENTITY_LABELS: Record<string, string> = {
 };
 
 function ActionBadge({ action }: { action: string }) {
-  const style = ACTION_STYLES[action] ?? { label: action, className: "bg-gray-100 text-gray-600" };
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${style.className}`}>
-      {style.label}
-    </span>
-  );
+  return <Badge value={action} map={ACTION_STYLES} />;
 }
 
 function ChangesPanel({ changes }: { changes: Record<string, [unknown, unknown]> | null }) {
@@ -73,14 +73,7 @@ function ChangesPanel({ changes }: { changes: Record<string, [unknown, unknown]>
 function LogRow({ log }: { log: AuditLog }) {
   const [expanded, setExpanded] = useState(false);
 
-  const date = new Date(log.timestamp).toLocaleString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  const date = formatDateTime(log.timestamp, true);
 
   const entityLabel = ENTITY_LABELS[log.entity_type] ?? log.entity_type;
   const hasChanges = log.changes != null && Object.keys(log.changes).length > 0;
@@ -88,7 +81,7 @@ function LogRow({ log }: { log: AuditLog }) {
   return (
     <>
       <tr className="hover:bg-gray-50">
-        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{date}</td>
+        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap" suppressHydrationWarning>{date}</td>
         <td className="px-4 py-3 text-xs font-medium text-gray-700">
           {log.actor_username ?? <span className="text-gray-400 italic">système</span>}
         </td>
@@ -123,30 +116,64 @@ function LogRow({ log }: { log: AuditLog }) {
   );
 }
 
-export function AuditLogsWorkspace({ initialLogs }: { initialLogs: AuditLog[] }) {
+export function AuditLogsWorkspace({ initialData }: { initialData: PagedResponse<AuditLog> }) {
+  const [data, setData] = useState<PagedResponse<AuditLog>>(initialData);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
   const [actionFilter, setActionFilter] = useState("");
   const [entityFilter, setEntityFilter] = useState("");
   const [actorFilter, setActorFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  const totalPages = Math.max(1, Math.ceil(data.count / DEFAULT_PAGE_SIZE));
   const hasFilters = actionFilter || entityFilter || actorFilter || dateFrom || dateTo;
 
-  const filtered = useMemo(() => {
-    return initialLogs.filter((log) => {
-      if (actionFilter && log.action !== actionFilter) return false;
-      if (entityFilter && log.entity_type !== entityFilter) return false;
-      if (actorFilter && !(log.actor_username ?? "").toLowerCase().includes(actorFilter.toLowerCase())) return false;
-      if (dateFrom && log.timestamp < dateFrom) return false;
-      if (dateTo && log.timestamp > `${dateTo}T23:59:59`) return false;
-      return true;
-    });
-  }, [initialLogs, actionFilter, entityFilter, actorFilter, dateFrom, dateTo]);
+  async function doFetch(p: number, filters: AuditFilters) {
+    setLoading(true);
+    try {
+      const result = await getAuditLogs({ ...filters, page: p, page_size: DEFAULT_PAGE_SIZE });
+      setData(result);
+      setPage(p);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const entityTypes = useMemo(
-    () => Array.from(new Set(initialLogs.map((l) => l.entity_type))).sort(),
-    [initialLogs],
-  );
+  function currentFilters(): AuditFilters {
+    return {
+      action: actionFilter || undefined,
+      entity_type: entityFilter || undefined,
+      actor_username: actorFilter || undefined,
+      date_from: dateFrom || undefined,
+      date_to: dateTo || undefined,
+    };
+  }
+
+  function handleActionChange(value: string) {
+    setActionFilter(value);
+    doFetch(1, { ...currentFilters(), action: value || undefined });
+  }
+
+  function handleEntityChange(value: string) {
+    setEntityFilter(value);
+    doFetch(1, { ...currentFilters(), entity_type: value || undefined });
+  }
+
+  function handleActorChange(value: string) {
+    setActorFilter(value);
+    doFetch(1, { ...currentFilters(), actor_username: value || undefined });
+  }
+
+  function handleDateFromChange(value: string) {
+    setDateFrom(value);
+    doFetch(1, { ...currentFilters(), date_from: value || undefined });
+  }
+
+  function handleDateToChange(value: string) {
+    setDateTo(value);
+    doFetch(1, { ...currentFilters(), date_to: value || undefined });
+  }
 
   function reset() {
     setActionFilter("");
@@ -154,6 +181,7 @@ export function AuditLogsWorkspace({ initialLogs }: { initialLogs: AuditLog[] })
     setActorFilter("");
     setDateFrom("");
     setDateTo("");
+    doFetch(1, {});
   }
 
   return (
@@ -163,8 +191,8 @@ export function AuditLogsWorkspace({ initialLogs }: { initialLogs: AuditLog[] })
         <div className="flex items-center gap-2 overflow-x-auto">
           <select
             value={actionFilter}
-            onChange={(e) => setActionFilter(e.target.value)}
-            className="w-40 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
+            onChange={(e) => handleActionChange(e.target.value)}
+            className={`w-40 shrink-0 ${SELECT_CLS}`}
           >
             <option value="">Toutes les actions</option>
             <option value="create">Création</option>
@@ -175,12 +203,12 @@ export function AuditLogsWorkspace({ initialLogs }: { initialLogs: AuditLog[] })
 
           <select
             value={entityFilter}
-            onChange={(e) => setEntityFilter(e.target.value)}
-            className="w-48 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
+            onChange={(e) => handleEntityChange(e.target.value)}
+            className={`w-48 shrink-0 ${SELECT_CLS}`}
           >
             <option value="">Tous les types</option>
-            {entityTypes.map((t) => (
-              <option key={t} value={t}>{ENTITY_LABELS[t] ?? t}</option>
+            {Object.keys(ENTITY_LABELS).sort().map((t) => (
+              <option key={t} value={t}>{ENTITY_LABELS[t]}</option>
             ))}
           </select>
 
@@ -189,7 +217,7 @@ export function AuditLogsWorkspace({ initialLogs }: { initialLogs: AuditLog[] })
             <input
               type="text"
               value={actorFilter}
-              onChange={(e) => setActorFilter(e.target.value)}
+              onChange={(e) => handleActorChange(e.target.value)}
               placeholder="Utilisateur…"
               className="w-36 rounded-md border border-gray-300 bg-white pl-7 pr-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
             />
@@ -198,15 +226,15 @@ export function AuditLogsWorkspace({ initialLogs }: { initialLogs: AuditLog[] })
           <input
             type="date"
             value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="w-36 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
+            onChange={(e) => handleDateFromChange(e.target.value)}
+            className={`w-36 shrink-0 ${SELECT_CLS}`}
           />
           <span className="text-xs text-gray-400 shrink-0">→</span>
           <input
             type="date"
             value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="w-36 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
+            onChange={(e) => handleDateToChange(e.target.value)}
+            className={`w-36 shrink-0 ${SELECT_CLS}`}
           />
 
           {hasFilters && (
@@ -220,14 +248,14 @@ export function AuditLogsWorkspace({ initialLogs }: { initialLogs: AuditLog[] })
           )}
 
           <span className="shrink-0 ml-auto text-xs text-gray-400">
-            {filtered.length} entrée{filtered.length > 1 ? "s" : ""}
+            {data.count} entrée{data.count > 1 ? "s" : ""}
           </span>
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        {filtered.length === 0 ? (
+      <div className={`overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-opacity ${loading ? "opacity-60" : ""}`}>
+        {data.results.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-gray-500">
             Aucune entrée dans le journal pour ces critères.
           </div>
@@ -245,13 +273,21 @@ export function AuditLogsWorkspace({ initialLogs }: { initialLogs: AuditLog[] })
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((log) => (
+                {data.results.map((log) => (
                   <LogRow key={log.id} log={log} />
                 ))}
               </tbody>
             </table>
           </div>
         )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          totalItems={data.count}
+          pageSize={DEFAULT_PAGE_SIZE}
+          onPageChange={(p) => doFetch(p, currentFilters())}
+          emptyLabel="Aucune entrée dans le journal"
+        />
       </div>
     </div>
   );

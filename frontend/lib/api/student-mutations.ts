@@ -2,7 +2,9 @@ import { browserApi } from "@/lib/api/browser-client";
 import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
 import type {
   ImportReport,
+  PagedResponse,
   RawImport,
+  SelectOption,
   StudentStats,
   StudentWithEnrollment,
   StudentWishes,
@@ -51,9 +53,33 @@ export function getStudentStatsForYear(yearId: number): Promise<StudentStats> {
   );
 }
 
-export function getStudentsByYear(yearId: number): Promise<StudentWithEnrollment[]> {
-  return browserApi<StudentWithEnrollment[]>(
-    `/students/students/by-year/${yearId}/`,
+export function getStudentSelectOptions(academicYearId?: number): Promise<SelectOption[]> {
+  const qs = academicYearId ? `?academic_year_id=${academicYearId}` : "";
+  return browserApi<SelectOption[]>(`/students/students/select-options/${qs}`, { method: "GET" });
+}
+
+export type StudentByYearFilters = {
+  search?: string;
+  department_id?: number;
+  level_id?: number;
+  parcours_id?: number;
+  page?: number;
+  page_size?: number;
+};
+
+export function getStudentsByYear(
+  yearId: number,
+  filters: StudentByYearFilters = {},
+): Promise<PagedResponse<StudentWithEnrollment>> {
+  const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
+  if (filters.department_id) params.set("department_id", String(filters.department_id));
+  if (filters.level_id) params.set("level_id", String(filters.level_id));
+  if (filters.parcours_id) params.set("parcours_id", String(filters.parcours_id));
+  params.set("page", String(filters.page ?? 1));
+  params.set("page_size", String(filters.page_size ?? 25));
+  return browserApi<PagedResponse<StudentWithEnrollment>>(
+    `/students/students/by-year/${yearId}/?${params.toString()}`,
     { method: "GET" },
   );
 }
