@@ -4,6 +4,8 @@ from auditlog.models import LogEntry
 from ninja import Query, Router
 from ninja.errors import HttpError
 
+from app.shared.api_helpers import PagedResponse, PaginationQuery, paginate
+
 from .schemas import AuditLogOut
 
 router = Router()
@@ -35,14 +37,15 @@ def _serialize(entry: LogEntry) -> AuditLogOut:
     )
 
 
-@router.get("/logs/", response=list[AuditLogOut], summary="Journal d'audit")
+@router.get("/logs/", response=PagedResponse[AuditLogOut], summary="Journal d'audit")
 def list_audit_logs(
     request,
-    entity_type: str | None = Query(None),  # noqa: B008
-    action: str | None = Query(None),  # noqa: B008
-    date_from: date | None = Query(None),  # noqa: B008
-    date_to: date | None = Query(None),  # noqa: B008
-    actor_username: str | None = Query(None),  # noqa: B008
+    entity_type: str | None = Query(None),
+    action: str | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    actor_username: str | None = Query(None),
+    pagination: PaginationQuery = Query(),
 ):
     qs = LogEntry.objects.select_related("content_type", "actor").order_by("-timestamp")
 
@@ -65,7 +68,13 @@ def list_audit_logs(
     if actor_username:
         qs = qs.filter(actor__username__icontains=actor_username)
 
-    return [_serialize(e) for e in qs]
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(
+        count=count,
+        page=pagination.page,
+        page_size=pagination.page_size,
+        results=[_serialize(e) for e in items],
+    )
 
 
 @router.get("/logs/{log_id}/", response=AuditLogOut, summary="Detail d'un log d'audit")

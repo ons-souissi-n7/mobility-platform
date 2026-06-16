@@ -1,7 +1,9 @@
 from ninja import Router
 from ninja.errors import HttpError
 
-from .models import ImportReport
+from app.shared.sync import mark_raw_import
+
+from .models import ImportReport, RawImport, RawImportEntity, RawImportStatus
 from .schemas import ImportReportListOut, ImportReportOut
 
 router = Router()
@@ -74,3 +76,54 @@ def get_import_report(request, report_id: int):
     et le motif de rejet pour chaque enregistrement.
     """
     return _get_report_or_404(report_id)
+
+
+@router.post(
+    "/raw/{raw_import_id}/force-overwrite/",
+    response={200: dict},
+    summary="Forcer la mise a jour d'un enregistrement en conflit",
+)
+def force_overwrite_conflict(request, raw_import_id: int):
+    """
+    Re-execute l'upsert d'un RawImport en statut CONFLICT en ignorant la
+    detection de conflit. L'enregistrement local sera ecrase par les donnees
+    de la source externe.
+    """
+    try:
+        raw_import = RawImport.objects.get(
+            pk=raw_import_id, status=RawImportStatus.CONFLICT
+        )
+    except RawImport.DoesNotExist as exc:
+        raise HttpError(404, "Enregistrement en conflit introuvable.") from exc
+
+    entity = raw_import.entity
+    payload = raw_import.payload
+
+    try:
+        if entity == RawImportEntity.AGREEMENT:
+            from app.mobility.services.sync_moveon import upsert_agreement
+
+            upsert_agreement(payload, force_overwrite=True)
+        elif entity == RawImportEntity.AGREEMENT_CATEGORY:
+            from app.mobility.services.sync_moveon import upsert_mobility_category
+
+            upsert_mobility_category(payload, force_overwrite=True)
+        elif entity == RawImportEntity.DEPARTMENT:
+            from app.reference.services.sync_pegase import upsert_department
+
+            upsert_department(payload, force_overwrite=True)
+        elif entity == RawImportEntity.LEVEL:
+            from app.reference.services.sync_pegase_levels import _upsert_level
+
+            _upsert_level(payload, force_overwrite=True)
+        else:
+            raise HttpError(
+                400, f"Force-overwrite non supporte pour l'entite {entity}."
+            )
+    except HttpError:
+        raise
+    except Exception as exc:
+        raise HttpError(400, str(exc)) from exc
+
+    mark_raw_import(raw_import, RawImportStatus.IMPORTED)
+    return {"status": "ok", "message": "Mise a jour forcee avec succes."}
