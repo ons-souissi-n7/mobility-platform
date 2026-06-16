@@ -1,9 +1,15 @@
 .git
+.github
 .pytest_cache
 .ruff_cache
 .mypy_cache
 __pycache__
 *.py[cod]
 *.sqlite3
+*.log
+.env
+.env.*
 media
 staticfiles
+coverage.xml
+.coverage

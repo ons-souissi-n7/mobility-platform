@@ -25,10 +25,10 @@ jobs:
           STAGING_USER: ${{ secrets.STAGING_USER }}
           STAGING_PATH: ${{ secrets.STAGING_PATH }}
         run: |
-          ssh -o StrictHostKeyChecking=no $STAGING_USER@$STAGING_HOST << 'ENDSSH'
+          ssh -o StrictHostKeyChecking=accept-new $STAGING_USER@$STAGING_HOST << 'ENDSSH'
             cd ${{ env.STAGING_PATH }}
             git pull origin main
-            docker compose build --no-cache
+            docker compose build
             docker compose up -d
             docker compose exec -T backend python manage.py migrate
             docker compose exec -T backend python manage.py collectstatic --noinput
