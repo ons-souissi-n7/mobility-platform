@@ -184,8 +184,8 @@ class TestDepartmentAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["external_id"] == "101"
+        assert data["count"] == 1
+        assert data["results"][0]["external_id"] == "101"
 
     def test_retry_department_import(self):
         raw_import = RawImport.objects.create(
@@ -416,8 +416,8 @@ class TestLevelAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["external_id"] == "L1"
+        assert data["count"] == 1
+        assert data["results"][0]["external_id"] == "L1"
 
     def test_ignore_level_import(self):
         raw = RawImport.objects.create(

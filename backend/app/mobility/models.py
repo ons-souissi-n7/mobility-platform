@@ -2,18 +2,9 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from app.academic.models import AcademicYear
+from app.core.models import TimeStampedModel
 from app.institutions.models import PartnerUniversity
 from app.reference.models import Department, Level
-
-
-class TimeStampedModel(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.CharField(max_length=255, blank=True, default="")
-    updated_by = models.CharField(max_length=255, blank=True, default="")
-
-    class Meta:
-        abstract = True
 
 
 class MobilityCategory(TimeStampedModel):

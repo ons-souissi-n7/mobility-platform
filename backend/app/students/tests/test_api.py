@@ -456,7 +456,7 @@ class TestStudentImportErrors:
         response = self.client.get("/api/v1/students/students/import-errors/")
 
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["results"] == []
 
     def test_list_returns_only_failed(self):
         RawImport.objects.create(
@@ -478,8 +478,8 @@ class TestStudentImportErrors:
         response = self.client.get("/api/v1/students/students/import-errors/")
 
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["external_id"] == "12345678901"
+        assert data["count"] == 1
+        assert data["results"][0]["external_id"] == "12345678901"
 
     def test_list_deduplicates_by_ine(self):
         for _ in range(3):
@@ -494,7 +494,7 @@ class TestStudentImportErrors:
 
         response = self.client.get("/api/v1/students/students/import-errors/")
 
-        assert len(response.json()) == 1
+        assert response.json()["count"] == 1
 
     def test_list_excludes_other_entities(self):
         RawImport.objects.create(
@@ -508,7 +508,7 @@ class TestStudentImportErrors:
 
         response = self.client.get("/api/v1/students/students/import-errors/")
 
-        assert response.json() == []
+        assert response.json()["results"] == []
 
     def test_ignore_error(self):
         raw = RawImport.objects.create(
@@ -565,87 +565,29 @@ class TestSyncPegase:
         Department.objects.create(code="SN", name="Sciences du Numerique")
         Level.objects.create(code="3A", name="Troisieme annee")
 
-    def test_sync_creates_students(self, monkeypatch):
+    def test_sync_triggers_background_task(self, monkeypatch):
         import app.students.api as students_api
 
+        calls = []
         monkeypatch.setattr(
-            students_api.pegase_adapter,
-            "fetch_enrollments",
-            lambda label: [
-                StudentRow(
-                    ine="12345678901",
-                    first_name="Jean",
-                    last_name="Martin",
-                    email="j@n7.fr",
-                    gender="M",
-                    department_code="SN",
-                    level_code="3A",
-                    gpa=15.5,
-                )
-            ],
+            students_api,
+            "enqueue_sync_pegase_students",
+            lambda year_id, triggered_by="": calls.append(year_id) or "fake-task-id",
         )
 
         response = self.client.post(
             f"/api/v1/students/students/sync-pegase/{self.year.id}/"
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        assert data["created"] == 1
-        assert data["updated"] == 0
-        assert data["unresolved"] == []
-        assert Student.objects.filter(ine="12345678901").exists()
-
-    def test_sync_unknown_department_returns_unresolved(self, monkeypatch):
-        import app.students.api as students_api
-
-        monkeypatch.setattr(
-            students_api.pegase_adapter,
-            "fetch_enrollments",
-            lambda label: [
-                StudentRow(
-                    ine="12345678901",
-                    first_name="Jean",
-                    last_name="Martin",
-                    email="j@n7.fr",
-                    gender="M",
-                    department_code="INCONNU",
-                    level_code="3A",
-                )
-            ],
-        )
-
-        response = self.client.post(
-            f"/api/v1/students/students/sync-pegase/{self.year.id}/"
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["created"] == 0
-        assert len(data["unresolved"]) == 1
+        assert data["task_id"] == "fake-task-id"
+        assert calls == [self.year.id]
 
     def test_sync_unknown_year_returns_404(self):
         response = self.client.post("/api/v1/students/students/sync-pegase/99999/")
 
         assert response.status_code == 404
-
-    def test_sync_empty_source_returns_zero(self, monkeypatch):
-        import app.students.api as students_api
-
-        monkeypatch.setattr(
-            students_api.pegase_adapter,
-            "fetch_enrollments",
-            lambda label: [],
-        )
-
-        response = self.client.post(
-            f"/api/v1/students/students/sync-pegase/{self.year.id}/"
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["created"] == 0
-        assert data["updated"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -661,57 +603,25 @@ class TestImportExcel:
         Department.objects.create(code="SN", name="Sciences du Numerique")
         Level.objects.create(code="3A", name="Troisieme annee")
 
-    def test_import_creates_student(self):
-        response = self.client.post(
-            f"/api/v1/students/students/import-excel/{self.year.id}/",
-            data={
-                "file": xlsx_file(
-                    [
-                        [
-                            "12345678901",
-                            "Martin",
-                            "Jean",
-                            "j@n7.fr",
-                            "M",
-                            "SN",
-                            "3A",
-                            15.5,
-                        ]
-                    ]
-                )
-            },
+    def test_import_triggers_background_task(self, monkeypatch):
+        import app.students.api as students_api
+
+        calls = []
+        monkeypatch.setattr(
+            students_api,
+            "enqueue_import_excel_students",
+            lambda file_bytes, source_file, year_id, triggered_by="": calls.append(year_id) or "fake-task-id",
         )
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["created"] == 1
-        assert Student.objects.filter(ine="12345678901").exists()
-
-    def test_import_unknown_department_returns_unresolved(self):
         response = self.client.post(
             f"/api/v1/students/students/import-excel/{self.year.id}/",
-            data={
-                "file": xlsx_file(
-                    [
-                        [
-                            "12345678901",
-                            "Martin",
-                            "Jean",
-                            "j@n7.fr",
-                            "M",
-                            "INCONNU",
-                            "3A",
-                            15.5,
-                        ]
-                    ]
-                )
-            },
+            data={"file": xlsx_file([])},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        assert data["created"] == 0
-        assert len(data["unresolved"]) == 1
+        assert data["task_id"] == "fake-task-id"
+        assert calls == [self.year.id]
 
     def test_import_unknown_year_returns_404(self):
         response = self.client.post(
@@ -720,16 +630,6 @@ class TestImportExcel:
         )
 
         assert response.status_code == 404
-
-    def test_import_empty_file_returns_zero(self):
-        response = self.client.post(
-            f"/api/v1/students/students/import-excel/{self.year.id}/",
-            data={"file": xlsx_file([])},
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["created"] == 0
 
 
 # ---------------------------------------------------------------------------

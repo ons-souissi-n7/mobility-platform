@@ -1,7 +1,7 @@
 from io import BytesIO
 
 import openpyxl
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Max, Prefetch, Q
 from django.http import HttpResponse
 from ninja import File, Query, Router
 from ninja.errors import HttpError
@@ -11,10 +11,6 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from app.academic.api import get_academic_year
 from app.audit.logger import log_action
 from app.imports.models import (
-    ImportReport as DbImportReport,
-)
-from app.imports.models import (
-    ImportSource,
     RawImport,
     RawImportEntity,
     RawImportStatus,
@@ -35,7 +31,6 @@ from .schemas import (
     AgreementWishOut,
     CrossStatOut,
     DepartmentStatOut,
-    ImportReportOut,
     LevelStatOut,
     ParcoursStatOut,
     StudentDetailOut,
@@ -46,15 +41,18 @@ from .schemas import (
     StudentStatsOut,
     StudentWishesOut,
     WishImportRetryIn,
-    WishSyncReportOut,
 )
-from .services.adapters import excel as excel_adapter
 from .services.adapters import excel_wishes as excel_wishes_adapter
-from .services.adapters import pegase as pegase_adapter
 from .services.student_importer import StudentRow, import_students
 from .services.student_transformer import transform_student, transform_wish
 from .services.student_validator import validate_student, validate_wish
-from .services.sync_moveon import WishRow, import_wish_rows, sync_moveon_wishes
+from .services.sync_moveon import WishRow, import_wish_rows
+from .tasks import (
+    enqueue_import_excel_students,
+    enqueue_import_excel_wishes,
+    enqueue_sync_moveon_wishes,
+    enqueue_sync_pegase_students,
+)
 
 router = Router()
 
@@ -70,7 +68,7 @@ def list_students(
     search: str | None = None,
     pagination: PaginationQuery = Query(),
 ):
-    qs = Student.objects.all()
+    qs = Student.objects.select_related("nationality")
     if academic_year_id:
         qs = qs.filter(enrollments__academic_year_id=academic_year_id)
     if department_id:
@@ -438,19 +436,45 @@ def list_students_by_year(
 
 @router.get(
     "/students/import-errors/",
-    response=list[StudentRawImportOut],
+    response=PagedResponse[StudentRawImportOut],
     summary="Erreurs d'import étudiants (Pégase ou Excel)",
 )
-def list_student_import_errors(request):
-    raw_imports = RawImport.objects.filter(entity=RawImportEntity.STUDENT).order_by(
-        "-created_at"
+def list_student_import_errors(request, pagination: PaginationQuery = Query(...)):
+    latest_ids = (
+        RawImport.objects.filter(entity=RawImportEntity.STUDENT)
+        .exclude(source="moveon_student_wishes")
+        .values("external_id")
+        .annotate(latest_id=Max("id"))
+        .values_list("latest_id", flat=True)
     )
-    latest: dict = {}
-    for ri in raw_imports:
-        key = ri.external_id or f"raw-{ri.id}"
-        if key not in latest:
-            latest[key] = ri
-    return [ri for ri in latest.values() if ri.status == RawImportStatus.FAILED]
+    qs = RawImport.objects.filter(
+        id__in=latest_ids,
+        status=RawImportStatus.FAILED,
+    ).order_by("-created_at")
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
+
+
+@router.get(
+    "/students/wishes/import-errors/",
+    response=PagedResponse[StudentRawImportOut],
+    summary="Erreurs d'import vœux MoveON",
+)
+def list_wish_import_errors(request, pagination: PaginationQuery = Query(...)):
+    latest_ids = (
+        RawImport.objects.filter(
+            entity=RawImportEntity.STUDENT, source="moveon_student_wishes"
+        )
+        .values("external_id")
+        .annotate(latest_id=Max("id"))
+        .values_list("latest_id", flat=True)
+    )
+    qs = RawImport.objects.filter(
+        id__in=latest_ids,
+        status=RawImportStatus.FAILED,
+    ).order_by("-created_at")
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
 
 
 @router.put(
@@ -659,29 +683,20 @@ def download_wish_template(request, year_id: int):
 
 @router.post(
     "/students/wishes/import-excel/{year_id}/",
-    response=WishSyncReportOut,
+    response={202: dict},
     summary="Importer les vœux depuis un fichier Excel",
 )
 def import_wishes_from_excel(request, year_id: int, file: UploadedFile = File(...)):
     academic_year = get_academic_year(year_id)
-    rows = excel_wishes_adapter.parse_wish_excel(file.read())
-    db_report = DbImportReport.objects.create(
-        source=ImportSource.EXCEL,
-        academic_year=academic_year,
-        triggered_by=getattr(request.user, "username", ""),
-    )
-    report = import_wish_rows(rows, academic_year, db_report=db_report)
-    db_report.finalize()
+    triggered_by = getattr(request.user, "username", "")
+    file_bytes = file.read()
+    task_id = enqueue_import_excel_wishes(file_bytes, file.name, year_id, triggered_by=triggered_by)
     log_action(
         request,
         action="import_excel_wishes",
-        detail=(
-            f"Fichier {file.name} — Année {academic_year.label} — "
-            f"{report.created} créés, {report.updated} mis à jour, "
-            f"{len(report.unresolved)} non résolus"
-        ),
+        detail=f"Tâche {task_id} lancée — Fichier {file.name} — Année {academic_year.label}",
     )
-    return report
+    return 202, {"task_id": task_id, "message": "Import Excel vœux lancé en arrière-plan."}
 
 
 @router.get(
@@ -786,7 +801,7 @@ def export_wishes_excel(
             "annual_enrollment__student",
             "annual_enrollment__department",
             "annual_enrollment__level",
-            "agreement__partner_university__country",
+            "agreement_year__agreement__partner_university__country",
         )
         .order_by(
             "annual_enrollment__student__last_name",
@@ -811,14 +826,11 @@ def export_wishes_excel(
                 "niveau": enr.level.code if enr.level else "",
                 "wishes": [],
             }
-        univ = (
-            w.agreement.partner_university
-            if w.agreement and w.agreement.partner_university_id
-            else None
-        )
+        agreement = w.agreement_year.agreement
+        univ = agreement.partner_university if agreement.partner_university_id else None
         rows[sid]["wishes"].append(
             {
-                "accord": w.agreement.name if w.agreement else "",
+                "accord": agreement.name,
                 "universite": univ.name if univ else "",
                 "pays": univ.country.name_fr if univ and univ.country_id else "",
                 "rank": w.rank,
@@ -885,50 +897,37 @@ def get_student(request, student_id: int):
 
 @router.post(
     "/students/sync-pegase/{year_id}/",
-    response=ImportReportOut,
+    response={202: dict},
     summary="Synchroniser les etudiants depuis Pegase",
 )
 def sync_from_pegase(request, year_id: int):
     academic_year = get_academic_year(year_id)
-    rows = pegase_adapter.fetch_enrollments(academic_year.label)
-    db_report = DbImportReport.objects.create(
-        source=ImportSource.PEGASE,
-        academic_year=academic_year,
-        triggered_by=getattr(request.user, "username", ""),
-    )
-    report = import_students(rows, academic_year, db_report=db_report, source_file="")
-    db_report.finalize()
+    triggered_by = getattr(request.user, "username", "")
+    task_id = enqueue_sync_pegase_students(year_id, triggered_by=triggered_by)
     log_action(
         request,
         action="sync_pegase_students",
-        detail=f"Année {academic_year.label} — {report.created} créés, {report.updated} mis à jour, {len(report.unresolved)} non résolus",
+        detail=f"Tâche {task_id} lancée — Année {academic_year.label}",
     )
-    return report
+    return 202, {"task_id": task_id, "message": "Synchronisation Pegase lancée en arrière-plan."}
 
 
 @router.post(
     "/students/import-excel/{year_id}/",
-    response=ImportReportOut,
+    response={202: dict},
     summary="Importer les etudiants depuis un fichier Excel",
 )
 def import_from_excel(request, year_id: int, file: UploadedFile = File(...)):
     academic_year = get_academic_year(year_id)
-    rows = excel_adapter.parse(file.read())
-    db_report = DbImportReport.objects.create(
-        source=ImportSource.EXCEL,
-        academic_year=academic_year,
-        triggered_by=getattr(request.user, "username", ""),
-    )
-    report = import_students(
-        rows, academic_year, db_report=db_report, source_file=file.name
-    )
-    db_report.finalize()
+    triggered_by = getattr(request.user, "username", "")
+    file_bytes = file.read()
+    task_id = enqueue_import_excel_students(file_bytes, file.name, year_id, triggered_by=triggered_by)
     log_action(
         request,
         action="import_excel_students",
-        detail=f"Fichier {file.name} — Année {academic_year.label} — {report.created} créés, {report.updated} mis à jour, {len(report.unresolved)} non résolus",
+        detail=f"Tâche {task_id} lancée — Fichier {file.name} — Année {academic_year.label}",
     )
-    return report
+    return 202, {"task_id": task_id, "message": "Import Excel lancé en arrière-plan."}
 
 
 # ── Vœux étudiants ─────────────────────────────────────────────────────────
@@ -936,25 +935,19 @@ def import_from_excel(request, year_id: int, file: UploadedFile = File(...)):
 
 @router.post(
     "/students/wishes/sync-moveon/{year_id}/",
-    response=WishSyncReportOut,
+    response={202: dict},
     summary="Synchroniser les vœux étudiants depuis MoveON",
 )
 def sync_wishes_from_moveon(request, year_id: int):
     academic_year = get_academic_year(year_id)
-    report = sync_moveon_wishes(
-        academic_year=academic_year,
-        triggered_by=getattr(request.user, "username", ""),
-    )
+    triggered_by = getattr(request.user, "username", "")
+    task_id = enqueue_sync_moveon_wishes(year_id, triggered_by=triggered_by)
     log_action(
         request,
         action="sync_moveon_wishes",
-        detail=(
-            f"Année {academic_year.label} — "
-            f"{report.created} créés, {report.updated} mis à jour, "
-            f"{len(report.unresolved)} non résolus"
-        ),
+        detail=f"Tâche {task_id} lancée — Année {academic_year.label}",
     )
-    return report
+    return 202, {"task_id": task_id, "message": "Synchronisation MoveON lancée en arrière-plan."}
 
 
 @router.get(
@@ -971,7 +964,7 @@ def list_wishes_by_year(request, year_id: int):
             "annual_enrollment__student",
             "annual_enrollment__department",
             "annual_enrollment__parcours",
-            "agreement__partner_university",
+            "agreement_year__agreement__partner_university",
         )
         .order_by(
             "annual_enrollment__student__last_name",
@@ -998,14 +991,15 @@ def list_wishes_by_year(request, year_id: int):
                 gpa=enrollment.gpa,
                 wishes=[],
             )
+        agreement = w.agreement_year.agreement
         grouped[sid].wishes.append(
             AgreementWishOut(
                 rank=w.rank,
-                agreement_id=w.agreement_id,
-                moveon_id=w.agreement.moveon_id,
-                agreement_name=w.agreement.name,
-                university_name=w.agreement.partner_university.name,
-                direction=w.agreement.direction,
+                agreement_id=agreement.id,
+                moveon_id=agreement.moveon_id,
+                agreement_name=agreement.name,
+                university_name=agreement.partner_university.name,
+                direction=agreement.direction,
             )
         )
 
@@ -1034,7 +1028,9 @@ def get_student_wishes(request, student_id: int, year_id: int):
     wishes = (
         (
             StudentWish.objects.filter(annual_enrollment=enrollment)
-            .select_related("agreement", "agreement__partner_university")
+            .select_related(
+                "agreement_year__agreement__partner_university",
+            )
             .order_by("rank")
         )
         if enrollment
@@ -1054,11 +1050,11 @@ def get_student_wishes(request, student_id: int, year_id: int):
         wishes=[
             AgreementWishOut(
                 rank=w.rank,
-                agreement_id=w.agreement_id,
-                moveon_id=w.agreement.moveon_id,
-                agreement_name=w.agreement.name,
-                university_name=w.agreement.partner_university.name,
-                direction=w.agreement.direction,
+                agreement_id=w.agreement_year.agreement_id,
+                moveon_id=w.agreement_year.agreement.moveon_id,
+                agreement_name=w.agreement_year.agreement.name,
+                university_name=w.agreement_year.agreement.partner_university.name,
+                direction=w.agreement_year.agreement.direction,
             )
             for w in wishes
         ],

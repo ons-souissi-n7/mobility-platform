@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.db.models import ProtectedError, Q
+from django.db.models import Max, ProtectedError, Q
 from django.utils import timezone
 from ninja import Query, Router
 from ninja.errors import HttpError
@@ -124,27 +124,24 @@ def delete_university(request, university_id: int):
 
 @router.get(
     "/import-errors/",
-    response=list[PartnerUniversityImportOut],
+    response=PagedResponse[PartnerUniversityImportOut],
     summary="Liste des erreurs d'import MoveON des universites",
 )
-def list_university_import_errors(request):
-    raw_imports = PartnerUniversityRawImport.objects.order_by("-created_at")
-    latest_by_external_id = {}
-
-    for raw_import in raw_imports:
-        key = raw_import.external_id or f"raw-{raw_import.id}"
-        if key not in latest_by_external_id:
-            latest_by_external_id[key] = raw_import
-
-    return [
-        raw_import
-        for raw_import in latest_by_external_id.values()
-        if raw_import.status
-        in (
+def list_university_import_errors(request, pagination: PaginationQuery = Query(...)):
+    latest_ids = (
+        PartnerUniversityRawImport.objects.values("external_id")
+        .annotate(latest_id=Max("id"))
+        .values_list("latest_id", flat=True)
+    )
+    qs = PartnerUniversityRawImport.objects.filter(
+        id__in=latest_ids,
+        status__in=[
             PartnerUniversityRawImportStatus.FAILED,
             PartnerUniversityRawImportStatus.CONFLICT,
-        )
-    ]
+        ],
+    ).order_by("-created_at")
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
 
 
 @router.get(

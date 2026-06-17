@@ -1,13 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.db.models import ProtectedError
+from django.db.models import Max, ProtectedError
 from django.utils import timezone
-from ninja import Router
+from ninja import Query, Router
 from ninja.errors import HttpError
 
 from app.audit.logger import log_action
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
-from app.shared.api_helpers import SelectOption, save_validated
+from app.shared.api_helpers import PagedResponse, PaginationQuery, SelectOption, paginate, save_validated
 
 from .models import Country, Department, Level, Parcours
 from .schemas import (
@@ -88,23 +88,22 @@ def delete_country(request, country_id: int):
 
 @router.get(
     "/departments/import-errors/",
-    response=list[RawImportOut],
+    response=PagedResponse[RawImportOut],
     summary="Liste des erreurs d'import Pegase des departements",
 )
-def list_department_import_errors(request):
-    raw_imports = RawImport.objects.filter(entity=RawImportEntity.DEPARTMENT).order_by(
-        "-created_at"
+def list_department_import_errors(request, pagination: PaginationQuery = Query(...)):
+    latest_ids = (
+        RawImport.objects.filter(entity=RawImportEntity.DEPARTMENT)
+        .values("external_id")
+        .annotate(latest_id=Max("id"))
+        .values_list("latest_id", flat=True)
     )
-    latest_by_external_id = {}
-    for raw_import in raw_imports:
-        key = raw_import.external_id or f"raw-{raw_import.id}"
-        if key not in latest_by_external_id:
-            latest_by_external_id[key] = raw_import
-    return [
-        ri
-        for ri in latest_by_external_id.values()
-        if ri.status in (RawImportStatus.FAILED, RawImportStatus.CONFLICT)
-    ]
+    qs = RawImport.objects.filter(
+        id__in=latest_ids,
+        status__in=[RawImportStatus.FAILED, RawImportStatus.CONFLICT],
+    ).order_by("-created_at")
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
 
 
 @router.get(
@@ -352,23 +351,22 @@ def sync_levels_from_pegase(request):
 
 @router.get(
     "/levels/import-errors/",
-    response=list[RawImportOut],
+    response=PagedResponse[RawImportOut],
     summary="Liste des erreurs d'import Pegase des niveaux",
 )
-def list_level_import_errors(request):
-    raw_imports = RawImport.objects.filter(entity=RawImportEntity.LEVEL).order_by(
-        "-created_at"
+def list_level_import_errors(request, pagination: PaginationQuery = Query(...)):
+    latest_ids = (
+        RawImport.objects.filter(entity=RawImportEntity.LEVEL)
+        .values("external_id")
+        .annotate(latest_id=Max("id"))
+        .values_list("latest_id", flat=True)
     )
-    latest = {}
-    for ri in raw_imports:
-        key = ri.external_id or f"raw-{ri.id}"
-        if key not in latest:
-            latest[key] = ri
-    return [
-        ri
-        for ri in latest.values()
-        if ri.status in (RawImportStatus.FAILED, RawImportStatus.CONFLICT)
-    ]
+    qs = RawImport.objects.filter(
+        id__in=latest_ids,
+        status__in=[RawImportStatus.FAILED, RawImportStatus.CONFLICT],
+    ).order_by("-created_at")
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
 
 
 @router.post(

@@ -22,7 +22,7 @@ class PagedResponse(Schema, Generic[T]):  # noqa: UP046
 
 class PaginationQuery(Schema):
     page: int = Query(1, ge=1)
-    page_size: int = Query(50, ge=1, le=200)
+    page_size: int = Query(50, ge=1, le=1000)
 
 
 def paginate(qs, page: int, page_size: int):
