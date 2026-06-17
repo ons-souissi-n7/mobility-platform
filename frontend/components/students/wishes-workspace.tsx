@@ -5,7 +5,6 @@ import { Download, FileDown, FileSpreadsheet, Heart, RefreshCw, TrendingUp, Uplo
 
 import { ErrorBanner } from "@/components/ui/alert";
 import { Btn, FileBtn } from "@/components/ui/btn";
-import { ImportReportPanel } from "@/components/ui/import-report-panel";
 import { Pagination } from "@/components/ui/pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/config";
 import { StatCard } from "@/components/ui/stat-card";
@@ -13,8 +12,8 @@ import { Toolbar } from "@/components/ui/toolbar";
 import {
   downloadWishTemplate,
   exportWishesExcel,
-  getStudentImportErrors,
   getStudentSelectOptions,
+  getWishImportErrors,
   getWishesByYear,
   ignoreStudentImportError,
   importWishesFromExcel,
@@ -23,8 +22,10 @@ import {
   type WishImportCorrection,
 } from "@/lib/api/student-mutations";
 import { getValidAgreements } from "@/lib/api/mobility-mutations";
-import type { Agreement, AcademicYear, AgreementWish, RawImport, SelectOption, StudentWishes, WishSyncReport } from "@/lib/api/types";
+import type { Agreement, AcademicYear, AgreementWish, RawImport, SelectOption, StudentWishes } from "@/lib/api/types";
 import { WishImportErrorsPanel } from "./wish-import-errors-panel";
+
+const WISH_ERRORS_PAGE_SIZE = 25;
 
 
 // ---------------------------------------------------------------------------
@@ -41,11 +42,11 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
   const [agreements, setAgreements] = useState<Agreement[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [syncInProgress, setSyncInProgress] = useState(false);
-  const [syncReport, setSyncReport] = useState<WishSyncReport | null>(null);
   const [excelInProgress, setExcelInProgress] = useState(false);
-  const [excelReport, setExcelReport] = useState<WishSyncReport | null>(null);
   const [exportInProgress, setExportInProgress] = useState(false);
   const [wishImportErrors, setWishImportErrors] = useState<RawImport[]>([]);
+  const [wishErrorsTotalCount, setWishErrorsTotalCount] = useState(0);
+  const [wishErrorsPage, setWishErrorsPage] = useState(1);
   const [query, setQuery] = useState("");
   const [filterDept, setFilterDept] = useState("");
   const [error, setError] = useState("");
@@ -60,18 +61,18 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
     setError("");
     setQuery("");
     setFilterDept("");
-    setSyncReport(null);
-    setExcelReport(null);
 
     Promise.all([
       getWishesByYear(selectedYearId),
-      getStudentImportErrors(),
+      getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE }),
       getStudentSelectOptions(selectedYearId),
       getValidAgreements(),
     ])
       .then(([w, errs, students, agr]) => {
         setWishes(w);
-        setWishImportErrors(errs.filter((e) => e.source === "moveon_student_wishes"));
+        setWishImportErrors(errs.results);
+        setWishErrorsTotalCount(errs.count);
+        setWishErrorsPage(1);
         setEnrolledStudents(students);
         setAgreements(agr);
       })
@@ -101,6 +102,17 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
     return true;
   });
 
+  async function loadWishErrors(page: number) {
+    try {
+      const errs = await getWishImportErrors({ page, page_size: WISH_ERRORS_PAGE_SIZE });
+      setWishImportErrors(errs.results);
+      setWishErrorsTotalCount(errs.count);
+      setWishErrorsPage(page);
+    } catch {
+      // silently ignore
+    }
+  }
+
   async function handleTemplateDownload() {
     if (!selectedYear) return;
     setError("");
@@ -114,17 +126,9 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
   async function handleExcelImport(file: File) {
     if (!selectedYear) return;
     setError("");
-    setExcelReport(null);
     setExcelInProgress(true);
     try {
-      const report = await importWishesFromExcel(selectedYear.id, file);
-      setExcelReport(report);
-      const [updated, errs] = await Promise.all([
-        getWishesByYear(selectedYear.id),
-        getStudentImportErrors(),
-      ]);
-      setWishes(updated);
-      setWishImportErrors(errs.filter((e) => e.source === "moveon_student_wishes"));
+      await importWishesFromExcel(selectedYear.id, file);
     } catch (err) {
       setError(err instanceof Error ? err.message : "L'import Excel a échoué.");
     } finally {
@@ -135,17 +139,9 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
   async function handleSync() {
     if (!selectedYear) return;
     setError("");
-    setSyncReport(null);
     setSyncInProgress(true);
     try {
-      const report = await syncWishesFromMoveon(selectedYear.id);
-      setSyncReport(report);
-      const [updated, errs] = await Promise.all([
-        getWishesByYear(selectedYear.id),
-        getStudentImportErrors(),
-      ]);
-      setWishes(updated);
-      setWishImportErrors(errs.filter((e) => e.source === "moveon_student_wishes"));
+      await syncWishesFromMoveon(selectedYear.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "La synchronisation MoveON a échoué.");
     } finally {
@@ -270,22 +266,6 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
 
       <ErrorBanner message={error} />
 
-      {syncReport && (
-        <ImportReportPanel
-          report={syncReport}
-          title="Synchronisation MoveON terminée"
-          onClose={() => setSyncReport(null)}
-        />
-      )}
-
-      {excelReport && (
-        <ImportReportPanel
-          report={excelReport}
-          title="Import Excel terminé"
-          onClose={() => setExcelReport(null)}
-        />
-      )}
-
       {selectedYear ? (
         <WishesTable rows={displayed} maxRank={maxRank} isBusy={isLoading || syncInProgress} />
       ) : (
@@ -300,13 +280,17 @@ export function WishesWorkspace({ academicYears }: { academicYears: AcademicYear
         isBusy={syncInProgress}
         students={enrolledStudents}
         title="Erreurs d'import vœux MoveON"
+        totalCount={wishErrorsTotalCount}
+        page={wishErrorsPage}
+        pageSize={WISH_ERRORS_PAGE_SIZE}
+        onPageChange={loadWishErrors}
         onIgnore={async (err) => {
           await ignoreStudentImportError(err.id);
-          setWishImportErrors((prev) => prev.filter((e) => e.id !== err.id));
+          await loadWishErrors(wishErrorsPage);
         }}
         onRetry={async (err, correction: WishImportCorrection) => {
           await retryWishImportError(err.id, correction);
-          setWishImportErrors((prev) => prev.filter((e) => e.id !== err.id));
+          await loadWishErrors(wishErrorsPage);
         }}
       />
     </>

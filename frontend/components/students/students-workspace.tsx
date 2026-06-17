@@ -5,7 +5,6 @@ import { BookOpen, Download, Eye, FileDown, FileSpreadsheet, GraduationCap, Refr
 
 import { ErrorBanner } from "@/components/ui/alert";
 import { Btn, FileBtn } from "@/components/ui/btn";
-import { ImportReportPanel } from "@/components/ui/import-report-panel";
 import { Pagination } from "@/components/ui/pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/config";
 import { StatCard } from "@/components/ui/stat-card";
@@ -24,10 +23,11 @@ import {
   type StudentByYearFilters,
   type StudentImportCorrection,
 } from "@/lib/api/student-mutations";
+
+const ERRORS_PAGE_SIZE = 25;
 import type {
   AcademicYear,
   Department,
-  ImportReport,
   Level,
   PagedResponse,
   Parcours,
@@ -71,8 +71,10 @@ export function StudentsWorkspace({
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [templateLoading, setTemplateLoading] = useState(false);
   const [exportInProgress, setExportInProgress] = useState(false);
-  const [importReport, setImportReport] = useState<ImportReport | null>(null);
+
   const [importErrors, setImportErrors] = useState<RawImport[]>([]);
+  const [errorsTotalCount, setErrorsTotalCount] = useState(0);
+  const [errorsPage, setErrorsPage] = useState(1);
   const [error, setError] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<StudentWithEnrollment | null>(null);
 
@@ -124,12 +126,14 @@ export function StudentsWorkspace({
         const [s, data, errs] = await Promise.all([
           getStudentStatsForYear(id),
           getStudentsByYear(id, { page: 1, page_size: DEFAULT_PAGE_SIZE }),
-          getStudentImportErrors(),
+          getStudentImportErrors({ page: 1, page_size: ERRORS_PAGE_SIZE }),
         ]);
         if (cancelled) return;
         setStats(s);
         setPagedData(data);
-        setImportErrors(errs.filter((err) => err.source !== "moveon_student_wishes"));
+        setImportErrors(errs.results);
+        setErrorsTotalCount(errs.count);
+        setErrorsPage(1);
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Erreur de chargement.");
@@ -146,6 +150,17 @@ export function StudentsWorkspace({
   // Handlers
   // ---------------------------------------------------------------------------
 
+  async function loadStudentErrors(page: number) {
+    try {
+      const errs = await getStudentImportErrors({ page, page_size: ERRORS_PAGE_SIZE });
+      setImportErrors(errs.results);
+      setErrorsTotalCount(errs.count);
+      setErrorsPage(page);
+    } catch {
+      // silently ignore errors refresh failures
+    }
+  }
+
   async function refreshYear() {
     if (!selectedYearId) return;
     setIsLoading(true);
@@ -153,11 +168,12 @@ export function StudentsWorkspace({
       const [s, data, errs] = await Promise.all([
         getStudentStatsForYear(selectedYearId),
         getStudentsByYear(selectedYearId, { ...buildFilters(), page: currentPage, page_size: DEFAULT_PAGE_SIZE }),
-        getStudentImportErrors(),
+        getStudentImportErrors({ page: errorsPage, page_size: ERRORS_PAGE_SIZE }),
       ]);
       setStats(s);
       setPagedData(data);
-      setImportErrors(errs.filter((err) => err.source !== "moveon_student_wishes"));
+      setImportErrors(errs.results);
+      setErrorsTotalCount(errs.count);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de rechargement.");
     } finally {
@@ -211,22 +227,19 @@ export function StudentsWorkspace({
 
   async function handleIgnoreImportError(err: RawImport) {
     await ignoreStudentImportError(err.id);
-    setImportErrors((prev) => prev.filter((e) => e.id !== err.id));
+    await loadStudentErrors(errorsPage);
   }
 
   async function handleRetryImportError(err: RawImport, correction: StudentImportCorrection) {
     await retryStudentImportError(err.id, correction);
-    setImportErrors((prev) => prev.filter((e) => e.id !== err.id));
-    await refreshYear();
+    await Promise.all([loadStudentErrors(errorsPage), refreshYear()]);
   }
 
   async function handleExcelImport(file: File) {
     if (!selectedYear) { setError("Selectionnez une annee universitaire."); return; }
-    setError(""); setImportReport(null); setImportInProgress(true);
+    setError(""); setImportInProgress(true);
     try {
-      const report = await importStudentsFromExcel(selectedYear.id, file);
-      setImportReport(report);
-      await refreshYear();
+      await importStudentsFromExcel(selectedYear.id, file);
     } catch (err) {
       setError(err instanceof Error ? err.message : "L'import Excel a echoue.");
     } finally { setImportInProgress(false); }
@@ -234,11 +247,9 @@ export function StudentsWorkspace({
 
   async function handleSync() {
     if (!selectedYear) { setError("Selectionnez une annee universitaire."); return; }
-    setError(""); setImportReport(null); setSyncInProgress(true);
+    setError(""); setSyncInProgress(true);
     try {
-      const report = await syncStudentsFromPegase(selectedYear.id);
-      setImportReport(report);
-      await refreshYear();
+      await syncStudentsFromPegase(selectedYear.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "La synchronisation Pegase a echoue.");
     } finally { setSyncInProgress(false); }
@@ -285,7 +296,6 @@ export function StudentsWorkspace({
             className="mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[#1E3A8A]"
             onChange={(e) => {
               setSelectedYearId(e.target.value ? Number(e.target.value) : null);
-              setImportReport(null);
               setError("");
             }}
             value={selectedYearId ?? ""}
@@ -410,14 +420,6 @@ export function StudentsWorkspace({
 
       <ErrorBanner message={error} />
 
-      {importReport && (
-        <ImportReportPanel
-          report={importReport}
-          title="Import terminé"
-          onClose={() => setImportReport(null)}
-        />
-      )}
-
       {selectedStudent && (
         <StudentDetailPanel student={selectedStudent} onClose={() => setSelectedStudent(null)} />
       )}
@@ -449,6 +451,10 @@ export function StudentsWorkspace({
           onIgnore={handleIgnoreImportError}
           onRetry={handleRetryImportError}
           parcourses={parcourses}
+          totalCount={errorsTotalCount}
+          page={errorsPage}
+          pageSize={ERRORS_PAGE_SIZE}
+          onPageChange={loadStudentErrors}
         />
       </div>
     </>

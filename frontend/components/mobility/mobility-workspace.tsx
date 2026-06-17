@@ -24,6 +24,7 @@ import {
   downloadExcelTemplate,
   exportAgreementsExcel,
   forceMobilityImport,
+  getMoveonMobilityImportErrors,
   ignoreMobilityImport,
   importAgreementsFromExcel,
   retryMobilityImport,
@@ -39,6 +40,8 @@ import {
   type MobilityCategoryPayload,
 } from "@/lib/api/mobility-mutations";
 import { fetchAgreements } from "@/lib/api/mobility";
+
+const MOBILITY_ERRORS_PAGE_SIZE = 25;
 import type {
   AcademicYear,
   Agreement,
@@ -67,6 +70,7 @@ export function MobilityWorkspace({
   initialAgreements,
   initialAgreementYearDepartments,
   initialImportErrors,
+  initialImportErrorsTotalCount,
   initialExpiringAgreements,
   departments,
   mobilityLevels,
@@ -80,6 +84,7 @@ export function MobilityWorkspace({
   initialAgreements: Agreement[];
   initialAgreementYearDepartments: AgreementYearDepartment[];
   initialImportErrors: RawImport[];
+  initialImportErrorsTotalCount: number;
   initialExpiringAgreements: Agreement[];
   departments: Department[];
   mobilityLevels: Level[];
@@ -91,6 +96,8 @@ export function MobilityWorkspace({
   const [agreementYears, setAgreementYears] = useState(initialAgreementYears);
   const [agreementYearDepartments, setAgreementYearDepartments] = useState(initialAgreementYearDepartments);
   const [importErrors, setImportErrors] = useState(initialImportErrors);
+  const [importErrorsTotalCount, setImportErrorsTotalCount] = useState(initialImportErrorsTotalCount);
+  const [importErrorsPage, setImportErrorsPage] = useState(1);
   const [excelImportInProgress, setExcelImportInProgress] = useState(false);
   const [exportInProgress, setExportInProgress] = useState(false);
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -363,22 +370,31 @@ export function MobilityWorkspace({
 
   // ── Import errors ──────────────────────────────────────────────────────────
 
+  async function loadMobilityErrors(page: number) {
+    try {
+      const errs = await getMoveonMobilityImportErrors({ page, page_size: MOBILITY_ERRORS_PAGE_SIZE });
+      setImportErrors(errs.results);
+      setImportErrorsTotalCount(errs.count);
+      setImportErrorsPage(page);
+    } catch {
+      // silently ignore
+    }
+  }
+
   async function handleIgnoreImportError(error: RawImport) {
     await ignoreMobilityImport(error.id);
-    setImportErrors((items) => items.filter((e) => e.id !== error.id));
+    await loadMobilityErrors(importErrorsPage);
   }
 
   async function handleForceImportError(error: RawImport) {
     await forceMobilityImport(error.id);
-    setImportErrors((items) => items.filter((e) => e.id !== error.id));
-    await refreshMobilityData();
+    await Promise.all([loadMobilityErrors(importErrorsPage), refreshMobilityData()]);
   }
 
   async function handleRetryImportError(error: RawImport, payload: MobilityImportRetryPayload) {
     try {
       await retryMobilityImport(error.id, payload);
-      setImportErrors((items) => items.filter((e) => e.id !== error.id));
-      await refreshMobilityData();
+      await Promise.all([loadMobilityErrors(importErrorsPage), refreshMobilityData()]);
     } catch (err) {
       setSyncError(err instanceof Error ? err.message : "Impossible de relancer l'import.");
     }
@@ -400,6 +416,8 @@ export function MobilityWorkspace({
     setAgreementYearDepartments(fresh.agreementYearDepartments);
     setMobilityCategories(fresh.mobilityCategories);
     setImportErrors(fresh.importErrors);
+    setImportErrorsTotalCount(fresh.importErrorsTotalCount);
+    setImportErrorsPage(1);
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -556,6 +574,10 @@ export function MobilityWorkspace({
           onRetry={handleRetryImportError}
           onForce={handleForceImportError}
           universities={universities}
+          totalCount={importErrorsTotalCount}
+          page={importErrorsPage}
+          pageSize={MOBILITY_ERRORS_PAGE_SIZE}
+          onPageChange={loadMobilityErrors}
         />
       )}
 
@@ -593,6 +615,10 @@ export function MobilityWorkspace({
           onRetry={handleRetryImportError}
           onForce={handleForceImportError}
           universities={universities}
+          totalCount={importErrorsTotalCount}
+          page={importErrorsPage}
+          pageSize={MOBILITY_ERRORS_PAGE_SIZE}
+          onPageChange={loadMobilityErrors}
         />
       )}
 

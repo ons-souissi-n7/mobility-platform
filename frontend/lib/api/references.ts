@@ -49,13 +49,13 @@ export async function getReferenceData() {
     getCachedDepartments(),
     // Volatile — 1re page d'universités (filtrée ensuite côté serveur)
     getApi<PagedResponse<PartnerUniversity>>("/institutions/universities/?page=1&page_size=25"),
-    // Volatile — erreurs d'import
-    getApi<RawImport[]>("/institutions/import-errors/"),
-    getApi<RawImport[]>("/reference/departments/import-errors/"),
+    // Volatile — erreurs d'import (1re page)
+    getApi<PagedResponse<RawImport>>("/institutions/import-errors/?page=1&page_size=25"),
+    getApi<PagedResponse<RawImport>>("/reference/departments/import-errors/?page=1&page_size=25"),
     // Stable
     getCachedLevels(),
     // Volatile
-    getApi<RawImport[]>("/reference/levels/import-errors/"),
+    getApi<PagedResponse<RawImport>>("/reference/levels/import-errors/?page=1&page_size=25"),
     // Stable
     getCachedParcours(),
   ]);
@@ -64,10 +64,13 @@ export async function getReferenceData() {
     countries,
     departments,
     universities: universitiesPage,
-    universityImportErrors,
-    departmentImportErrors,
+    universityImportErrors: universityImportErrors.results,
+    universityImportErrorsCount: universityImportErrors.count,
+    departmentImportErrors: departmentImportErrors.results,
+    departmentImportErrorsCount: departmentImportErrors.count,
     mobilityLevels,
-    levelImportErrors,
+    levelImportErrors: levelImportErrors.results,
+    levelImportErrorsCount: levelImportErrors.count,
     parcours,
   };
 }

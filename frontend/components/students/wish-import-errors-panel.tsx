@@ -3,6 +3,7 @@
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Info, RotateCw } from "lucide-react";
 import { useState } from "react";
 
+import { Pagination } from "@/components/ui/pagination";
 import type { Agreement, RawImport, SelectOption } from "@/lib/api/types";
 import type { WishImportCorrection } from "@/lib/api/student-mutations";
 
@@ -51,6 +52,10 @@ export function WishImportErrorsPanel({
   onRetry,
   students,
   title = "Erreurs d'import vœux",
+  totalCount,
+  page = 1,
+  pageSize = 25,
+  onPageChange,
 }: {
   agreements: Agreement[];
   errors: RawImport[];
@@ -59,6 +64,10 @@ export function WishImportErrorsPanel({
   onRetry: (error: RawImport, correction: WishImportCorrection) => Promise<void>;
   students: SelectOption[];
   title?: string;
+  totalCount?: number;
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -92,7 +101,7 @@ export function WishImportErrorsPanel({
       <div className="flex items-center gap-2 text-amber-900">
         <AlertTriangle className="h-5 w-5" aria-hidden="true" />
         <h3 className="text-sm font-semibold">
-          {title} ({errors.length})
+          {title} ({totalCount ?? errors.length})
         </h3>
       </div>
 
@@ -263,6 +272,18 @@ export function WishImportErrorsPanel({
           );
         })}
       </div>
+
+      {onPageChange && totalCount !== undefined && totalCount > pageSize && (
+        <div className="mt-4 border-t border-amber-100 pt-3">
+          <Pagination
+            page={page}
+            totalPages={Math.ceil(totalCount / pageSize)}
+            totalItems={totalCount}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

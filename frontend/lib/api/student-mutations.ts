@@ -1,20 +1,20 @@
 import { browserApi } from "@/lib/api/browser-client";
 import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
 import type {
-  ImportReport,
   PagedResponse,
   RawImport,
   SelectOption,
   StudentStats,
   StudentWithEnrollment,
   StudentWishes,
-  WishSyncReport,
 } from "@/lib/api/types";
+
+type TaskResponse = { task_id: string; message: string };
 
 export async function importStudentsFromExcel(
   yearId: number,
   file: File,
-): Promise<ImportReport> {
+): Promise<TaskResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -36,11 +36,11 @@ export async function importStudentsFromExcel(
     throw new Error(message);
   }
 
-  return response.json() as Promise<ImportReport>;
+  return response.json() as Promise<TaskResponse>;
 }
 
-export function syncStudentsFromPegase(yearId: number): Promise<ImportReport> {
-  return browserApi<ImportReport>(
+export function syncStudentsFromPegase(yearId: number): Promise<TaskResponse> {
+  return browserApi<TaskResponse>(
     `/students/students/sync-pegase/${yearId}/`,
     { method: "POST" },
   );
@@ -84,8 +84,28 @@ export function getStudentsByYear(
   );
 }
 
-export function getStudentImportErrors(): Promise<RawImport[]> {
-  return browserApi<RawImport[]>("/students/students/import-errors/", { method: "GET" });
+export function getStudentImportErrors(
+  params: { page?: number; page_size?: number } = {},
+): Promise<PagedResponse<RawImport>> {
+  const qs = new URLSearchParams();
+  qs.set("page", String(params.page ?? 1));
+  qs.set("page_size", String(params.page_size ?? 25));
+  return browserApi<PagedResponse<RawImport>>(
+    `/students/students/import-errors/?${qs}`,
+    { method: "GET" },
+  );
+}
+
+export function getWishImportErrors(
+  params: { page?: number; page_size?: number } = {},
+): Promise<PagedResponse<RawImport>> {
+  const qs = new URLSearchParams();
+  qs.set("page", String(params.page ?? 1));
+  qs.set("page_size", String(params.page_size ?? 25));
+  return browserApi<PagedResponse<RawImport>>(
+    `/students/students/wishes/import-errors/?${qs}`,
+    { method: "GET" },
+  );
 }
 
 export function ignoreStudentImportError(rawImportId: number): Promise<RawImport> {
@@ -150,13 +170,13 @@ export function getStudentDetail(studentId: number): Promise<import("@/lib/api/t
   return browserApi(`/students/students/${studentId}/`, { method: "GET" });
 }
 
-export async function syncWishesFromMoveon(yearId: number): Promise<WishSyncReport> {
+export async function syncWishesFromMoveon(yearId: number): Promise<TaskResponse> {
   const response = await fetch(
     `${publicApiBaseUrl}/students/students/wishes/sync-moveon/${yearId}/`,
     { method: "POST" },
   );
   if (!response.ok) throw new Error(`Erreur sync vœux MoveON : ${response.status}`);
-  return response.json() as Promise<WishSyncReport>;
+  return response.json() as Promise<TaskResponse>;
 }
 
 export async function getWishesByYear(yearId: number): Promise<StudentWishes[]> {
@@ -190,7 +210,7 @@ export async function downloadWishTemplate(yearId: number): Promise<void> {
 export async function importWishesFromExcel(
   yearId: number,
   file: File,
-): Promise<WishSyncReport> {
+): Promise<TaskResponse> {
   const formData = new FormData();
   formData.append("file", file);
   const response = await fetch(
@@ -209,7 +229,7 @@ export async function importWishesFromExcel(
     }
     throw new Error(message);
   }
-  return response.json() as Promise<WishSyncReport>;
+  return response.json() as Promise<TaskResponse>;
 }
 
 export async function exportStudentsExcel(

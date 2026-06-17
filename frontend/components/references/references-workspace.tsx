@@ -76,6 +76,8 @@ import { createIdMap } from "@/lib/utils";
 type LevelModalState = { kind: "mobilityLevel"; item?: Level };
 type ParcoursModalState = { kind: "parcours"; item?: Parcours };
 
+const REF_ERRORS_PAGE_SIZE = 25;
+
 type ReferencesWorkspaceProps = {
   countries: Country[];
   setCountries: Dispatch<SetStateAction<Country[]>>;
@@ -85,12 +87,18 @@ type ReferencesWorkspaceProps = {
   setUniversities: Dispatch<SetStateAction<PagedResponse<PartnerUniversity>>>;
   universityImportErrors: RawImport[];
   setUniversityImportErrors: Dispatch<SetStateAction<RawImport[]>>;
+  universityImportErrorsCount: number;
+  setUniversityImportErrorsCount: Dispatch<SetStateAction<number>>;
   departmentImportErrors: RawImport[];
   setDepartmentImportErrors: Dispatch<SetStateAction<RawImport[]>>;
+  departmentImportErrorsCount: number;
+  setDepartmentImportErrorsCount: Dispatch<SetStateAction<number>>;
   mobilityLevels: Level[];
   setMobilityLevels: Dispatch<SetStateAction<Level[]>>;
   levelImportErrors: RawImport[];
   setLevelImportErrors: Dispatch<SetStateAction<RawImport[]>>;
+  levelImportErrorsCount: number;
+  setLevelImportErrorsCount: Dispatch<SetStateAction<number>>;
   parcours: Parcours[];
   setParcours: Dispatch<SetStateAction<Parcours[]>>;
 };
@@ -104,12 +112,18 @@ export function ReferencesWorkspace({
   setUniversities,
   universityImportErrors,
   setUniversityImportErrors,
+  universityImportErrorsCount,
+  setUniversityImportErrorsCount,
   departmentImportErrors,
   setDepartmentImportErrors,
+  departmentImportErrorsCount,
+  setDepartmentImportErrorsCount,
   mobilityLevels,
   setMobilityLevels,
   levelImportErrors,
   setLevelImportErrors,
+  levelImportErrorsCount,
+  setLevelImportErrorsCount,
   parcours,
   setParcours,
 }: ReferencesWorkspaceProps) {
@@ -127,6 +141,9 @@ export function ReferencesWorkspace({
   const [departmentSyncError, setDepartmentSyncError] = useState("");
   const [levelSyncInProgress, setLevelSyncInProgress] = useState(false);
   const [levelSyncError, setLevelSyncError] = useState("");
+  const [universityErrorsPage, setUniversityErrorsPage] = useState(1);
+  const [departmentErrorsPage, setDepartmentErrorsPage] = useState(1);
+  const [levelErrorsPage, setLevelErrorsPage] = useState(1);
 
   // University server-side pagination & filter state
   const [univPage, setUnivPage] = useState(universities.page);
@@ -200,6 +217,37 @@ export function ReferencesWorkspace({
   function handleUnivPageChange(page: number) {
     setUnivPage(page);
     void doFetchUniversities(univSearch, univCountryFilter, page);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Import error loaders (server-side pagination)
+  // ---------------------------------------------------------------------------
+
+  async function loadUniversityErrors(page: number) {
+    try {
+      const data = await getUniversityImportErrors({ page, page_size: REF_ERRORS_PAGE_SIZE });
+      setUniversityImportErrors(data.results);
+      setUniversityImportErrorsCount(data.count);
+      setUniversityErrorsPage(page);
+    } catch { /* silently ignore */ }
+  }
+
+  async function loadDepartmentErrors(page: number) {
+    try {
+      const data = await getDepartmentImportErrors({ page, page_size: REF_ERRORS_PAGE_SIZE });
+      setDepartmentImportErrors(data.results);
+      setDepartmentImportErrorsCount(data.count);
+      setDepartmentErrorsPage(page);
+    } catch { /* silently ignore */ }
+  }
+
+  async function loadLevelErrors(page: number) {
+    try {
+      const data = await getLevelImportErrors({ page, page_size: REF_ERRORS_PAGE_SIZE });
+      setLevelImportErrors(data.results);
+      setLevelImportErrorsCount(data.count);
+      setLevelErrorsPage(page);
+    } catch { /* silently ignore */ }
   }
 
   // ---------------------------------------------------------------------------
@@ -335,9 +383,11 @@ export function ReferencesWorkspace({
     try {
       await syncLevelsFromPegase();
       await delay(3000);
-      const [nextLevels, nextErrors] = await Promise.all([getLevels(), getLevelImportErrors()]);
+      const [nextLevels, errPage] = await Promise.all([getLevels(), getLevelImportErrors({ page: 1, page_size: REF_ERRORS_PAGE_SIZE })]);
       setMobilityLevels(nextLevels);
-      setLevelImportErrors(nextErrors);
+      setLevelImportErrors(errPage.results);
+      setLevelImportErrorsCount(errPage.count);
+      setLevelErrorsPage(1);
     } catch (error) {
       setLevelSyncError(error instanceof Error ? error.message : "La synchronisation a echoue.");
     } finally {
@@ -346,10 +396,12 @@ export function ReferencesWorkspace({
   }
 
   async function refreshDepartmentData() {
-    const [depts, errs] = await Promise.all([getDepartments(), getDepartmentImportErrors()]);
+    const [depts, errPage] = await Promise.all([getDepartments(), getDepartmentImportErrors({ page: 1, page_size: REF_ERRORS_PAGE_SIZE })]);
     setDepartments(depts);
-    setDepartmentImportErrors(errs);
-    return { errors: errs, departments: depts };
+    setDepartmentImportErrors(errPage.results);
+    setDepartmentImportErrorsCount(errPage.count);
+    setDepartmentErrorsPage(1);
+    return { errors: errPage.results, departments: depts };
   }
 
   async function waitForDepartmentSyncRefresh(prev: string) {
@@ -362,13 +414,15 @@ export function ReferencesWorkspace({
   }
 
   async function refreshUniversityData() {
-    const [univData, errs] = await Promise.all([
+    const [univData, errPage] = await Promise.all([
       fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE }),
-      getUniversityImportErrors(),
+      getUniversityImportErrors({ page: 1, page_size: REF_ERRORS_PAGE_SIZE }),
     ]);
     setUniversities(univData);
-    setUniversityImportErrors(errs);
-    return { errors: errs, universities: univData };
+    setUniversityImportErrors(errPage.results);
+    setUniversityImportErrorsCount(errPage.count);
+    setUniversityErrorsPage(1);
+    return { errors: errPage.results, universities: univData };
   }
 
   async function waitForUniversitySyncRefresh(prev: string) {
@@ -383,26 +437,21 @@ export function ReferencesWorkspace({
   async function retryImportError(error: RawImport, correction?: number | string) {
     if (typeof correction !== "number") return;
     await retryUniversityImport(error.id, correction);
-    const [univData] = await Promise.all([
-      fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE }),
-    ]);
+    const univData = await fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE });
     setUniversities(univData);
-    setUniversityImportErrors((prev) => prev.filter((i) => i.id !== error.id));
+    await loadUniversityErrors(universityErrorsPage);
   }
 
   async function ignoreImportError(error: RawImport) {
     await ignoreUniversityImport(error.id);
-    setUniversityImportErrors((prev) => prev.filter((i) => i.id !== error.id));
+    await loadUniversityErrors(universityErrorsPage);
   }
 
   async function forceUniversityImportError(error: RawImport) {
     await forceUniversityImport(error.id);
-    const [univData, errs] = await Promise.all([
-      fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE }),
-      getUniversityImportErrors(),
-    ]);
+    const univData = await fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE });
     setUniversities(univData);
-    setUniversityImportErrors(errs);
+    await loadUniversityErrors(universityErrorsPage);
   }
 
   async function retryDepartmentImportError(error: RawImport, correction?: number | string) {
@@ -410,31 +459,31 @@ export function ReferencesWorkspace({
     await retryDepartmentImport(error.id, correction);
     const refreshed = await getDepartments();
     setDepartments(refreshed);
-    setDepartmentImportErrors((prev) => prev.filter((i) => i.id !== error.id));
+    await loadDepartmentErrors(departmentErrorsPage);
   }
 
   async function ignoreDepartmentImportError(error: RawImport) {
     await ignoreDepartmentImport(error.id);
-    setDepartmentImportErrors((prev) => prev.filter((i) => i.id !== error.id));
+    await loadDepartmentErrors(departmentErrorsPage);
   }
 
   async function forceDepartmentImportError(error: RawImport) {
     await forceDepartmentImport(error.id);
-    const [depts, errs] = await Promise.all([getDepartments(), getDepartmentImportErrors()]);
+    const depts = await getDepartments();
     setDepartments(depts);
-    setDepartmentImportErrors(errs);
+    await loadDepartmentErrors(departmentErrorsPage);
   }
 
   async function ignoreLevelImportError(error: RawImport) {
     await ignoreLevelImport(error.id);
-    setLevelImportErrors((prev) => prev.filter((i) => i.id !== error.id));
+    await loadLevelErrors(levelErrorsPage);
   }
 
   async function forceLevelImportError(error: RawImport) {
     await forceLevelImport(error.id);
-    const [levels, errs] = await Promise.all([getLevels(), getLevelImportErrors()]);
+    const levels = await getLevels();
     setMobilityLevels(levels);
-    setLevelImportErrors(errs);
+    await loadLevelErrors(levelErrorsPage);
   }
 
   const sortedCountries = useMemo(
@@ -490,6 +539,10 @@ export function ReferencesWorkspace({
               onIgnore={ignoreDepartmentImportError}
               onRetry={retryDepartmentImportError}
               onForce={forceDepartmentImportError}
+              totalCount={departmentImportErrorsCount}
+              page={departmentErrorsPage}
+              pageSize={REF_ERRORS_PAGE_SIZE}
+              onPageChange={loadDepartmentErrors}
             />
           </ReferenceSection>
         </div>
@@ -539,6 +592,10 @@ export function ReferencesWorkspace({
                 onIgnore={ignoreLevelImportError}
                 onRetry={async () => {}}
                 onForce={forceLevelImportError}
+                totalCount={levelImportErrorsCount}
+                page={levelErrorsPage}
+                pageSize={REF_ERRORS_PAGE_SIZE}
+                onPageChange={loadLevelErrors}
               />
             )}
           </ReferenceSection>
@@ -586,6 +643,10 @@ export function ReferencesWorkspace({
               onIgnore={ignoreImportError}
               onRetry={retryImportError}
               onForce={forceUniversityImportError}
+              totalCount={universityImportErrorsCount}
+              page={universityErrorsPage}
+              pageSize={REF_ERRORS_PAGE_SIZE}
+              onPageChange={loadUniversityErrors}
             />
           </ReferenceSection>
         </div>

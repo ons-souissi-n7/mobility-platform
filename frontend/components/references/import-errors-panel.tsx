@@ -3,6 +3,7 @@
 import { AlertTriangle, Check, ChevronDown, ChevronRight, RotateCw } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Pagination } from "@/components/ui/pagination";
 import type { Country, RawImport } from "@/lib/api/types";
 
 // Field labels by entity type
@@ -83,6 +84,10 @@ type ImportErrorsPanelProps = {
   onForce?: (error: RawImport) => Promise<void>;
   title?: string;
   retryField?: "country" | "code";
+  totalCount?: number;
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 };
 
 export function ImportErrorsPanel({
@@ -94,6 +99,10 @@ export function ImportErrorsPanel({
   onForce,
   title,
   retryField,
+  totalCount,
+  page = 1,
+  pageSize = 25,
+  onPageChange,
 }: ImportErrorsPanelProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [selectedCountries, setSelectedCountries] = useState<Record<number, string>>({});
@@ -131,7 +140,7 @@ export function ImportErrorsPanel({
       <div className="flex items-center gap-2 text-amber-900">
         <AlertTriangle className="h-5 w-5" aria-hidden="true" />
         <h3 className="text-sm font-semibold">
-          {title ?? "Erreurs d'import"} ({errors.length})
+          {title ?? "Erreurs d'import"} ({totalCount ?? errors.length})
         </h3>
       </div>
 
@@ -317,6 +326,18 @@ export function ImportErrorsPanel({
           );
         })}
       </div>
+
+      {onPageChange && totalCount !== undefined && totalCount > pageSize && (
+        <div className="mt-4 border-t border-amber-100 pt-3">
+          <Pagination
+            page={page}
+            totalPages={Math.ceil(totalCount / pageSize)}
+            totalItems={totalCount}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

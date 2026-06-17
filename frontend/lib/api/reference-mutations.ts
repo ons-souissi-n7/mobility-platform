@@ -87,8 +87,16 @@ export function syncDepartmentsFromPegase() {
   );
 }
 
-export function getDepartmentImportErrors() {
-  return browserApi<RawImport[]>("/reference/departments/import-errors/", {});
+export function getDepartmentImportErrors(
+  params: { page?: number; page_size?: number } = {},
+) {
+  const qs = new URLSearchParams();
+  qs.set("page", String(params.page ?? 1));
+  qs.set("page_size", String(params.page_size ?? 25));
+  return browserApi<PagedResponse<RawImport>>(
+    `/reference/departments/import-errors/?${qs}`,
+    {},
+  );
 }
 
 
@@ -140,8 +148,16 @@ export function syncUniversitiesFromMoveon() {
   );
 }
 
-export function getUniversityImportErrors() {
-  return browserApi<RawImport[]>("/institutions/import-errors/", {});
+export function getUniversityImportErrors(
+  params: { page?: number; page_size?: number } = {},
+) {
+  const qs = new URLSearchParams();
+  qs.set("page", String(params.page ?? 1));
+  qs.set("page_size", String(params.page_size ?? 25));
+  return browserApi<PagedResponse<RawImport>>(
+    `/institutions/import-errors/?${qs}`,
+    {},
+  );
 }
 
 export function retryUniversityImport(id: number, countryId: number) {
@@ -193,8 +209,16 @@ export function syncLevelsFromPegase() {
   });
 }
 
-export function getLevelImportErrors() {
-  return browserApi<RawImport[]>("/reference/levels/import-errors/", {});
+export function getLevelImportErrors(
+  params: { page?: number; page_size?: number } = {},
+) {
+  const qs = new URLSearchParams();
+  qs.set("page", String(params.page ?? 1));
+  qs.set("page_size", String(params.page_size ?? 25));
+  return browserApi<PagedResponse<RawImport>>(
+    `/reference/levels/import-errors/?${qs}`,
+    {},
+  );
 }
 
 export function ignoreLevelImport(id: number) {

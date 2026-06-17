@@ -3,6 +3,7 @@
 import { AlertTriangle, Check, ChevronDown, ChevronRight, RefreshCw, RotateCw } from "lucide-react";
 import { useState } from "react";
 
+import { Pagination } from "@/components/ui/pagination";
 import type { PartnerUniversity, RawImport } from "@/lib/api/types";
 import type { MobilityImportRetryPayload } from "@/lib/api/mobility-mutations";
 
@@ -122,6 +123,10 @@ export function MobilityImportErrorsPanel({
   onRetry,
   onForce,
   universities,
+  totalCount,
+  page = 1,
+  pageSize = 25,
+  onPageChange,
 }: {
   errors: RawImport[];
   isBusy: boolean;
@@ -129,6 +134,10 @@ export function MobilityImportErrorsPanel({
   onRetry: (error: RawImport, payload: MobilityImportRetryPayload) => Promise<void>;
   onForce?: (error: RawImport) => Promise<void>;
   universities: PartnerUniversity[];
+  totalCount?: number;
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -168,7 +177,7 @@ export function MobilityImportErrorsPanel({
       <div className="flex items-center gap-2 text-amber-900">
         <AlertTriangle className="h-5 w-5" aria-hidden="true" />
         <h3 className="text-sm font-semibold">
-          Erreurs d&apos;import / sync ({errors.length})
+          Erreurs d&apos;import / sync ({totalCount ?? errors.length})
         </h3>
       </div>
 
@@ -339,6 +348,18 @@ export function MobilityImportErrorsPanel({
           );
         })}
       </div>
+
+      {onPageChange && totalCount !== undefined && totalCount > pageSize && (
+        <div className="mt-4 border-t border-amber-100 pt-3">
+          <Pagination
+            page={page}
+            totalPages={Math.ceil(totalCount / pageSize)}
+            totalItems={totalCount}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

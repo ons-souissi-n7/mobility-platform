@@ -170,8 +170,16 @@ export function initializeCurrentYear() {
 
 // ── Import erreurs ────────────────────────────────────────────────────────────
 
-export function getMoveonMobilityImportErrors() {
-  return browserApi<RawImport[]>("/mobility/raw-imports/moveon-errors/", {});
+export function getMoveonMobilityImportErrors(
+  params: { page?: number; page_size?: number } = {},
+) {
+  const qs = new URLSearchParams();
+  qs.set("page", String(params.page ?? 1));
+  qs.set("page_size", String(params.page_size ?? 25));
+  return browserApi<PagedResponse<RawImport>>(
+    `/mobility/raw-imports/moveon-errors/?${qs}`,
+    {},
+  );
 }
 
 export function ignoreMobilityImport(id: number) {
