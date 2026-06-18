@@ -141,7 +141,9 @@ def list_university_import_errors(request, pagination: PaginationQuery = Query(.
         ],
     ).order_by("-created_at")
     count, items = paginate(qs, pagination.page, pagination.page_size)
-    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
 
 
 @router.get(

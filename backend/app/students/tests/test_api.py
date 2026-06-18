@@ -10,7 +10,6 @@ from app.academic.models import AcademicYear
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.reference.models import Department, Level
 from app.students.models import AnnualEnrollment, Student
-from app.students.services.student_importer import StudentRow
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -610,7 +609,10 @@ class TestImportExcel:
         monkeypatch.setattr(
             students_api,
             "enqueue_import_excel_students",
-            lambda file_bytes, source_file, year_id, triggered_by="": calls.append(year_id) or "fake-task-id",
+            lambda file_bytes, source_file, year_id, triggered_by="": calls.append(
+                year_id
+            )
+            or "fake-task-id",
         )
 
         response = self.client.post(

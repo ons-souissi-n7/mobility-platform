@@ -702,7 +702,9 @@ def list_moveon_import_errors(request, pagination: PaginationQuery = Query(...))
         status__in=[RawImportStatus.FAILED, RawImportStatus.CONFLICT],
     ).order_by("-created_at")
     count, items = paginate(qs, pagination.page, pagination.page_size)
-    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
 
 
 @router.put("/raw-imports/{raw_import_id}/retry/", response=RawImportOut)

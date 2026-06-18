@@ -6,7 +6,7 @@ ETL pipeline, and verify that the runners wire everything up correctly.
 """
 
 from datetime import date
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -18,7 +18,6 @@ from app.students.services.task_runners import (
     run_sync_moveon_wishes,
     run_sync_pegase_students,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -53,7 +52,9 @@ class TestRunSyncPegaseStudents:
         ):
             run_sync_pegase_students(year.id, triggered_by="ci-runner")
 
-        report = ImportReport.objects.get(source=ImportSource.PEGASE, academic_year=year)
+        report = ImportReport.objects.get(
+            source=ImportSource.PEGASE, academic_year=year
+        )
         assert report.triggered_by == "ci-runner"
 
     def test_fetches_by_year_label(self):
@@ -97,7 +98,9 @@ class TestRunSyncPegaseStudents:
         ):
             run_sync_pegase_students(year.id)
 
-        report = ImportReport.objects.get(source=ImportSource.PEGASE, academic_year=year)
+        report = ImportReport.objects.get(
+            source=ImportSource.PEGASE, academic_year=year
+        )
         # finalize() sets updated_at — just verify the report was saved
         assert report.pk is not None
 
@@ -233,9 +236,7 @@ class TestRunImportExcelWishes:
                 "app.students.services.task_runners.excel_wishes_adapter.parse_wish_excel",
                 return_value=[fake_row],
             ),
-            patch(
-                "app.students.services.task_runners.import_wish_rows"
-            ) as mock_import,
+            patch("app.students.services.task_runners.import_wish_rows") as mock_import,
         ):
             run_import_excel_wishes(b"", "w.xlsx", year.id)
 

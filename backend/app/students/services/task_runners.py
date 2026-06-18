@@ -1,5 +1,6 @@
 from app.academic.models import AcademicYear
-from app.imports.models import ImportReport as DbImportReport, ImportSource
+from app.imports.models import ImportReport as DbImportReport
+from app.imports.models import ImportSource
 
 from .adapters import excel as excel_adapter
 from .adapters import excel_wishes as excel_wishes_adapter

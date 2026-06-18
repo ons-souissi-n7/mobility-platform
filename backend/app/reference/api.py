@@ -7,7 +7,13 @@ from ninja.errors import HttpError
 
 from app.audit.logger import log_action
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
-from app.shared.api_helpers import PagedResponse, PaginationQuery, SelectOption, paginate, save_validated
+from app.shared.api_helpers import (
+    PagedResponse,
+    PaginationQuery,
+    SelectOption,
+    paginate,
+    save_validated,
+)
 
 from .models import Country, Department, Level, Parcours
 from .schemas import (
@@ -103,7 +109,9 @@ def list_department_import_errors(request, pagination: PaginationQuery = Query(.
         status__in=[RawImportStatus.FAILED, RawImportStatus.CONFLICT],
     ).order_by("-created_at")
     count, items = paginate(qs, pagination.page, pagination.page_size)
-    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
 
 
 @router.get(
@@ -366,7 +374,9 @@ def list_level_import_errors(request, pagination: PaginationQuery = Query(...)):
         status__in=[RawImportStatus.FAILED, RawImportStatus.CONFLICT],
     ).order_by("-created_at")
     count, items = paginate(qs, pagination.page, pagination.page_size)
-    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
 
 
 @router.post(

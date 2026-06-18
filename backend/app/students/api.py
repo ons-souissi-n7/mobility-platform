@@ -452,7 +452,9 @@ def list_student_import_errors(request, pagination: PaginationQuery = Query(...)
         status=RawImportStatus.FAILED,
     ).order_by("-created_at")
     count, items = paginate(qs, pagination.page, pagination.page_size)
-    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
 
 
 @router.get(
@@ -474,7 +476,9 @@ def list_wish_import_errors(request, pagination: PaginationQuery = Query(...)):
         status=RawImportStatus.FAILED,
     ).order_by("-created_at")
     count, items = paginate(qs, pagination.page, pagination.page_size)
-    return PagedResponse(count=count, page=pagination.page, page_size=pagination.page_size, results=items)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
 
 
 @router.put(
@@ -690,13 +694,18 @@ def import_wishes_from_excel(request, year_id: int, file: UploadedFile = File(..
     academic_year = get_academic_year(year_id)
     triggered_by = getattr(request.user, "username", "")
     file_bytes = file.read()
-    task_id = enqueue_import_excel_wishes(file_bytes, file.name, year_id, triggered_by=triggered_by)
+    task_id = enqueue_import_excel_wishes(
+        file_bytes, file.name, year_id, triggered_by=triggered_by
+    )
     log_action(
         request,
         action="import_excel_wishes",
         detail=f"Tâche {task_id} lancée — Fichier {file.name} — Année {academic_year.label}",
     )
-    return 202, {"task_id": task_id, "message": "Import Excel vœux lancé en arrière-plan."}
+    return 202, {
+        "task_id": task_id,
+        "message": "Import Excel vœux lancé en arrière-plan.",
+    }
 
 
 @router.get(
@@ -909,7 +918,10 @@ def sync_from_pegase(request, year_id: int):
         action="sync_pegase_students",
         detail=f"Tâche {task_id} lancée — Année {academic_year.label}",
     )
-    return 202, {"task_id": task_id, "message": "Synchronisation Pegase lancée en arrière-plan."}
+    return 202, {
+        "task_id": task_id,
+        "message": "Synchronisation Pegase lancée en arrière-plan.",
+    }
 
 
 @router.post(
@@ -921,7 +933,9 @@ def import_from_excel(request, year_id: int, file: UploadedFile = File(...)):
     academic_year = get_academic_year(year_id)
     triggered_by = getattr(request.user, "username", "")
     file_bytes = file.read()
-    task_id = enqueue_import_excel_students(file_bytes, file.name, year_id, triggered_by=triggered_by)
+    task_id = enqueue_import_excel_students(
+        file_bytes, file.name, year_id, triggered_by=triggered_by
+    )
     log_action(
         request,
         action="import_excel_students",
@@ -947,7 +961,10 @@ def sync_wishes_from_moveon(request, year_id: int):
         action="sync_moveon_wishes",
         detail=f"Tâche {task_id} lancée — Année {academic_year.label}",
     )
-    return 202, {"task_id": task_id, "message": "Synchronisation MoveON lancée en arrière-plan."}
+    return 202, {
+        "task_id": task_id,
+        "message": "Synchronisation MoveON lancée en arrière-plan.",
+    }
 
 
 @router.get(
