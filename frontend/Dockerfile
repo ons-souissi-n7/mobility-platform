@@ -16,7 +16,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g npm@latest
+RUN npm install -g npm@latest && cd "$(npm root -g)/npm" && npm install "undici@>=6.27.0" --no-save
 
 RUN addgroup --system appgroup \
     && adduser --system --ingroup appgroup appuser
