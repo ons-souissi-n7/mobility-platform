@@ -3,37 +3,6 @@ from decimal import Decimal
 
 from ninja import Schema  # noqa: I001
 
-# ── Vœux étudiants ─────────────────────────────────────────────────────────
-
-
-class AgreementWishOut(Schema):
-    rank: int
-    agreement_id: int
-    moveon_id: str | None
-    agreement_name: str
-    university_name: str
-    direction: str
-
-
-class StudentWishesOut(Schema):
-    student_id: int
-    ine: str
-    first_name: str
-    last_name: str
-    department_code: str | None
-    parcours_code: str | None
-    gpa: Decimal | None
-    wishes: list[AgreementWishOut]
-
-
-class WishSyncReportOut(Schema):
-    created: int
-    updated: int
-    skipped: int
-    total: int
-    unresolved: list[dict]
-    errors: list[str]
-
 
 class ParcoursOut(Schema):
     id: int
@@ -53,6 +22,8 @@ class AnnualEnrollmentOut(Schema):
     parcours_id: int | None
     parcours_code: str | None
     gpa: Decimal | None
+    is_alternant: bool
+    is_scholarship: bool
     created_at: datetime
     updated_at: datetime
 
@@ -186,14 +157,11 @@ class StudentEnrollmentOut(Schema):
     parcours_code: str | None
     parcours_label: str | None
     gpa: Decimal | None
+    is_alternant: bool
+    is_scholarship: bool
 
 
 class StudentImportRetryIn(Schema):
     department_id: int | None = None
     level_id: int | None = None
     parcours_id: int | None = None
-
-
-class WishImportRetryIn(Schema):
-    student_id: int | None = None
-    agreement_id: int | None = None

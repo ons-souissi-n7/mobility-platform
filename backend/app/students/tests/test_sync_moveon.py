@@ -422,17 +422,17 @@ class TestSyncWishesAPI:
         self.agreement_year = make_agreement_year(self.agreement, self.year)
 
     def test_sync_triggers_background_task(self, monkeypatch):
-        import app.students.api as students_api
+        import app.outgoing.api as outgoing_api
 
         calls = []
         monkeypatch.setattr(
-            students_api,
+            outgoing_api,
             "enqueue_sync_moveon_wishes",
             lambda year_id, triggered_by="": calls.append(year_id) or "fake-task-id",
         )
 
         response = self.client.post(
-            f"/api/v1/students/students/wishes/sync-moveon/{self.year.id}/"
+            f"/api/v1/outgoing/wishes/sync-moveon/{self.year.id}/"
         )
 
         assert response.status_code == 202
@@ -442,7 +442,7 @@ class TestSyncWishesAPI:
 
     def test_sync_unknown_year_returns_404(self):
         response = self.client.post(
-            "/api/v1/students/students/wishes/sync-moveon/99999/"
+            "/api/v1/outgoing/wishes/sync-moveon/99999/"
         )
 
         assert response.status_code == 404
@@ -465,7 +465,7 @@ class TestListWishesByYearAPI:
 
     def test_list_by_year(self):
         response = self.client.get(
-            f"/api/v1/students/students/wishes/by-year/{self.year.id}/"
+            f"/api/v1/outgoing/wishes/by-year/{self.year.id}/"
         )
 
         assert response.status_code == 200
@@ -486,7 +486,7 @@ class TestListWishesByYearAPI:
         )
 
         response = self.client.get(
-            f"/api/v1/students/students/wishes/by-year/{self.year.id}/"
+            f"/api/v1/outgoing/wishes/by-year/{self.year.id}/"
         )
 
         data = response.json()
@@ -500,7 +500,7 @@ class TestListWishesByYearAPI:
         )
 
         response = self.client.get(
-            f"/api/v1/students/students/wishes/by-year/{year2.id}/"
+            f"/api/v1/outgoing/wishes/by-year/{year2.id}/"
         )
 
         assert response.status_code == 200
@@ -524,7 +524,7 @@ class TestGetStudentWishesAPI:
 
     def test_get_student_wishes(self):
         response = self.client.get(
-            f"/api/v1/students/students/{self.student.id}/wishes/{self.year.id}/"
+            f"/api/v1/outgoing/wishes/by-student/{self.student.id}/{self.year.id}/"
         )
 
         assert response.status_code == 200
@@ -534,7 +534,7 @@ class TestGetStudentWishesAPI:
 
     def test_get_student_not_found(self):
         response = self.client.get(
-            f"/api/v1/students/students/99999/wishes/{self.year.id}/"
+            f"/api/v1/outgoing/wishes/by-student/99999/{self.year.id}/"
         )
 
         assert response.status_code == 404
@@ -544,7 +544,7 @@ class TestGetStudentWishesAPI:
         make_enrollment(student2, self.year)
 
         response = self.client.get(
-            f"/api/v1/students/students/{student2.id}/wishes/{self.year.id}/"
+            f"/api/v1/outgoing/wishes/by-student/{student2.id}/{self.year.id}/"
         )
 
         assert response.status_code == 200

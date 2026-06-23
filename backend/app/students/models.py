@@ -87,6 +87,16 @@ class AnnualEnrollment(TimeStampedModel):
         related_name="enrollments",
     )
     gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    is_alternant = models.BooleanField(
+        default=False,
+        verbose_name="Alternant (FISA)",
+        help_text="Vrai pour les étudiants en apprentissage (FISA). "
+                  "Les FISA choisissent leur mobilité en 3ème année.",
+    )
+    is_scholarship = models.BooleanField(
+        default=False,
+        verbose_name="Boursier",
+    )
     last_sync_pegase = models.DateTimeField(
         null=True,
         blank=True,
@@ -125,6 +135,9 @@ class AnnualEnrollment(TimeStampedModel):
             ),
             models.Index(
                 fields=["academic_year", "parcours"], name="enroll_year_parcours_idx"
+            ),
+            models.Index(
+                fields=["academic_year", "is_alternant"], name="enroll_year_alternant_idx"
             ),
         ]
 
@@ -180,3 +193,4 @@ class StudentWish(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.annual_enrollment.student} — Vœu {self.rank} ({self.annual_enrollment.academic_year})"
+

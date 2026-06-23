@@ -1,10 +1,8 @@
 import {
   BarChart3,
   CalendarRange,
-  ClipboardCheck,
   FileBarChart,
   FileText,
-  Heart,
   LayoutDashboard,
   PlaneLanding,
   PlaneTakeoff,
@@ -25,11 +23,6 @@ export const adminNavigation = [
     icon: Users,
   },
   {
-    href: "/voeux",
-    label: "Voeux étudiants",
-    icon: Heart,
-  },
-  {
     href: "/sortantes",
     label: "Mobilites sortantes",
     icon: PlaneTakeoff,
@@ -38,11 +31,6 @@ export const adminNavigation = [
     href: "/entrantes",
     label: "Mobilites entrantes",
     icon: PlaneLanding,
-  },
-  {
-    href: "/affectations",
-    label: "Affectations",
-    icon: ClipboardCheck,
   },
   {
     href: "/mobility",
