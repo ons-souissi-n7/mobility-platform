@@ -355,7 +355,7 @@ export function StudentsWorkspace({
         search={{ value: query, onChange: handleQueryChange, placeholder: "Rechercher par INE, nom, prénom..." }}
         actions={
           <>
-            <TemplateButton isLoading={templateLoading} onClick={handleTemplateDownload} />
+            <TemplateButton isLoading={templateLoading} disabled={selectedYear?.status === "closed"} onClick={handleTemplateDownload} />
             <ExcelImportButton isLoading={importInProgress} disabled={selectedYear?.status === "closed"} onImport={handleExcelImport} />
             <SyncButton isLoading={syncInProgress} disabled={selectedYear?.status === "closed"} onClick={handleSync} />
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
@@ -781,9 +781,9 @@ function Td({ children }: { children: ReactNode }) {
   return <td className="px-4 py-3">{children}</td>;
 }
 
-function TemplateButton({ isLoading, onClick }: { isLoading: boolean; onClick: () => void }) {
+function TemplateButton({ isLoading, disabled, onClick }: { isLoading: boolean; disabled?: boolean; onClick: () => void }) {
   return (
-    <Btn disabled={isLoading} onClick={onClick}>
+    <Btn disabled={isLoading || disabled} onClick={onClick}>
       <Download className="h-4 w-4" />
       Template
     </Btn>

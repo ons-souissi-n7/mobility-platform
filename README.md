@@ -16,6 +16,7 @@ Plateforme web destinée à l'ENSEEIHT (Toulouse-INP) pour centraliser et pilote
 - [Migrations](#migrations)
 - [Données initiales](#données-initiales)
 - [CI/CD](#cicd)
+- [Vérification locale avant push](#vérification-locale-avant-push)
 - [Déploiement staging / production](#déploiement-staging--production)
 
 ---
@@ -305,6 +306,69 @@ Le pipeline GitHub Actions (`.github/workflows/ci.yml`) s'exécute sur chaque pu
 6. **Scan sécurité** — Trivy sur les deux images (CRITICAL + HIGH, bloquant)
 
 Le déploiement staging (`.github/workflows/deploy-staging.yml`) se déclenche automatiquement sur push vers `main`.
+
+---
+
+## Vérification locale avant push
+
+Reproduire l'intégralité du pipeline CI/CD en local avant de pousser une branche.
+
+### 1. Backend — qualité du code
+
+```bash
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend ruff check .
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend ruff format --check .
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend python manage.py check
+```
+
+### 2. Backend — migrations
+
+```bash
+# Vérifier qu'aucune migration n'a été oubliée
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend python manage.py makemigrations --check --dry-run
+
+# Appliquer les migrations (requis avant les tests)
+docker compose -f docker-compose.dev.yml run --rm backend python manage.py migrate
+```
+
+### 3. Backend — tests avec couverture
+
+```bash
+# Couverture minimale requise : 80 %
+docker compose -f docker-compose.dev.yml run --rm backend pytest --cov=. --cov-report=xml --cov-fail-under=80 -v
+```
+
+### 4. Frontend — qualité du code et tests
+
+```bash
+docker compose -f docker-compose.dev.yml run --rm --no-deps frontend npm run lint
+docker compose -f docker-compose.dev.yml run --rm --no-deps frontend npm run typecheck
+docker compose -f docker-compose.dev.yml run --rm --no-deps frontend npm test
+docker compose -f docker-compose.dev.yml run --rm --no-deps frontend npm run build
+```
+
+### 5. Build des images Docker de production
+
+```bash
+docker build -t mobility-backend:local ./backend -f ./backend/Dockerfile
+docker build -t mobility-frontend:local ./frontend -f ./frontend/Dockerfile
+```
+
+### 6. Scan de sécurité Trivy
+
+Reproduit exactement le job **Scan sécurité** du CI (CRITICAL + HIGH, bloquant).
+
+```bash
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  aquasec/trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed \
+  mobility-backend:local
+
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  aquasec/trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed \
+  mobility-frontend:local
+```
+
+> Un exit code 1 sur le scan Trivy signifie que le push échouera aussi en CI.
 
 ---
 
