@@ -140,6 +140,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   // ── Load all data for a year ──────────────────────────────────────────────
   useEffect(() => {
     if (!selectedYearId) return;
+    const yearId = selectedYearId;
     let cancelled = false;
 
     async function load() {
@@ -155,11 +156,11 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
 
       try {
         const [w, errs, students, agr, assignmentsData] = await Promise.all([
-          getWishesByYear(selectedYearId),
+          getWishesByYear(yearId),
           getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE }),
-          getStudentSelectOptions(selectedYearId),
+          getStudentSelectOptions(yearId),
           getValidAgreements(),
-          getAssignmentsForYear(selectedYearId),
+          getAssignmentsForYear(yearId),
         ]);
         if (cancelled) return;
         setWishes(w);
