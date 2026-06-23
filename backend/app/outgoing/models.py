@@ -6,17 +6,17 @@ from app.core.models import TimeStampedModel
 
 
 class AssignmentStatus(models.TextChoices):
-    PROPOSED  = "proposed",  "Proposé"
+    PROPOSED = "proposed", "Proposé"
     VALIDATED = "validated", "Validé"
     PUBLISHED = "published", "Publié"
     CANCELLED = "cancelled", "Annulé"
 
 
 class SlotType(models.TextChoices):
-    DEPT        = "dept",        "Slot département"
-    SURPLUS     = "surplus",     "Slot surplus"
+    DEPT = "dept", "Slot département"
+    SURPLUS = "surplus", "Slot surplus"
     ALTERNATIVE = "alternative", "Destination alternative"
-    UNASSIGNED  = "unassigned",  "Non affecté"
+    UNASSIGNED = "unassigned", "Non affecté"
 
 
 class Assignment(TimeStampedModel):
@@ -37,8 +37,8 @@ class Assignment(TimeStampedModel):
     run_by = models.CharField(max_length=255, blank=True)
     override_reason = models.TextField(blank=True)
 
-    total_students  = models.IntegerField(default=0)
-    assigned_count  = models.IntegerField(default=0)
+    total_students = models.IntegerField(default=0)
+    assigned_count = models.IntegerField(default=0)
     unassigned_count = models.IntegerField(default=0)
 
     class Meta:
@@ -47,17 +47,25 @@ class Assignment(TimeStampedModel):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["academic_year"], name="assignment_year_idx"),
-            models.Index(fields=["status"],        name="assignment_status_idx"),
+            models.Index(fields=["status"], name="assignment_status_idx"),
         ]
 
     def __str__(self) -> str:
         return f"Affectation {self.academic_year.label} ({self.status})"
 
-    @transition(field=status, source=AssignmentStatus.PROPOSED, target=AssignmentStatus.VALIDATED)
+    @transition(
+        field=status,
+        source=AssignmentStatus.PROPOSED,
+        target=AssignmentStatus.VALIDATED,
+    )
     def validate(self) -> None:
         pass
 
-    @transition(field=status, source=AssignmentStatus.VALIDATED, target=AssignmentStatus.PUBLISHED)
+    @transition(
+        field=status,
+        source=AssignmentStatus.VALIDATED,
+        target=AssignmentStatus.PUBLISHED,
+    )
     def publish(self) -> None:
         pass
 
@@ -111,10 +119,10 @@ class AssignmentResult(TimeStampedModel):
             )
         ]
         indexes = [
-            models.Index(fields=["assignment"],      name="result_assignment_idx"),
+            models.Index(fields=["assignment"], name="result_assignment_idx"),
             models.Index(fields=["annual_enrollment"], name="result_enrollment_idx"),
-            models.Index(fields=["agreement_year"],  name="result_agreement_year_idx"),
-            models.Index(fields=["slot_type"],       name="result_slot_type_idx"),
+            models.Index(fields=["agreement_year"], name="result_agreement_year_idx"),
+            models.Index(fields=["slot_type"], name="result_slot_type_idx"),
         ]
 
     def __str__(self) -> str:

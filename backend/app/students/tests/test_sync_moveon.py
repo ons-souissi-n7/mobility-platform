@@ -441,9 +441,7 @@ class TestSyncWishesAPI:
         assert calls == [self.year.id]
 
     def test_sync_unknown_year_returns_404(self):
-        response = self.client.post(
-            "/api/v1/outgoing/wishes/sync-moveon/99999/"
-        )
+        response = self.client.post("/api/v1/outgoing/wishes/sync-moveon/99999/")
 
         assert response.status_code == 404
 
@@ -464,9 +462,7 @@ class TestListWishesByYearAPI:
         )
 
     def test_list_by_year(self):
-        response = self.client.get(
-            f"/api/v1/outgoing/wishes/by-year/{self.year.id}/"
-        )
+        response = self.client.get(f"/api/v1/outgoing/wishes/by-year/{self.year.id}/")
 
         assert response.status_code == 200
         data = response.json()
@@ -485,9 +481,7 @@ class TestListWishesByYearAPI:
             rank=2,
         )
 
-        response = self.client.get(
-            f"/api/v1/outgoing/wishes/by-year/{self.year.id}/"
-        )
+        response = self.client.get(f"/api/v1/outgoing/wishes/by-year/{self.year.id}/")
 
         data = response.json()
         wishes = data[0]["wishes"]
@@ -499,9 +493,7 @@ class TestListWishesByYearAPI:
             label="2027-2028", start_date=date(2027, 9, 1), end_date=date(2028, 8, 31)
         )
 
-        response = self.client.get(
-            f"/api/v1/outgoing/wishes/by-year/{year2.id}/"
-        )
+        response = self.client.get(f"/api/v1/outgoing/wishes/by-year/{year2.id}/")
 
         assert response.status_code == 200
         assert response.json() == []

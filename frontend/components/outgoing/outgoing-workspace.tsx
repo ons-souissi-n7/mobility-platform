@@ -140,24 +140,28 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   // ── Load all data for a year ──────────────────────────────────────────────
   useEffect(() => {
     if (!selectedYearId) return;
-    setIsLoading(true);
-    setWishes([]);
-    setError("");
-    setQuery("");
-    setFilterDept("");
-    setAssignment(null);
-    setStats(null);
-    setResultsMap(new Map());
-    stopPolling();
+    let cancelled = false;
 
-    Promise.all([
-      getWishesByYear(selectedYearId),
-      getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE }),
-      getStudentSelectOptions(selectedYearId),
-      getValidAgreements(),
-      getAssignmentsForYear(selectedYearId),
-    ])
-      .then(async ([w, errs, students, agr, assignmentsData]) => {
+    async function load() {
+      setIsLoading(true);
+      setWishes([]);
+      setError("");
+      setQuery("");
+      setFilterDept("");
+      setAssignment(null);
+      setStats(null);
+      setResultsMap(new Map());
+      stopPolling();
+
+      try {
+        const [w, errs, students, agr, assignmentsData] = await Promise.all([
+          getWishesByYear(selectedYearId),
+          getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE }),
+          getStudentSelectOptions(selectedYearId),
+          getValidAgreements(),
+          getAssignmentsForYear(selectedYearId),
+        ]);
+        if (cancelled) return;
         setWishes(w);
         setWishImportErrors(errs.results);
         setWishErrorsTotalCount(errs.count);
@@ -172,17 +176,22 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
             getAssignmentResults(latest.id, { page_size: 500 }),
             getAssignmentStats(latest.id),
           ]);
+          if (cancelled) return;
           const map = new Map<string, AssignmentResult>();
           for (const r of resultsData.results) map.set(r.student_ine, r);
           setResultsMap(map);
           setStats(statsData);
         }
-      })
-      .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Erreur de chargement."),
-      )
-      .finally(() => setIsLoading(false));
-  }, [selectedYearId, stopPolling]); // eslint-disable-line react-hooks/exhaustive-deps
+      } catch (err: unknown) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Erreur de chargement.");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    void load();
+    return () => { cancelled = true; };
+  }, [selectedYearId, stopPolling]);
 
   useEffect(() => () => stopPolling(), [stopPolling]);
 
@@ -622,7 +631,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                       <th className="px-6 py-3 text-right">Étudiants inscrits</th>
                       <th className="px-6 py-3 text-right">Étudiants placés</th>
                       <th className="px-6 py-3 text-right">Non affectés</th>
-                      <th className="px-6 py-3 text-right">Taux d'affectation</th>
+                      <th className="px-6 py-3 text-right">Taux d&apos;affectation</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -818,7 +827,7 @@ function WishesAssignmentTable({
               {rankCols.map((r) => <Th key={r}>Vœu {r}</Th>)}
               {hasAssignment && (
                 <Th>
-                  <span className="text-emerald-700">Décision d'affectation</span>
+                  <span className="text-emerald-700">Décision d&apos;affectation</span>
                 </Th>
               )}
             </tr>

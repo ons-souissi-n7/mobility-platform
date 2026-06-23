@@ -16,7 +16,6 @@ Cas couverts :
   EXH   — étudiant épuise tous ses vœux → unassigned
 """
 
-
 from app.outgoing.services.gale_shapley import (
     AgreementInput,
     AssignmentOutput,
@@ -26,8 +25,8 @@ from app.outgoing.services.gale_shapley import (
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-DEPT_SN   = 1
-DEPT_3EA  = 2
+DEPT_SN = 1
+DEPT_3EA = 2
 DEPT_MF2E = 3
 
 AY_A = 101
@@ -60,6 +59,7 @@ def result_map(results: list[AssignmentOutput]) -> dict[int, AssignmentOutput]:
 
 
 # ── CAS 1 : slot département libre ───────────────────────────────────────────
+
 
 class TestCas1:
     def test_single_student_placed_in_dept(self):
@@ -99,6 +99,7 @@ class TestCas1:
 
 # ── CAS 2 : slot surplus disponible ──────────────────────────────────────────
 
+
 class TestCas2:
     def test_student_placed_in_surplus_when_dept_full(self):
         """
@@ -107,7 +108,7 @@ class TestCas2:
         Étudiant 3EA (no quota 3EA) prend le surplus.
         """
         students = [
-            make_student(1, DEPT_SN,  3.5, [AY_A]),
+            make_student(1, DEPT_SN, 3.5, [AY_A]),
             make_student(2, DEPT_3EA, 3.0, [AY_A]),
         ]
         agreements = [make_agr(AY_A, {DEPT_SN: 1}, n7=2)]
@@ -124,9 +125,9 @@ class TestCas2:
         1 SN (dept) + 2 étudiants sans quota (surplus).
         """
         students = [
-            make_student(1, DEPT_SN,  3.5, [AY_A]),
+            make_student(1, DEPT_SN, 3.5, [AY_A]),
             make_student(2, DEPT_3EA, 3.0, [AY_A]),
-            make_student(3, DEPT_MF2E,2.5, [AY_A]),
+            make_student(3, DEPT_MF2E, 2.5, [AY_A]),
         ]
         agreements = [make_agr(AY_A, {DEPT_SN: 1}, n7=3)]
 
@@ -138,6 +139,7 @@ class TestCas2:
 
 
 # ── CAS 3 : compétition par score ─────────────────────────────────────────────
+
 
 class TestCas3:
     def test_higher_gpa_wins_over_lower(self):
@@ -152,9 +154,9 @@ class TestCas3:
 
         results = result_map(gale_shapley(students, agreements))
 
-        assigned   = [r for r in results.values() if r.slot_type == "dept"]
+        assigned = [r for r in results.values() if r.slot_type == "dept"]
         unassigned = [r for r in results.values() if r.slot_type == "unassigned"]
-        assert assigned[0].enrollment_id == 2    # fort GPA garde sa place
+        assert assigned[0].enrollment_id == 2  # fort GPA garde sa place
         assert unassigned[0].enrollment_id == 1  # faible GPA éliminé
 
     def test_french_beats_international_regardless_of_gpa(self):
@@ -162,14 +164,18 @@ class TestCas3:
         Tier 1 (français) prime sur tier 0 (étranger) même avec GPA inférieur.
         """
         students = [
-            make_student(10, DEPT_SN, 3.9, [AY_A], is_french=False),  # étranger fort GPA
-            make_student(11, DEPT_SN, 2.5, [AY_A], is_french=True),   # français faible GPA
+            make_student(
+                10, DEPT_SN, 3.9, [AY_A], is_french=False
+            ),  # étranger fort GPA
+            make_student(
+                11, DEPT_SN, 2.5, [AY_A], is_french=True
+            ),  # français faible GPA
         ]
         agreements = [make_agr(AY_A, {DEPT_SN: 1})]
 
         results = result_map(gale_shapley(students, agreements))
 
-        assert results[11].slot_type == "dept"    # français placé
+        assert results[11].slot_type == "dept"  # français placé
         assert results[10].slot_type == "unassigned"
 
     def test_rejected_student_tries_next_wish(self):
@@ -177,7 +183,7 @@ class TestCas3:
         Étudiant rejeté de AY_A (meilleur déjà là) tente AY_B.
         """
         students = [
-            make_student(1, DEPT_SN, 3.5, [AY_A]),        # occupe AY_A
+            make_student(1, DEPT_SN, 3.5, [AY_A]),  # occupe AY_A
             make_student(2, DEPT_SN, 2.0, [AY_A, AY_B]),  # évincé de AY_A → essaie AY_B
         ]
         agreements = [
@@ -193,6 +199,7 @@ class TestCas3:
 
 # ── CAS1 overflow : étudiant dept évince un surplus ──────────────────────────
 
+
 class TestCas1Overflow:
     def test_dept_student_evicts_surplus_occupant(self):
         """
@@ -203,20 +210,21 @@ class TestCas1Overflow:
         Séquence garantie : MF2E en tête de queue → proposent en premier.
         """
         students = [
-            make_student(99, DEPT_MF2E, 3.9, [AY_A]),   # MF2E, pas de quota → surplus
-            make_student(1,  DEPT_SN,   3.5, [AY_A]),   # SN_1 → dept
-            make_student(2,  DEPT_SN,   3.0, [AY_A]),   # SN_2 → dept, déborde → évince MF2E
+            make_student(99, DEPT_MF2E, 3.9, [AY_A]),  # MF2E, pas de quota → surplus
+            make_student(1, DEPT_SN, 3.5, [AY_A]),  # SN_1 → dept
+            make_student(2, DEPT_SN, 3.0, [AY_A]),  # SN_2 → dept, déborde → évince MF2E
         ]
         agreements = [make_agr(AY_A, {DEPT_SN: 2})]  # n7=2, surplus=0
 
         results = result_map(gale_shapley(students, agreements))
 
-        assert results[1].slot_type  == "dept"
-        assert results[2].slot_type  == "dept"
+        assert results[1].slot_type == "dept"
+        assert results[2].slot_type == "dept"
         assert results[99].slot_type == "unassigned"  # MF2E évincé, plus de vœu dispo
 
 
 # ── Cascade d'évictions ───────────────────────────────────────────────────────
+
 
 class TestCascade:
     def test_two_level_cascade(self):
@@ -232,10 +240,10 @@ class TestCascade:
           D  = [AY_A]           → occupe AY_A (meilleur score que A)
         """
         students = [
-            make_student(10, DEPT_SN, 4.0, [AY_A]),           # D : occupe AY_A
-            make_student(1,  DEPT_SN, 3.8, [AY_A, AY_B]),     # A
-            make_student(2,  DEPT_SN, 3.0, [AY_B, AY_C]),     # B
-            make_student(3,  DEPT_SN, 2.0, [AY_C, AY_A]),     # C
+            make_student(10, DEPT_SN, 4.0, [AY_A]),  # D : occupe AY_A
+            make_student(1, DEPT_SN, 3.8, [AY_A, AY_B]),  # A
+            make_student(2, DEPT_SN, 3.0, [AY_B, AY_C]),  # B
+            make_student(3, DEPT_SN, 2.0, [AY_C, AY_A]),  # C
         ]
         agreements = [
             make_agr(AY_A, {DEPT_SN: 1}),
@@ -245,13 +253,14 @@ class TestCascade:
 
         results = result_map(gale_shapley(students, agreements))
 
-        assert results[10].agreement_year_id == AY_A   # D reste en AY_A
-        assert results[1].agreement_year_id  == AY_B   # A placé en AY_B
-        assert results[2].agreement_year_id  == AY_C   # B placé en AY_C
-        assert results[3].slot_type          == "unassigned"  # C évincé partout
+        assert results[10].agreement_year_id == AY_A  # D reste en AY_A
+        assert results[1].agreement_year_id == AY_B  # A placé en AY_B
+        assert results[2].agreement_year_id == AY_C  # B placé en AY_C
+        assert results[3].slot_type == "unassigned"  # C évincé partout
 
 
 # ── Destination alternative ───────────────────────────────────────────────────
+
 
 class TestAlternativeDestination:
     def test_unmatched_student_gets_alternative_slot(self):
@@ -261,11 +270,13 @@ class TestAlternativeDestination:
         Étudiant SN non-affecté → destination alternative dans AY_A.
         """
         students = [
-            make_student(1, DEPT_SN, 3.0, [AY_B]),  # préfère AY_B, rejeté (meilleur déjà là)
+            make_student(
+                1, DEPT_SN, 3.0, [AY_B]
+            ),  # préfère AY_B, rejeté (meilleur déjà là)
             make_student(2, DEPT_SN, 3.5, [AY_B]),  # occupe AY_B
         ]
         agreements = [
-            make_agr(AY_A, {DEPT_SN: 1}),   # personne ne le souhaite → place libre
+            make_agr(AY_A, {DEPT_SN: 1}),  # personne ne le souhaite → place libre
             make_agr(AY_B, {DEPT_SN: 1}),
         ]
 
@@ -283,7 +294,7 @@ class TestAlternativeDestination:
         """
         students = [make_student(1, DEPT_MF2E, 3.0, [AY_B])]
         agreements = [
-            make_agr(AY_A, {DEPT_SN: 2}),   # place libre, mais pour SN uniquement
+            make_agr(AY_A, {DEPT_SN: 2}),  # place libre, mais pour SN uniquement
             make_agr(AY_B, {DEPT_MF2E: 0}),  # pas de quota MF2E non plus
         ]
 
@@ -294,6 +305,7 @@ class TestAlternativeDestination:
 
 # ── GPA null ──────────────────────────────────────────────────────────────────
 
+
 class TestGpaNull:
     def test_null_gpa_has_lowest_priority(self):
         """
@@ -301,7 +313,7 @@ class TestGpaNull:
         """
         students = [
             make_student(1, DEPT_SN, None, [AY_A]),  # GPA null → -inf
-            make_student(2, DEPT_SN, 0.1,  [AY_A]),  # GPA très faible mais réelle
+            make_student(2, DEPT_SN, 0.1, [AY_A]),  # GPA très faible mais réelle
         ]
         agreements = [make_agr(AY_A, {DEPT_SN: 1})]
 
@@ -328,14 +340,15 @@ class TestGpaNull:
 
 # ── Égalité de score ──────────────────────────────────────────────────────────
 
+
 class TestTie:
     def test_tie_preserves_current_occupant(self):
         """
         Scores identiques → l'occupant actuel conserve sa place (pas d'éviction).
         """
         students = [
-            make_student(1, DEPT_SN, 3.5, [AY_A]),         # occupe AY_A en premier
-            make_student(2, DEPT_SN, 3.5, [AY_A, AY_B]),   # même score → essaie AY_B
+            make_student(1, DEPT_SN, 3.5, [AY_A]),  # occupe AY_A en premier
+            make_student(2, DEPT_SN, 3.5, [AY_A, AY_B]),  # même score → essaie AY_B
         ]
         agreements = [
             make_agr(AY_A, {DEPT_SN: 1}),
@@ -350,9 +363,10 @@ class TestTie:
 
 # ── Épuisement des vœux ───────────────────────────────────────────────────────
 
+
 class TestExhausted:
     def test_student_with_no_matching_wish_is_unassigned(self):
-        students = [make_student(1, DEPT_SN, 3.5, [])]   # aucun vœu
+        students = [make_student(1, DEPT_SN, 3.5, [])]  # aucun vœu
         agreements = [make_agr(AY_A, {DEPT_SN: 1})]
 
         results = result_map(gale_shapley(students, agreements))
@@ -362,9 +376,9 @@ class TestExhausted:
 
     def test_student_rejected_everywhere_is_unassigned(self):
         students = [
-            make_student(1, DEPT_SN, 3.9, [AY_A]),         # occupe AY_A
-            make_student(2, DEPT_SN, 2.0, [AY_A, AY_B]),   # perd AY_A, perd AY_B
-            make_student(3, DEPT_SN, 3.5, [AY_B]),          # occupe AY_B
+            make_student(1, DEPT_SN, 3.9, [AY_A]),  # occupe AY_A
+            make_student(2, DEPT_SN, 2.0, [AY_A, AY_B]),  # perd AY_A, perd AY_B
+            make_student(3, DEPT_SN, 3.5, [AY_B]),  # occupe AY_B
         ]
         agreements = [
             make_agr(AY_A, {DEPT_SN: 1}),

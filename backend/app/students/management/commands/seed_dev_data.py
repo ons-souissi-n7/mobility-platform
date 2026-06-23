@@ -29,13 +29,13 @@ from django.db import transaction
 # ── Quotas pour les accords existants (AgreementYears 2025-2026) ──────────────
 # (agreement_name, {dept_code: estimated_places}, n7_places)
 EXISTING_AGREEMENT_QUOTAS_2526 = [
-    ("Erasmus+ TU Munchen",            {"SN": 3, "3EA": 2},              6),
-    ("Erasmus+ UPM Madrid",            {"SN": 2, "MF2E": 2},             5),
-    ("Convention ETH Zurich",          {"3EA": 2, "MF2E": 2},            5),
-    ("Convention McGill",              {"SN": 2, "3EA": 1},              4),
-    ("Erasmus+ Politecnico di Milano", {"SN": 2, "3EA": 2, "MF2E": 2},   7),
-    ("Erasmus+ TU Delft",              {"3EA": 2, "MF2E": 2},            5),
-    ("Erasmus+ KTH Stockholm",         {"SN": 2, "3EA": 2},              5),
+    ("Erasmus+ TU Munchen", {"SN": 3, "3EA": 2}, 6),
+    ("Erasmus+ UPM Madrid", {"SN": 2, "MF2E": 2}, 5),
+    ("Convention ETH Zurich", {"3EA": 2, "MF2E": 2}, 5),
+    ("Convention McGill", {"SN": 2, "3EA": 1}, 4),
+    ("Erasmus+ Politecnico di Milano", {"SN": 2, "3EA": 2, "MF2E": 2}, 7),
+    ("Erasmus+ TU Delft", {"3EA": 2, "MF2E": 2}, 5),
+    ("Erasmus+ KTH Stockholm", {"SN": 2, "3EA": 2}, 5),
 ]
 
 # ── Nouveaux accords à créer si absents ──────────────────────────────────────
@@ -84,87 +84,593 @@ NEW_AGREEMENTS_DATA = [
     ),
 ]
 
-ALL_AGREEMENT_NAMES = (
-    [a[0] for a in EXISTING_AGREEMENT_QUOTAS_2526]
-    + [a[0] for a in NEW_AGREEMENTS_DATA]
-)
+ALL_AGREEMENT_NAMES = [a[0] for a in EXISTING_AGREEMENT_QUOTAS_2526] + [
+    a[0] for a in NEW_AGREEMENTS_DATA
+]
 
 # ── Vœux imposés pour certains étudiants MF2E ─────────────────────────────────
 # Ces 3 étudiants MF2E souhaitent des accords qui N'ONT PAS de quota MF2E.
 # Résultat attendu : rejetés de leurs vœux → affectés en destination alternative.
 FORCED_WISHES: dict[str, list[str]] = {
-    "20MF204FISE": ["Erasmus+ TU Munchen", "Erasmus+ KTH Stockholm", "Convention McGill"],
-    "20MF209FISE": ["Erasmus+ TU Munchen", "Erasmus+ KTH Stockholm", "Convention McGill"],
-    "20MF202FISA": ["Erasmus+ TU Munchen", "Erasmus+ KTH Stockholm", "Convention McGill"],
+    "20MF204FISE": [
+        "Erasmus+ TU Munchen",
+        "Erasmus+ KTH Stockholm",
+        "Convention McGill",
+    ],
+    "20MF209FISE": [
+        "Erasmus+ TU Munchen",
+        "Erasmus+ KTH Stockholm",
+        "Convention McGill",
+    ],
+    "20MF202FISA": [
+        "Erasmus+ TU Munchen",
+        "Erasmus+ KTH Stockholm",
+        "Convention McGill",
+    ],
 }
 
 # ── FISE 2ING ─────────────────────────────────────────────────────────────────
 FISE_STUDENTS = [
     # ── SN ──
-    ("Alexandre", "MARTIN",    "20SN001FISE", "a.martin@etu.inp-toulouse.fr",    "M", "FR", "SN", 3.65),
-    ("Léa",       "DUPONT",    "20SN002FISE", "l.dupont@etu.inp-toulouse.fr",    "F", "FR", "SN", 3.82),
-    ("Nicolas",   "BERNARD",   "20SN003FISE", "n.bernard@etu.inp-toulouse.fr",   "M", "FR", "SN", 3.10),
-    ("Camille",   "PETIT",     "20SN004FISE", "c.petit@etu.inp-toulouse.fr",     "F", "FR", "SN", 3.45),
-    ("Julien",    "MOREAU",    "20SN005FISE", "j.moreau@etu.inp-toulouse.fr",    "M", "FR", "SN", 2.90),
-    ("Sophie",    "LAURENT",   "20SN006FISE", "s.laurent@etu.inp-toulouse.fr",   "F", "FR", "SN", 3.95),
-    ("Maxime",    "SIMON",     "20SN007FISE", "m.simon@etu.inp-toulouse.fr",     "M", "FR", "SN", 2.70),
-    ("Lucie",     "MICHEL",    "20SN008FISE", "l.michel@etu.inp-toulouse.fr",    "F", "FR", "SN", 3.50),
-    ("Lucas",     "PIRES",     "20SN009FISE", "l.pires@etu.inp-toulouse.fr",     "M", "FR", "SN", 3.20),
-    ("Clara",     "ARNAUD",    "20SN010FISE", "c.arnaud@etu.inp-toulouse.fr",    "F", "FR", "SN", 2.80),
-    ("Carlos",    "GARCIA",    "20SN011FISE", "c.garcia@etu.inp-toulouse.fr",    "M", "ES", "SN", 3.35),
-    ("Yuki",      "TANAKA",    "20SN012FISE", "y.tanaka@etu.inp-toulouse.fr",    "F", "JP", "SN", 3.78),
-    ("Mehdi",     "EL FASSI",  "20SN013FISE", "m.elfassi@etu.inp-toulouse.fr",   "M", "MA", "SN", 3.05),
-    ("Ana",       "SILVA",     "20SN014FISE", "a.silva@etu.inp-toulouse.fr",     "F", "PT", "SN", 3.40),
+    (
+        "Alexandre",
+        "MARTIN",
+        "20SN001FISE",
+        "a.martin@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "SN",
+        3.65,
+    ),
+    (
+        "Léa",
+        "DUPONT",
+        "20SN002FISE",
+        "l.dupont@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "SN",
+        3.82,
+    ),
+    (
+        "Nicolas",
+        "BERNARD",
+        "20SN003FISE",
+        "n.bernard@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "SN",
+        3.10,
+    ),
+    (
+        "Camille",
+        "PETIT",
+        "20SN004FISE",
+        "c.petit@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "SN",
+        3.45,
+    ),
+    (
+        "Julien",
+        "MOREAU",
+        "20SN005FISE",
+        "j.moreau@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "SN",
+        2.90,
+    ),
+    (
+        "Sophie",
+        "LAURENT",
+        "20SN006FISE",
+        "s.laurent@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "SN",
+        3.95,
+    ),
+    (
+        "Maxime",
+        "SIMON",
+        "20SN007FISE",
+        "m.simon@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "SN",
+        2.70,
+    ),
+    (
+        "Lucie",
+        "MICHEL",
+        "20SN008FISE",
+        "l.michel@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "SN",
+        3.50,
+    ),
+    (
+        "Lucas",
+        "PIRES",
+        "20SN009FISE",
+        "l.pires@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "SN",
+        3.20,
+    ),
+    (
+        "Clara",
+        "ARNAUD",
+        "20SN010FISE",
+        "c.arnaud@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "SN",
+        2.80,
+    ),
+    (
+        "Carlos",
+        "GARCIA",
+        "20SN011FISE",
+        "c.garcia@etu.inp-toulouse.fr",
+        "M",
+        "ES",
+        "SN",
+        3.35,
+    ),
+    (
+        "Yuki",
+        "TANAKA",
+        "20SN012FISE",
+        "y.tanaka@etu.inp-toulouse.fr",
+        "F",
+        "JP",
+        "SN",
+        3.78,
+    ),
+    (
+        "Mehdi",
+        "EL FASSI",
+        "20SN013FISE",
+        "m.elfassi@etu.inp-toulouse.fr",
+        "M",
+        "MA",
+        "SN",
+        3.05,
+    ),
+    (
+        "Ana",
+        "SILVA",
+        "20SN014FISE",
+        "a.silva@etu.inp-toulouse.fr",
+        "F",
+        "PT",
+        "SN",
+        3.40,
+    ),
     # ── 3EA ──
-    ("Thomas",    "LEROY",     "203EA01FISE", "t.leroy@etu.inp-toulouse.fr",     "M", "FR", "3EA", 3.55),
-    ("Marie",     "DUBOIS",    "203EA02FISE", "m.dubois@etu.inp-toulouse.fr",    "F", "FR", "3EA", 3.70),
-    ("Antoine",   "GAUTHIER",  "203EA03FISE", "a.gauthier@etu.inp-toulouse.fr",  "M", "FR", "3EA", 3.85),
-    ("Claire",    "ROUSSEAU",  "203EA04FISE", "c.rousseau@etu.inp-toulouse.fr",  "F", "FR", "3EA", 3.00),
-    ("Romain",    "FONTAINE",  "203EA05FISE", "r.fontaine@etu.inp-toulouse.fr",  "M", "FR", "3EA", 2.85),
-    ("Elisa",     "VINCENT",   "203EA06FISE", "e.vincent@etu.inp-toulouse.fr",   "F", "FR", "3EA", 3.25),
-    ("Baptiste",  "MERCIER",   "203EA07FISE", "b.mercier@etu.inp-toulouse.fr",   "M", "FR", "3EA", 3.75),
-    ("Valentin",  "PICARD",    "203EA08FISE", "v.picard@etu.inp-toulouse.fr",    "M", "FR", "3EA", 3.15),
-    ("Jan",       "KOWALSKI",  "203EA09FISE", "j.kowalski@etu.inp-toulouse.fr",  "M", "PL", "3EA", 3.20),
-    ("Emma",      "MULLER",    "203EA10FISE", "e.muller@etu.inp-toulouse.fr",    "F", "DE", "3EA", 3.60),
-    ("Omar",      "BENNANI",   "203EA11FISE", "o.bennani@etu.inp-toulouse.fr",   "M", "MA", "3EA", 2.95),
-    ("Elena",     "POPESCU",   "203EA12FISE", "e.popescu@etu.inp-toulouse.fr",   "F", "PL", "3EA", 3.30),
+    (
+        "Thomas",
+        "LEROY",
+        "203EA01FISE",
+        "t.leroy@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "3EA",
+        3.55,
+    ),
+    (
+        "Marie",
+        "DUBOIS",
+        "203EA02FISE",
+        "m.dubois@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "3EA",
+        3.70,
+    ),
+    (
+        "Antoine",
+        "GAUTHIER",
+        "203EA03FISE",
+        "a.gauthier@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "3EA",
+        3.85,
+    ),
+    (
+        "Claire",
+        "ROUSSEAU",
+        "203EA04FISE",
+        "c.rousseau@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "3EA",
+        3.00,
+    ),
+    (
+        "Romain",
+        "FONTAINE",
+        "203EA05FISE",
+        "r.fontaine@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "3EA",
+        2.85,
+    ),
+    (
+        "Elisa",
+        "VINCENT",
+        "203EA06FISE",
+        "e.vincent@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "3EA",
+        3.25,
+    ),
+    (
+        "Baptiste",
+        "MERCIER",
+        "203EA07FISE",
+        "b.mercier@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "3EA",
+        3.75,
+    ),
+    (
+        "Valentin",
+        "PICARD",
+        "203EA08FISE",
+        "v.picard@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "3EA",
+        3.15,
+    ),
+    (
+        "Jan",
+        "KOWALSKI",
+        "203EA09FISE",
+        "j.kowalski@etu.inp-toulouse.fr",
+        "M",
+        "PL",
+        "3EA",
+        3.20,
+    ),
+    (
+        "Emma",
+        "MULLER",
+        "203EA10FISE",
+        "e.muller@etu.inp-toulouse.fr",
+        "F",
+        "DE",
+        "3EA",
+        3.60,
+    ),
+    (
+        "Omar",
+        "BENNANI",
+        "203EA11FISE",
+        "o.bennani@etu.inp-toulouse.fr",
+        "M",
+        "MA",
+        "3EA",
+        2.95,
+    ),
+    (
+        "Elena",
+        "POPESCU",
+        "203EA12FISE",
+        "e.popescu@etu.inp-toulouse.fr",
+        "F",
+        "PL",
+        "3EA",
+        3.30,
+    ),
     # ── MF2E ──
-    ("Pierre",    "BONNET",    "20MF201FISE", "p.bonnet@etu.inp-toulouse.fr",    "M", "FR", "MF2E", 3.40),
-    ("Julie",     "LEBRUN",    "20MF202FISE", "j.lebrun@etu.inp-toulouse.fr",    "F", "FR", "MF2E", 3.10),
-    ("Florian",   "MASSON",    "20MF203FISE", "f.masson@etu.inp-toulouse.fr",    "M", "FR", "MF2E", 3.60),
-    ("Aurélie",   "CARON",     "20MF204FISE", "a.caron@etu.inp-toulouse.fr",     "F", "FR", "MF2E", 2.75),
-    ("Kevin",     "RENARD",    "20MF205FISE", "k.renard@etu.inp-toulouse.fr",    "M", "FR", "MF2E", 3.80),
-    ("Manon",     "GIRARD",    "20MF206FISE", "m.girard@etu.inp-toulouse.fr",    "F", "FR", "MF2E", 3.25),
-    ("Marco",     "BIANCHI",   "20MF207FISE", "m.bianchi@etu.inp-toulouse.fr",   "M", "IT", "MF2E", 3.15),
-    ("Astrid",    "HANSEN",    "20MF208FISE", "a.hansen@etu.inp-toulouse.fr",    "F", "DK", "MF2E", 3.55),
-    ("Ricardo",   "GOMES",     "20MF209FISE", "r.gomes@etu.inp-toulouse.fr",     "M", "PT", "MF2E", 2.90),
+    (
+        "Pierre",
+        "BONNET",
+        "20MF201FISE",
+        "p.bonnet@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "MF2E",
+        3.40,
+    ),
+    (
+        "Julie",
+        "LEBRUN",
+        "20MF202FISE",
+        "j.lebrun@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "MF2E",
+        3.10,
+    ),
+    (
+        "Florian",
+        "MASSON",
+        "20MF203FISE",
+        "f.masson@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "MF2E",
+        3.60,
+    ),
+    (
+        "Aurélie",
+        "CARON",
+        "20MF204FISE",
+        "a.caron@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "MF2E",
+        2.75,
+    ),
+    (
+        "Kevin",
+        "RENARD",
+        "20MF205FISE",
+        "k.renard@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "MF2E",
+        3.80,
+    ),
+    (
+        "Manon",
+        "GIRARD",
+        "20MF206FISE",
+        "m.girard@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "MF2E",
+        3.25,
+    ),
+    (
+        "Marco",
+        "BIANCHI",
+        "20MF207FISE",
+        "m.bianchi@etu.inp-toulouse.fr",
+        "M",
+        "IT",
+        "MF2E",
+        3.15,
+    ),
+    (
+        "Astrid",
+        "HANSEN",
+        "20MF208FISE",
+        "a.hansen@etu.inp-toulouse.fr",
+        "F",
+        "DK",
+        "MF2E",
+        3.55,
+    ),
+    (
+        "Ricardo",
+        "GOMES",
+        "20MF209FISE",
+        "r.gomes@etu.inp-toulouse.fr",
+        "M",
+        "PT",
+        "MF2E",
+        2.90,
+    ),
 ]
 
 # ── FISA 3ING ─────────────────────────────────────────────────────────────────
 FISA_STUDENTS = [
     # ── SN ──
-    ("Thibault",  "VIDAL",     "20SN001FISA", "t.vidal@etu.inp-toulouse.fr",     "M", "FR", "SN", 3.55),
-    ("Amina",     "OUALI",     "20SN002FISA", "a.ouali@etu.inp-toulouse.fr",     "F", "FR", "SN", 3.88),
-    ("Théo",      "FAURE",     "20SN003FISA", "t.faure@etu.inp-toulouse.fr",     "M", "FR", "SN", 2.95),
-    ("Pauline",   "NOEL",      "20SN004FISA", "p.noel@etu.inp-toulouse.fr",      "F", "FR", "SN", 3.30),
-    ("Alexis",    "LEFEBVRE",  "20SN005FISA", "a.lefebvre@etu.inp-toulouse.fr",  "M", "FR", "SN", 3.70),
-    ("Lars",      "SVENSSON",  "20SN006FISA", "l.svensson@etu.inp-toulouse.fr",  "M", "SE", "SN", 3.45),
-    ("Fatima",    "AL-HASSAN", "20SN007FISA", "f.alhassan@etu.inp-toulouse.fr",  "F", "MA", "SN", 3.10),
+    (
+        "Thibault",
+        "VIDAL",
+        "20SN001FISA",
+        "t.vidal@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "SN",
+        3.55,
+    ),
+    (
+        "Amina",
+        "OUALI",
+        "20SN002FISA",
+        "a.ouali@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "SN",
+        3.88,
+    ),
+    (
+        "Théo",
+        "FAURE",
+        "20SN003FISA",
+        "t.faure@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "SN",
+        2.95,
+    ),
+    (
+        "Pauline",
+        "NOEL",
+        "20SN004FISA",
+        "p.noel@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "SN",
+        3.30,
+    ),
+    (
+        "Alexis",
+        "LEFEBVRE",
+        "20SN005FISA",
+        "a.lefebvre@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "SN",
+        3.70,
+    ),
+    (
+        "Lars",
+        "SVENSSON",
+        "20SN006FISA",
+        "l.svensson@etu.inp-toulouse.fr",
+        "M",
+        "SE",
+        "SN",
+        3.45,
+    ),
+    (
+        "Fatima",
+        "AL-HASSAN",
+        "20SN007FISA",
+        "f.alhassan@etu.inp-toulouse.fr",
+        "F",
+        "MA",
+        "SN",
+        3.10,
+    ),
     # ── 3EA ──
-    ("Quentin",   "BLANC",     "203EA01FISA", "q.blanc@etu.inp-toulouse.fr",     "M", "FR", "3EA", 3.25),
-    ("Chloé",     "MORIN",     "203EA02FISA", "c.morin@etu.inp-toulouse.fr",     "F", "FR", "3EA", 3.60),
-    ("Sébastien", "PERRIN",    "203EA03FISA", "s.perrin@etu.inp-toulouse.fr",    "M", "FR", "3EA", 2.85),
-    ("Anaïs",     "DUPUIS",    "203EA04FISA", "a.dupuis@etu.inp-toulouse.fr",    "F", "FR", "3EA", 3.00),
-    ("Mathieu",   "GARNIER",   "203EA05FISA", "m.garnier@etu.inp-toulouse.fr",   "M", "FR", "3EA", 3.75),
-    ("Tomás",     "LOPEZ",     "203EA06FISA", "t.lopez@etu.inp-toulouse.fr",     "M", "ES", "3EA", 3.20),
-    ("Ingrid",    "LARSEN",    "203EA07FISA", "i.larsen@etu.inp-toulouse.fr",    "F", "NO", "3EA", 3.50),
-    ("David",     "CHEN",      "203EA08FISA", "d.chen@etu.inp-toulouse.fr",      "M", "CA", "3EA", 3.40),
+    (
+        "Quentin",
+        "BLANC",
+        "203EA01FISA",
+        "q.blanc@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "3EA",
+        3.25,
+    ),
+    (
+        "Chloé",
+        "MORIN",
+        "203EA02FISA",
+        "c.morin@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "3EA",
+        3.60,
+    ),
+    (
+        "Sébastien",
+        "PERRIN",
+        "203EA03FISA",
+        "s.perrin@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "3EA",
+        2.85,
+    ),
+    (
+        "Anaïs",
+        "DUPUIS",
+        "203EA04FISA",
+        "a.dupuis@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "3EA",
+        3.00,
+    ),
+    (
+        "Mathieu",
+        "GARNIER",
+        "203EA05FISA",
+        "m.garnier@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "3EA",
+        3.75,
+    ),
+    (
+        "Tomás",
+        "LOPEZ",
+        "203EA06FISA",
+        "t.lopez@etu.inp-toulouse.fr",
+        "M",
+        "ES",
+        "3EA",
+        3.20,
+    ),
+    (
+        "Ingrid",
+        "LARSEN",
+        "203EA07FISA",
+        "i.larsen@etu.inp-toulouse.fr",
+        "F",
+        "NO",
+        "3EA",
+        3.50,
+    ),
+    (
+        "David",
+        "CHEN",
+        "203EA08FISA",
+        "d.chen@etu.inp-toulouse.fr",
+        "M",
+        "CA",
+        "3EA",
+        3.40,
+    ),
     # ── MF2E ──
-    ("Tristan",   "POULAIN",   "20MF201FISA", "t.poulain@etu.inp-toulouse.fr",   "M", "FR", "MF2E", 3.35),
-    ("Océane",    "RENAULT",   "20MF202FISA", "o.renault@etu.inp-toulouse.fr",   "F", "FR", "MF2E", 2.80),
-    ("Rémi",      "TESSIER",   "20MF203FISA", "r.tessier@etu.inp-toulouse.fr",   "M", "FR", "MF2E", 3.60),
-    ("Nadia",     "BENALI",    "20MF204FISA", "n.benali@etu.inp-toulouse.fr",    "F", "MA", "MF2E", 2.95),
-    ("Pietro",    "ROSSI",     "20MF205FISA", "p.rossi@etu.inp-toulouse.fr",     "M", "IT", "MF2E", 3.10),
+    (
+        "Tristan",
+        "POULAIN",
+        "20MF201FISA",
+        "t.poulain@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "MF2E",
+        3.35,
+    ),
+    (
+        "Océane",
+        "RENAULT",
+        "20MF202FISA",
+        "o.renault@etu.inp-toulouse.fr",
+        "F",
+        "FR",
+        "MF2E",
+        2.80,
+    ),
+    (
+        "Rémi",
+        "TESSIER",
+        "20MF203FISA",
+        "r.tessier@etu.inp-toulouse.fr",
+        "M",
+        "FR",
+        "MF2E",
+        3.60,
+    ),
+    (
+        "Nadia",
+        "BENALI",
+        "20MF204FISA",
+        "n.benali@etu.inp-toulouse.fr",
+        "F",
+        "MA",
+        "MF2E",
+        2.95,
+    ),
+    (
+        "Pietro",
+        "ROSSI",
+        "20MF205FISA",
+        "p.rossi@etu.inp-toulouse.fr",
+        "M",
+        "IT",
+        "MF2E",
+        3.10,
+    ),
 ]
 
 ALL_STUDENTS = FISE_STUDENTS + FISA_STUDENTS
@@ -186,18 +692,20 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             self._check_prerequisites()
-            current_year   = self._load_current_year()
-            dept_map       = self._load_departments()
-            level_2ing     = self._load_level("2ING")
-            level_3ing     = self._load_level("3ING")
-            country_map    = self._load_countries()
+            current_year = self._load_current_year()
+            dept_map = self._load_departments()
+            level_2ing = self._load_level("2ING")
+            level_3ing = self._load_level("3ING")
+            country_map = self._load_countries()
             self._ensure_new_agreements(dept_map, country_map, current_year)
             self._ensure_agreement_year_departments(dept_map, current_year)
-            enrollments    = self._create_students_and_enrollments(
+            enrollments = self._create_students_and_enrollments(
                 dept_map, level_2ing, level_3ing, country_map, current_year
             )
             self._create_wishes(enrollments, current_year)
-            self._create_historical_assignments(dept_map, level_2ing, level_3ing, country_map)
+            self._create_historical_assignments(
+                dept_map, level_2ing, level_3ing, country_map
+            )
 
         self.stdout.write(self.style.SUCCESS("\n✓ Seed terminé."))
         self.stdout.write(
@@ -281,23 +789,41 @@ class Command(BaseCommand):
 
     def _load_departments(self):
         from app.reference.models import Department
-        depts = {d.code: d for d in Department.objects.filter(code__in=("SN", "3EA", "MF2E"))}
+
+        depts = {
+            d.code: d for d in Department.objects.filter(code__in=("SN", "3EA", "MF2E"))
+        }
         self.stdout.write(
-            "  Départements : " +
-            ", ".join(f"{c}(pk={d.pk})" for c, d in depts.items())
+            "  Départements : " + ", ".join(f"{c}(pk={d.pk})" for c, d in depts.items())
         )
         return depts
 
     def _load_level(self, code):
         from app.reference.models import Level
+
         lvl = Level.objects.get(code=code)
         self.stdout.write(f"  Niveau {code} : pk={lvl.pk}")
         return lvl
 
     def _load_countries(self):
         from app.reference.models import Country
-        needed = {"FR", "ES", "DE", "IT", "PT", "PL", "SE", "DK", "NO", "CA", "MA", "JP",
-                  "CH", "GB"}
+
+        needed = {
+            "FR",
+            "ES",
+            "DE",
+            "IT",
+            "PT",
+            "PL",
+            "SE",
+            "DK",
+            "NO",
+            "CA",
+            "MA",
+            "JP",
+            "CH",
+            "GB",
+        }
         cmap = {c.iso2: c for c in Country.objects.filter(iso2__in=needed)}
         if "FR" not in cmap:
             raise CommandError("Pays France (FR) introuvable.")
@@ -311,6 +837,7 @@ class Command(BaseCommand):
 
     def _load_current_year(self):
         from app.academic.models import AcademicYear
+
         year = AcademicYear.objects.get(label="2025-2026")
         self.stdout.write(f"  Année 2025-2026 (pk={year.pk}, statut={year.status})")
         return year
@@ -329,7 +856,14 @@ class Command(BaseCommand):
             MobilityCategory,
         )
 
-        for agr_name, univ_name, country_iso2, cat_name, dept_quotas, n7_places in NEW_AGREEMENTS_DATA:
+        for (
+            agr_name,
+            univ_name,
+            country_iso2,
+            cat_name,
+            dept_quotas,
+            n7_places,
+        ) in NEW_AGREEMENTS_DATA:
             if Agreement.objects.filter(name=agr_name).exists():
                 self.stdout.write(f"  Accord déjà présent : {agr_name}")
                 continue
@@ -403,7 +937,9 @@ class Command(BaseCommand):
                     defaults={"estimated_places": places},
                 )
                 if not created and ayd.estimated_places != places:
-                    AgreementYearDepartment.objects.filter(pk=ayd.pk).update(estimated_places=places)
+                    AgreementYearDepartment.objects.filter(pk=ayd.pk).update(
+                        estimated_places=places
+                    )
                     created_count += 1
                 elif created:
                     created_count += 1
@@ -425,7 +961,7 @@ class Command(BaseCommand):
         enrollments = []
         batches = [
             (FISE_STUDENTS, level_2ing, False, "FISE 2ING"),
-            (FISA_STUDENTS, level_3ing, True,  "FISA 3ING"),
+            (FISA_STUDENTS, level_3ing, True, "FISA 3ING"),
         ]
 
         for students_data, level, is_alternant, label in batches:
@@ -509,9 +1045,7 @@ class Command(BaseCommand):
                 eligible = dept_to_ays.get(dept_code, [])
                 if not eligible:
                     self.stdout.write(
-                        self.style.WARNING(
-                            f"  Aucun accord pour {dept_code} ({ine})"
-                        )
+                        self.style.WARNING(f"  Aucun accord pour {dept_code} ({ine})")
                     )
                     continue
                 n = min(len(eligible), 3)
@@ -538,7 +1072,9 @@ class Command(BaseCommand):
     # Affectations historiques 2022-2025
     # ────────────────────────────────────────────────────────────────────────
 
-    def _create_historical_assignments(self, dept_map, level_2ing, level_3ing, country_map):
+    def _create_historical_assignments(
+        self, dept_map, level_2ing, level_3ing, country_map
+    ):
         from app.academic.models import AcademicYear
         from app.mobility.models import AgreementYear
         from app.outgoing.models import (
@@ -556,13 +1092,16 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Année {label} absente — ignoré")
                 continue
 
-            if Assignment.objects.filter(academic_year=year, run_by="seed_dev_data").exists():
+            if Assignment.objects.filter(
+                academic_year=year, run_by="seed_dev_data"
+            ).exists():
                 self.stdout.write(f"  Affectation {label} : déjà présente")
                 continue
 
             agreement_years = list(
-                AgreementYear.objects.filter(academic_year=year)
-                .prefetch_related("department_quotas__agreement_department__department")
+                AgreementYear.objects.filter(academic_year=year).prefetch_related(
+                    "department_quotas__agreement_department__department"
+                )
             )
             if not agreement_years:
                 self.stdout.write(f"  Aucun AgreementYear pour {label} — ignoré")
@@ -593,8 +1132,10 @@ class Command(BaseCommand):
                 student, _ = Student.objects.get_or_create(
                     ine=ine,
                     defaults={
-                        "first_name": first, "last_name": last,
-                        "email": email, "gender": gender,
+                        "first_name": first,
+                        "last_name": last,
+                        "email": email,
+                        "gender": gender,
                         "nationality": country_map.get(iso2),
                     },
                 )
@@ -617,21 +1158,25 @@ class Command(BaseCommand):
                 eligible = dept_to_ays.get(dept_code, [])
                 if eligible and random.random() > 0.15:
                     chosen_ay = random.choice(eligible)
-                    results.append(AssignmentResult(
-                        assignment=assignment,
-                        annual_enrollment=enrollment,
-                        agreement_year=chosen_ay,
-                        slot_type=random.choice([SlotType.DEPT, SlotType.SURPLUS]),
-                        assigned_rank=random.randint(1, 3),
-                    ))
+                    results.append(
+                        AssignmentResult(
+                            assignment=assignment,
+                            annual_enrollment=enrollment,
+                            agreement_year=chosen_ay,
+                            slot_type=random.choice([SlotType.DEPT, SlotType.SURPLUS]),
+                            assigned_rank=random.randint(1, 3),
+                        )
+                    )
                     assigned += 1
                 else:
-                    results.append(AssignmentResult(
-                        assignment=assignment,
-                        annual_enrollment=enrollment,
-                        agreement_year=None,
-                        slot_type=SlotType.UNASSIGNED,
-                    ))
+                    results.append(
+                        AssignmentResult(
+                            assignment=assignment,
+                            annual_enrollment=enrollment,
+                            agreement_year=None,
+                            slot_type=SlotType.UNASSIGNED,
+                        )
+                    )
                     unassigned_c += 1
 
             AssignmentResult.objects.bulk_create(results, ignore_conflicts=True)

@@ -4,15 +4,26 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('imports', '0007_rawimport_status_conflict'),
+        ("imports", "0007_rawimport_status_conflict"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='importreport',
-            name='source',
-            field=models.CharField(choices=[('moveon_accords', 'MoveON – Accords'), ('moveon_categories', 'MoveON – Catégories'), ('moveon_quotas', 'MoveON – Quotas'), ('moveon_wishes', 'MoveON – Vœux'), ('pegase', 'Pégase – Étudiants'), ('eudonet', 'Eudonet – Stages'), ('excel', 'Import Excel')], max_length=50, verbose_name='Source'),
+            model_name="importreport",
+            name="source",
+            field=models.CharField(
+                choices=[
+                    ("moveon_accords", "MoveON – Accords"),
+                    ("moveon_categories", "MoveON – Catégories"),
+                    ("moveon_quotas", "MoveON – Quotas"),
+                    ("moveon_wishes", "MoveON – Vœux"),
+                    ("pegase", "Pégase – Étudiants"),
+                    ("eudonet", "Eudonet – Stages"),
+                    ("excel", "Import Excel"),
+                ],
+                max_length=50,
+                verbose_name="Source",
+            ),
         ),
     ]

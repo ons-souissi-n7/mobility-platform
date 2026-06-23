@@ -42,13 +42,14 @@ class AgreementInput:
 class AssignmentOutput:
     enrollment_id: int
     agreement_year_id: int | None  # None = non affecté
-    assigned_rank: int | None      # rang du vœu retenu (1-based), None si non affecté
-    slot_type: str                     # 'dept' | 'surplus' | 'alternative' | 'unassigned'
+    assigned_rank: int | None  # rang du vœu retenu (1-based), None si non affecté
+    slot_type: str  # 'dept' | 'surplus' | 'alternative' | 'unassigned'
 
 
 # ─────────────────────────────────────────────────────────────
 # État interne d'un accord pendant l'algorithme
 # ─────────────────────────────────────────────────────────────
+
 
 @dataclass
 class _AgreementState:
@@ -57,9 +58,7 @@ class _AgreementState:
     slots_surplus: list[int] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        self.slots_dept = {
-            dept_id: [] for dept_id in self.agreement.quota_dept
-        }
+        self.slots_dept = {dept_id: [] for dept_id in self.agreement.quota_dept}
 
     def total_occupied(self) -> int:
         return sum(len(v) for v in self.slots_dept.values()) + len(self.slots_surplus)
@@ -85,6 +84,7 @@ class _AgreementState:
 # Fonction de score (tri décroissant = meilleur en premier)
 # ─────────────────────────────────────────────────────────────
 
+
 def _score(student: StudentInput) -> tuple[int, float]:
     tier = 1 if student.is_french else 0
     gpa = student.gpa if student.gpa is not None else float("-inf")
@@ -100,6 +100,7 @@ def _worst_in(eids: list[int], student_map: dict[int, StudentInput]) -> int | No
 # ─────────────────────────────────────────────────────────────
 # Traitement d'une proposition (retourne l'évincé ou None)
 # ─────────────────────────────────────────────────────────────
+
 
 def _process_proposal(
     state: _AgreementState,
@@ -133,7 +134,9 @@ def _process_proposal(
                 return True, worst
             else:
                 # Surplus vide → évince le pire hors l'étudiant qu'on vient d'ajouter
-                others = [e for e in state.all_occupants() if e != student.enrollment_id]
+                others = [
+                    e for e in state.all_occupants() if e != student.enrollment_id
+                ]
                 worst = _worst_in(others, student_map)
                 state.remove_occupant(worst)
                 return True, worst
@@ -163,6 +166,7 @@ def _process_proposal(
 # ─────────────────────────────────────────────────────────────
 # Algorithme principal
 # ─────────────────────────────────────────────────────────────
+
 
 def gale_shapley(
     students: list[StudentInput],
@@ -220,30 +224,37 @@ def gale_shapley(
         for _dept_id, eids in state.slots_dept.items():
             for eid in eids:
                 s = student_map[eid]
-                rank = s.preferences.index(ay_id) + 1 if ay_id in s.preferences else None
-                results.append(AssignmentOutput(
-                    enrollment_id=eid,
-                    agreement_year_id=ay_id,
-                    assigned_rank=rank,
-                    slot_type="dept",
-                ))
+                rank = (
+                    s.preferences.index(ay_id) + 1 if ay_id in s.preferences else None
+                )
+                results.append(
+                    AssignmentOutput(
+                        enrollment_id=eid,
+                        agreement_year_id=ay_id,
+                        assigned_rank=rank,
+                        slot_type="dept",
+                    )
+                )
                 assigned_eids.add(eid)
 
         for eid in state.slots_surplus:
             s = student_map[eid]
             rank = s.preferences.index(ay_id) + 1 if ay_id in s.preferences else None
-            results.append(AssignmentOutput(
-                enrollment_id=eid,
-                agreement_year_id=ay_id,
-                assigned_rank=rank,
-                slot_type="surplus",
-            ))
+            results.append(
+                AssignmentOutput(
+                    enrollment_id=eid,
+                    agreement_year_id=ay_id,
+                    assigned_rank=rank,
+                    slot_type="surplus",
+                )
+            )
             assigned_eids.add(eid)
 
     # ── Phase destination alternative ─────────────────────────────────────
     # Accords avec des places encore disponibles (total < n7_places)
     agreements_with_space = [
-        state for state in agreement_map.values()
+        state
+        for state in agreement_map.values()
         if state.total_occupied() < state.agreement.n7_places
     ]
 
@@ -255,12 +266,14 @@ def gale_shapley(
 
         # Pas de vœux exprimés → aucune destination alternative
         if not student.preferences:
-            results.append(AssignmentOutput(
-                enrollment_id=eid,
-                agreement_year_id=None,
-                assigned_rank=None,
-                slot_type="unassigned",
-            ))
+            results.append(
+                AssignmentOutput(
+                    enrollment_id=eid,
+                    agreement_year_id=None,
+                    assigned_rank=None,
+                    slot_type="unassigned",
+                )
+            )
             continue
 
         placed = False
@@ -273,22 +286,26 @@ def gale_shapley(
             if state.total_occupied() < state.agreement.n7_places:
                 state.slots_surplus.append(eid)
                 ay_id = state.agreement.agreement_year_id
-                results.append(AssignmentOutput(
-                    enrollment_id=eid,
-                    agreement_year_id=ay_id,
-                    assigned_rank=None,
-                    slot_type="alternative",
-                ))
+                results.append(
+                    AssignmentOutput(
+                        enrollment_id=eid,
+                        agreement_year_id=ay_id,
+                        assigned_rank=None,
+                        slot_type="alternative",
+                    )
+                )
                 assigned_eids.add(eid)
                 placed = True
                 break
 
         if not placed:
-            results.append(AssignmentOutput(
-                enrollment_id=eid,
-                agreement_year_id=None,
-                assigned_rank=None,
-                slot_type="unassigned",
-            ))
+            results.append(
+                AssignmentOutput(
+                    enrollment_id=eid,
+                    agreement_year_id=None,
+                    assigned_rank=None,
+                    slot_type="unassigned",
+                )
+            )
 
     return results

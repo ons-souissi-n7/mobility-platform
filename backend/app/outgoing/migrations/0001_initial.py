@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -159,11 +158,15 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="assignmentresult",
-            index=models.Index(fields=["annual_enrollment"], name="result_enrollment_idx"),
+            index=models.Index(
+                fields=["annual_enrollment"], name="result_enrollment_idx"
+            ),
         ),
         migrations.AddIndex(
             model_name="assignmentresult",
-            index=models.Index(fields=["agreement_year"], name="result_agreement_year_idx"),
+            index=models.Index(
+                fields=["agreement_year"], name="result_agreement_year_idx"
+            ),
         ),
         migrations.AddIndex(
             model_name="assignmentresult",

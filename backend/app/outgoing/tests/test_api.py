@@ -58,7 +58,9 @@ def make_agreement_year(academic_year, n7_places=3) -> AgreementYear:
     country = Country.objects.create(
         iso2="FR", name_fr="France", name_en="France", cti_region=CTIRegion.FRANCE
     )
-    university = PartnerUniversity.objects.create(name="Universite Test", country=country)
+    university = PartnerUniversity.objects.create(
+        name="Universite Test", country=country
+    )
     agreement = Agreement.objects.create(
         name="Accord Test",
         partner_university=university,
@@ -92,7 +94,9 @@ class TestListAssignments:
         assert body["results"] == []
 
     def test_list_returns_assignment(self):
-        make_assignment(self.year, total_students=10, assigned_count=8, unassigned_count=2)
+        make_assignment(
+            self.year, total_students=10, assigned_count=8, unassigned_count=2
+        )
         response = self.client.get("/api/v1/outgoing/assignments/")
         assert response.status_code == 200
         body = response.json()
@@ -113,7 +117,9 @@ class TestListAssignments:
         make_assignment(self.year)
         make_assignment(other_year)
 
-        response = self.client.get(f"/api/v1/outgoing/assignments/?year_id={self.year.id}")
+        response = self.client.get(
+            f"/api/v1/outgoing/assignments/?year_id={self.year.id}"
+        )
         assert response.status_code == 200
         body = response.json()
         assert body["count"] == 1
@@ -139,8 +145,17 @@ class TestListAssignments:
         make_assignment(self.year)
         body = self.client.get("/api/v1/outgoing/assignments/").json()
         keys = body["results"][0].keys()
-        for field in ("id", "academic_year_id", "academic_year_label", "status", "run_by",
-                      "total_students", "assigned_count", "unassigned_count", "created_at"):
+        for field in (
+            "id",
+            "academic_year_id",
+            "academic_year_label",
+            "status",
+            "run_by",
+            "total_students",
+            "assigned_count",
+            "unassigned_count",
+            "created_at",
+        ):
             assert field in keys
 
 
@@ -159,7 +174,9 @@ class TestGetAssignment:
         )
 
     def test_get_found(self):
-        response = self.client.get(f"/api/v1/outgoing/assignments/{self.assignment.id}/")
+        response = self.client.get(
+            f"/api/v1/outgoing/assignments/{self.assignment.id}/"
+        )
         assert response.status_code == 200
         body = response.json()
         assert body["id"] == self.assignment.id
@@ -205,7 +222,9 @@ class TestListAssignmentResults:
             assignment=self.assignment, annual_enrollment=e2, slot_type=SlotType.SURPLUS
         )
         AssignmentResult.objects.create(
-            assignment=self.assignment, annual_enrollment=e3, slot_type=SlotType.UNASSIGNED
+            assignment=self.assignment,
+            annual_enrollment=e3,
+            slot_type=SlotType.UNASSIGNED,
         )
 
     def test_list_returns_all_results(self):
@@ -333,7 +352,9 @@ class TestGetAssignmentStats:
             self.year, total_students=4, assigned_count=3, unassigned_count=1
         )
 
-        students = [make_student(f"INE{i:03d}", f"Student{i}", "Test") for i in range(4)]
+        students = [
+            make_student(f"INE{i:03d}", f"Student{i}", "Test") for i in range(4)
+        ]
         enrollments = [
             make_enrollment(students[0], self.year, self.dept_sn, self.level),
             make_enrollment(students[1], self.year, self.dept_sn, self.level),
@@ -403,8 +424,14 @@ class TestGetAssignmentStats:
         body = self.client.get(
             f"/api/v1/outgoing/assignments/{self.assignment.id}/stats/"
         ).json()
-        for field in ("total_students", "assigned_count", "unassigned_count",
-                      "by_slot_type", "by_department", "by_agreement"):
+        for field in (
+            "total_students",
+            "assigned_count",
+            "unassigned_count",
+            "by_slot_type",
+            "by_department",
+            "by_agreement",
+        ):
             assert field in body
 
 

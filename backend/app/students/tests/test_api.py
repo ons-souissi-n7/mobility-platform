@@ -609,10 +609,9 @@ class TestImportExcel:
         monkeypatch.setattr(
             students_api,
             "enqueue_import_excel_students",
-            lambda file_bytes, source_file, year_id, triggered_by="": calls.append(
-                year_id
-            )
-            or "fake-task-id",
+            lambda file_bytes, source_file, year_id, triggered_by="": (
+                calls.append(year_id) or "fake-task-id"
+            ),
         )
 
         response = self.client.post(

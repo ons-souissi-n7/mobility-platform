@@ -16,10 +16,9 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
         raise ValueError(f"Année académique {year_id} introuvable.") from exc
 
     # ── Charger les étudiants et leurs vœux ──────────────────────────────
-    enrollments = (
-        AnnualEnrollment.objects.filter(academic_year=academic_year)
-        .select_related("student__nationality", "department")
-    )
+    enrollments = AnnualEnrollment.objects.filter(
+        academic_year=academic_year
+    ).select_related("student__nationality", "department")
 
     wishes_qs = (
         StudentWish.objects.filter(
@@ -42,23 +41,22 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
         nationality = enrollment.student.nationality
         is_french = nationality is not None and nationality.iso2 == "FR"
         gpa = float(enrollment.gpa) if enrollment.gpa is not None else None
-        student_inputs.append(StudentInput(
-            enrollment_id=enrollment.id,
-            dept_id=enrollment.department_id,
-            is_french=is_french,
-            gpa=gpa,
-            preferences=prefs,
-        ))
+        student_inputs.append(
+            StudentInput(
+                enrollment_id=enrollment.id,
+                dept_id=enrollment.department_id,
+                is_french=is_french,
+                gpa=gpa,
+                preferences=prefs,
+            )
+        )
 
     # ── Charger les accords actifs pour cette année ───────────────────────
-    agreement_years = (
-        AgreementYear.objects.filter(
-            academic_year=academic_year,
-            is_active=True,
-            n7_places__gt=0,
-        )
-        .prefetch_related("department_quotas__agreement_department__department")
-    )
+    agreement_years = AgreementYear.objects.filter(
+        academic_year=academic_year,
+        is_active=True,
+        n7_places__gt=0,
+    ).prefetch_related("department_quotas__agreement_department__department")
 
     agreement_inputs: list[AgreementInput] = []
     for ay in agreement_years:
@@ -66,11 +64,13 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
         for dq in ay.department_quotas.all():
             dept_id = dq.agreement_department.department_id
             quota_dept[dept_id] = dq.estimated_places
-        agreement_inputs.append(AgreementInput(
-            agreement_year_id=ay.id,
-            n7_places=ay.n7_places,
-            quota_dept=quota_dept,
-        ))
+        agreement_inputs.append(
+            AgreementInput(
+                agreement_year_id=ay.id,
+                n7_places=ay.n7_places,
+                quota_dept=quota_dept,
+            )
+        )
 
     # ── Lancer l'algorithme ───────────────────────────────────────────────
     outputs = gale_shapley(student_inputs, agreement_inputs)
@@ -88,13 +88,15 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
             unassigned_count=unassigned,
         )
 
-        AssignmentResult.objects.bulk_create([
-            AssignmentResult(
-                assignment=assignment,
-                annual_enrollment_id=output.enrollment_id,
-                agreement_year_id=output.agreement_year_id,
-                slot_type=output.slot_type,
-                assigned_rank=output.assigned_rank,
-            )
-            for output in outputs
-        ])
+        AssignmentResult.objects.bulk_create(
+            [
+                AssignmentResult(
+                    assignment=assignment,
+                    annual_enrollment_id=output.enrollment_id,
+                    agreement_year_id=output.agreement_year_id,
+                    slot_type=output.slot_type,
+                    assigned_rank=output.assigned_rank,
+                )
+                for output in outputs
+            ]
+        )

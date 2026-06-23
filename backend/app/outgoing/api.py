@@ -160,7 +160,9 @@ def get_assignment_stats(request, assignment_id: int):
     # Nombre d'affectés par accord × département
     assigned_by_ay_dept: dict[int, dict[str, dict]] = {}
     for row in (
-        AssignmentResult.objects.filter(assignment=assignment, agreement_year_id__in=ay_ids)
+        AssignmentResult.objects.filter(
+            assignment=assignment, agreement_year_id__in=ay_ids
+        )
         .exclude(slot_type=SlotType.UNASSIGNED)
         .values(
             "agreement_year_id",
@@ -222,10 +224,14 @@ def get_assignment_stats(request, assignment_id: int):
             AssignmentAgreementStat(
                 agreement_year_id=ay_id,
                 agreement_name=r["agreement_year__agreement__name"],
-                university_name=r["agreement_year__agreement__partner_university__name"],
+                university_name=r[
+                    "agreement_year__agreement__partner_university__name"
+                ],
                 total_places=r["agreement_year__n7_places"],
                 assigned=r["assigned"],
-                fill_rate=round(r["assigned"] / max(r["agreement_year__n7_places"], 1) * 100, 1),
+                fill_rate=round(
+                    r["assigned"] / max(r["agreement_year__n7_places"], 1) * 100, 1
+                ),
                 by_department=sorted(dept_map.values(), key=lambda x: x.dept_code),
             )
         )
@@ -273,8 +279,14 @@ def get_assignment_stats(request, assignment_id: int):
         by_agreement=by_agreement,
         by_country=[
             {
-                "country_name_fr": r["agreement_year__agreement__partner_university__country__name_fr"] or "Inconnu",
-                "country_iso2": r["agreement_year__agreement__partner_university__country__iso2"] or "",
+                "country_name_fr": r[
+                    "agreement_year__agreement__partner_university__country__name_fr"
+                ]
+                or "Inconnu",
+                "country_iso2": r[
+                    "agreement_year__agreement__partner_university__country__iso2"
+                ]
+                or "",
                 "count": r["count"],
             }
             for r in country_counts
@@ -283,8 +295,14 @@ def get_assignment_stats(request, assignment_id: int):
             {
                 "department_code": r["annual_enrollment__department__code"],
                 "department_name": r["annual_enrollment__department__name"],
-                "country_name_fr": r["agreement_year__agreement__partner_university__country__name_fr"] or "Inconnu",
-                "country_iso2": r["agreement_year__agreement__partner_university__country__iso2"] or "",
+                "country_name_fr": r[
+                    "agreement_year__agreement__partner_university__country__name_fr"
+                ]
+                or "Inconnu",
+                "country_iso2": r[
+                    "agreement_year__agreement__partner_university__country__iso2"
+                ]
+                or "",
                 "count": r["count"],
             }
             for r in dept_country_counts
@@ -456,7 +474,9 @@ def export_wishes_excel(
     # Lookup enrollment_id → résultat d'affectation
     result_lookup: dict[int, AssignmentResult] = {}
     if assignment:
-        for res in AssignmentResult.objects.filter(assignment=assignment).select_related(
+        for res in AssignmentResult.objects.filter(
+            assignment=assignment
+        ).select_related(
             "agreement_year__agreement__partner_university__country",
         ):
             result_lookup[res.annual_enrollment_id] = res
@@ -498,9 +518,13 @@ def export_wishes_excel(
                 univ = ag.partner_university if ag.partner_university_id else None
                 assigned_agreement = ag.name
                 assigned_university = univ.name if univ else ""
-                assigned_country = univ.country.name_fr if univ and univ.country_id else ""
+                assigned_country = (
+                    univ.country.name_fr if univ and univ.country_id else ""
+                )
                 assigned_slot = slot_labels.get(res.slot_type, res.slot_type)
-                assigned_rank = res.assigned_rank if res.assigned_rank is not None else ""
+                assigned_rank = (
+                    res.assigned_rank if res.assigned_rank is not None else ""
+                )
                 remarks = res.override_reason or ""
             rows[sid] = {
                 "ine": enr.student.ine,
@@ -510,7 +534,9 @@ def export_wishes_excel(
                 "filiere": enr.parcours.code if enr.parcours_id else "",
                 "niveau": enr.level.code if enr.level_id else "",
                 "gpa": float(enr.gpa) if enr.gpa is not None else "",
-                "nationalite": enr.student.nationality.name_fr if enr.student.nationality_id else "",
+                "nationalite": enr.student.nationality.name_fr
+                if enr.student.nationality_id
+                else "",
                 "assigned_agreement": assigned_agreement,
                 "assigned_university": assigned_university,
                 "assigned_country": assigned_country,
@@ -521,12 +547,14 @@ def export_wishes_excel(
             }
         agreement = w.agreement_year.agreement
         univ = agreement.partner_university if agreement.partner_university_id else None
-        rows[sid]["wishes"].append({
-            "accord": agreement.name,
-            "universite": univ.name if univ else "",
-            "pays": univ.country.name_fr if univ and univ.country_id else "",
-            "rank": w.rank,
-        })
+        rows[sid]["wishes"].append(
+            {
+                "accord": agreement.name,
+                "universite": univ.name if univ else "",
+                "pays": univ.country.name_fr if univ and univ.country_id else "",
+                "rank": w.rank,
+            }
+        )
 
     max_rank = max(
         (max((ww["rank"] for ww in r["wishes"]), default=0) for r in rows.values()),
@@ -541,19 +569,44 @@ def export_wishes_excel(
     ws = wb.active
     ws.title = "Mobilité sortante"
 
-    headers = ["INE", "Nom", "Prénom", "Département", "Filière", "Niveau", "GPA", "Nationalité"]
-    widths =  [14,    22,    20,       14,             14,        10,       8,     22]
+    headers = [
+        "INE",
+        "Nom",
+        "Prénom",
+        "Département",
+        "Filière",
+        "Niveau",
+        "GPA",
+        "Nationalité",
+    ]
+    widths = [14, 22, 20, 14, 14, 10, 8, 22]
     for r in range(1, max_rank + 1):
         headers.append(f"Vœu {r}")
         widths.append(70)
     if assignment:
-        headers += ["Décision d'affectation", "Université affectée", "Pays", "Type de quota", "Rang d'affectation", "Remarques"]
-        widths  += [60,                        50,                    25,     22,               10,                   40]
+        headers += [
+            "Décision d'affectation",
+            "Université affectée",
+            "Pays",
+            "Type de quota",
+            "Rang d'affectation",
+            "Remarques",
+        ]
+        widths += [60, 50, 25, 22, 10, 40]
     write_header_row(ws, headers, widths)
 
     for r in sorted(rows.values(), key=lambda x: (x["nom"], x["prenom"])):
         wish_map = {w["rank"]: w for w in r["wishes"]}
-        row_data = [r["ine"], r["nom"], r["prenom"], r["dept"], r["filiere"], r["niveau"], r["gpa"], r["nationalite"]]
+        row_data = [
+            r["ine"],
+            r["nom"],
+            r["prenom"],
+            r["dept"],
+            r["filiere"],
+            r["niveau"],
+            r["gpa"],
+            r["nationalite"],
+        ]
         for rank in range(1, max_rank + 1):
             w = wish_map.get(rank)
             if w:
@@ -696,7 +749,9 @@ def get_student_wishes(request, student_id: int, year_id: int):
         if enrollment and enrollment.parcours_id
         else None,
         gpa=enrollment.gpa if enrollment else None,
-        nationality_name_fr=student.nationality.name_fr if student.nationality_id else None,
+        nationality_name_fr=student.nationality.name_fr
+        if student.nationality_id
+        else None,
         wishes=[
             AgreementWishOut(
                 rank=w.rank,

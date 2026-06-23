@@ -2,7 +2,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("students", "0015_add_assignment_models"),
     ]
@@ -14,7 +13,7 @@ class Migration(migrations.Migration):
             field=models.BooleanField(
                 default=False,
                 help_text="Vrai pour les étudiants en apprentissage (FISA). "
-                          "Les FISA choisissent leur mobilité en 3ème année.",
+                "Les FISA choisissent leur mobilité en 3ème année.",
                 verbose_name="Alternant (FISA)",
             ),
         ),

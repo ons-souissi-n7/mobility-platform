@@ -91,7 +91,7 @@ class AnnualEnrollment(TimeStampedModel):
         default=False,
         verbose_name="Alternant (FISA)",
         help_text="Vrai pour les étudiants en apprentissage (FISA). "
-                  "Les FISA choisissent leur mobilité en 3ème année.",
+        "Les FISA choisissent leur mobilité en 3ème année.",
     )
     is_scholarship = models.BooleanField(
         default=False,
@@ -137,7 +137,8 @@ class AnnualEnrollment(TimeStampedModel):
                 fields=["academic_year", "parcours"], name="enroll_year_parcours_idx"
             ),
             models.Index(
-                fields=["academic_year", "is_alternant"], name="enroll_year_alternant_idx"
+                fields=["academic_year", "is_alternant"],
+                name="enroll_year_alternant_idx",
             ),
         ]
 
@@ -193,4 +194,3 @@ class StudentWish(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.annual_enrollment.student} — Vœu {self.rank} ({self.annual_enrollment.academic_year})"
-

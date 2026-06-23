@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('mobility', '0038_nomenclaturemapping'),
+        ("mobility", "0038_nomenclaturemapping"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='nomenclaturemapping',
-            name='id',
-            field=models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID'),
+            model_name="nomenclaturemapping",
+            name="id",
+            field=models.BigAutoField(
+                auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+            ),
         ),
     ]
