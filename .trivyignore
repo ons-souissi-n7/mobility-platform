@@ -1,0 +1,5 @@
+# CVE-2026-12151: undici DoS via unbounded WebSocket memory growth.
+# Affected package: undici bundled inside npm's own node_modules, not in application code.
+# npm is used only as a process runner (CMD ["npm", "start"]), not as an HTTP/WebSocket client.
+# Exploitability: negligible — npm never opens a WebSocket in this deployment context.
+CVE-2026-12151
