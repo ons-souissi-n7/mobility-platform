@@ -14,7 +14,7 @@ from app.imports.models import (
     RawImportStatus,
 )
 from app.integrations.moveon import MoveOnClient
-from app.mobility.models import Agreement, NomenclatureMapping
+from app.mobility.models import Agreement, AgreementYear, NomenclatureMapping
 from app.shared.cleaning import normalize_ine, normalize_string
 from app.shared.sync import already_up_to_date
 from app.shared.validators import DomainValidationError
@@ -59,7 +59,7 @@ def sync_moveon_wishes(
     client = client or MoveOnClient()
 
     db_report = DbImportReport.objects.create(
-        source=ImportSource.MOVEON_ACCORDS,
+        source=ImportSource.MOVEON_WISHES,
         academic_year=academic_year,
         triggered_by=triggered_by,
     )
@@ -104,6 +104,7 @@ def import_wish_rows(
 
     student_cache: dict[str, Student | None] = {}
     agreement_cache: dict[str, Agreement | None] = {}
+    agreement_year_cache: dict[int, AgreementYear | None] = {}
 
     for row in rows:
         identifier = row.ine or row.individu
@@ -160,6 +161,17 @@ def import_wish_rows(
             _mark_wish_unresolved(raw, report, db_report, row, identifier, reason)
             continue
 
+        agreement_year = _resolve_agreement_year(
+            agreement, academic_year, agreement_year_cache
+        )
+        if agreement_year is None:
+            reason = (
+                f"Aucun slot annuel pour l'accord {agreement.name!r} en {academic_year}. "
+                "Initialisez les accords de cette année via Mobilité > Initialiser l'année."
+            )
+            _mark_wish_unresolved(raw, report, db_report, row, identifier, reason)
+            continue
+
         existing_wish = StudentWish.objects.filter(
             annual_enrollment=enrollment, rank=row.rank
         ).first()
@@ -167,7 +179,7 @@ def import_wish_rows(
             existing_wish,
             "last_sync_moveon",
             row.source_date,
-            agreement_id=agreement.pk,
+            agreement_year_id=agreement_year.pk,
         ):
             raw.status = RawImportStatus.IMPORTED
             raw.save()
@@ -179,7 +191,7 @@ def import_wish_rows(
             wish, created = StudentWish.objects.update_or_create(
                 annual_enrollment=enrollment,
                 rank=row.rank,
-                defaults={"agreement": agreement},
+                defaults={"agreement_year": agreement_year},
             )
         except IntegrityError as exc:
             reason = f"Conflit de vœu ({identifier!r}, rang {row.rank}) : {exc}"
@@ -323,3 +335,15 @@ def _resolve_agreement(
 
     cache[offre] = agreement
     return agreement
+
+
+def _resolve_agreement_year(
+    agreement: Agreement,
+    academic_year: AcademicYear,
+    cache: dict[int, AgreementYear | None],
+) -> AgreementYear | None:
+    if agreement.pk not in cache:
+        cache[agreement.pk] = AgreementYear.objects.filter(
+            agreement=agreement, academic_year=academic_year
+        ).first()
+    return cache[agreement.pk]

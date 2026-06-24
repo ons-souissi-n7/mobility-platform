@@ -255,6 +255,7 @@ export type StudentWishes = {
   department_code: string | null;
   parcours_code: string | null;
   gpa: string | null;
+  nationality_name_fr: string | null;
   wishes: AgreementWish[];
 };
 
@@ -317,4 +318,83 @@ export type AcademicYear = {
   closed_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type AssignmentStatus = "proposed" | "validated" | "published" | "cancelled";
+export type SlotType = "dept" | "surplus" | "alternative" | "unassigned";
+
+export type Assignment = {
+  id: number;
+  academic_year_id: number;
+  academic_year_label: string;
+  status: AssignmentStatus;
+  run_by: string;
+  total_students: number;
+  assigned_count: number;
+  unassigned_count: number;
+  created_at: string;
+};
+
+export type AssignmentResult = {
+  id: number;
+  annual_enrollment_id: number;
+  student_ine: string;
+  student_last_name: string;
+  student_first_name: string;
+  department_code: string;
+  agreement_year_id: number | null;
+  agreement_name: string | null;
+  university_name: string | null;
+  slot_type: SlotType;
+  assigned_rank: number | null;
+  override_reason: string;
+};
+
+export type AssignmentDeptStat = {
+  department_id: number;
+  department_code: string;
+  department_name: string;
+  count: number;
+};
+
+export type AssignmentAgreementDeptStat = {
+  dept_code: string;
+  dept_name: string;
+  quota: number;
+  assigned: number;
+};
+
+export type AssignmentAgreementStat = {
+  agreement_year_id: number;
+  agreement_name: string;
+  university_name: string;
+  total_places: number;
+  assigned: number;
+  fill_rate: number;
+  by_department: AssignmentAgreementDeptStat[];
+};
+
+export type AssignmentCountryStat = {
+  country_name_fr: string;
+  country_iso2: string;
+  count: number;
+};
+
+export type AssignmentDeptCountryStat = {
+  department_code: string;
+  department_name: string;
+  country_name_fr: string;
+  country_iso2: string;
+  count: number;
+};
+
+export type AssignmentStats = {
+  total_students: number;
+  assigned_count: number;
+  unassigned_count: number;
+  by_slot_type: Record<string, number>;
+  by_department: AssignmentDeptStat[];
+  by_agreement: AssignmentAgreementStat[];
+  by_country: AssignmentCountryStat[];
+  by_dept_country: AssignmentDeptCountryStat[];
 };

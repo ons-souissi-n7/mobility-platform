@@ -67,9 +67,9 @@ describe("ImportReportPanel", () => {
     expect(screen.getByText("Sync MoveON terminée")).toBeInTheDocument();
   });
 
-  it("shows skipped count when present", () => {
+  it("does not show skipped count", () => {
     const report = { ...successReport, skipped: 5 };
     render(<ImportReportPanel report={report} onClose={vi.fn()} />);
-    expect(screen.getByText(/5 ignoré/)).toBeInTheDocument();
+    expect(screen.queryByText(/ignoré/)).not.toBeInTheDocument();
   });
 });

@@ -157,8 +157,8 @@ class TestPartnerUniversityAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["external_id"] == "3001"
+        assert data["count"] == 1
+        assert data["results"][0]["external_id"] == "3001"
 
     def test_retry_university_import_with_corrected_country(self):
         country = Country.objects.create(

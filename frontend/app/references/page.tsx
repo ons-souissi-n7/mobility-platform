@@ -8,11 +8,14 @@ export default async function ReferencesPage() {
   const {
     countries,
     departments,
-    universities,   // now PagedResponse<PartnerUniversity>
+    universities,
     universityImportErrors,
+    universityImportErrorsCount,
     departmentImportErrors,
+    departmentImportErrorsCount,
     mobilityLevels,
     levelImportErrors,
+    levelImportErrorsCount,
     parcours,
   } = await getReferenceData();
 
@@ -23,9 +26,12 @@ export default async function ReferencesPage() {
         initialDepartments={departments}
         initialUniversities={universities}
         initialUniversityImportErrors={universityImportErrors}
+        initialUniversityImportErrorsCount={universityImportErrorsCount}
         initialDepartmentImportErrors={departmentImportErrors}
+        initialDepartmentImportErrorsCount={departmentImportErrorsCount}
         initialMobilityLevels={mobilityLevels}
         initialLevelImportErrors={levelImportErrors}
+        initialLevelImportErrorsCount={levelImportErrorsCount}
         initialParcours={parcours}
       />
     </AdminShell>

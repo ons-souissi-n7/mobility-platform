@@ -3,8 +3,9 @@
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Info, RotateCw } from "lucide-react";
 import { useState } from "react";
 
+import { Pagination } from "@/components/ui/pagination";
 import type { Agreement, RawImport, SelectOption } from "@/lib/api/types";
-import type { WishImportCorrection } from "@/lib/api/student-mutations";
+import type { WishImportCorrection } from "@/lib/api/outgoing-mutations";
 
 type ErrorKind = "student_not_found" | "no_enrollment" | "agreement_not_found" | "no_correction";
 
@@ -51,14 +52,22 @@ export function WishImportErrorsPanel({
   onRetry,
   students,
   title = "Erreurs d'import vœux",
+  totalCount,
+  page = 1,
+  pageSize = 25,
+  onPageChange,
 }: {
   agreements: Agreement[];
   errors: RawImport[];
   isBusy: boolean;
-  onIgnore: (error: RawImport) => Promise<void>;
-  onRetry: (error: RawImport, correction: WishImportCorrection) => Promise<void>;
+  onIgnore?: (error: RawImport) => Promise<void>;
+  onRetry?: (error: RawImport, correction: WishImportCorrection) => Promise<void>;
   students: SelectOption[];
   title?: string;
+  totalCount?: number;
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -92,7 +101,7 @@ export function WishImportErrorsPanel({
       <div className="flex items-center gap-2 text-amber-900">
         <AlertTriangle className="h-5 w-5" aria-hidden="true" />
         <h3 className="text-sm font-semibold">
-          {title} ({errors.length})
+          {title} ({totalCount ?? errors.length})
         </h3>
       </div>
 
@@ -232,30 +241,34 @@ export function WishImportErrorsPanel({
                       </p>
                     )}
 
-                    <div className="mt-4 flex gap-2">
-                      {(kind === "student_not_found" || kind === "agreement_not_found") && (
-                        <button
-                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={!canRetry || busy}
-                          onClick={() =>
-                            runAction(() => onRetry(error, correction), error.id)
-                          }
-                          type="button"
-                        >
-                          <RotateCw className="h-3 w-3" />
-                          Relancer
-                        </button>
-                      )}
-                      <button
-                        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={busy}
-                        onClick={() => runAction(() => onIgnore(error), error.id)}
-                        type="button"
-                      >
-                        <Check className="h-3 w-3" />
-                        Ignorer
-                      </button>
-                    </div>
+                    {(onIgnore || onRetry) && (
+                      <div className="mt-4 flex gap-2">
+                        {onRetry && (kind === "student_not_found" || kind === "agreement_not_found") && (
+                          <button
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={!canRetry || busy}
+                            onClick={() =>
+                              runAction(() => onRetry(error, correction), error.id)
+                            }
+                            type="button"
+                          >
+                            <RotateCw className="h-3 w-3" />
+                            Relancer
+                          </button>
+                        )}
+                        {onIgnore && (
+                          <button
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={busy}
+                            onClick={() => runAction(() => onIgnore(error), error.id)}
+                            type="button"
+                          >
+                            <Check className="h-3 w-3" />
+                            Ignorer
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -263,6 +276,18 @@ export function WishImportErrorsPanel({
           );
         })}
       </div>
+
+      {onPageChange && totalCount !== undefined && totalCount > pageSize && (
+        <div className="mt-4 border-t border-amber-100 pt-3">
+          <Pagination
+            page={page}
+            totalPages={Math.ceil(totalCount / pageSize)}
+            totalItems={totalCount}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

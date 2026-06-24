@@ -6,7 +6,7 @@ from django.test import Client
 
 from app.academic.models import AcademicYear
 from app.institutions.models import PartnerUniversity
-from app.mobility.models import Agreement, NomenclatureMapping
+from app.mobility.models import Agreement, AgreementYear, NomenclatureMapping
 from app.reference.models import Country, CTIRegion, Department, Level
 from app.students.models import AnnualEnrollment, Student, StudentWish
 from app.students.services.sync_moveon import WishRow, import_wish_rows
@@ -53,6 +53,17 @@ def make_enrollment(student: Student, year: AcademicYear) -> AnnualEnrollment:
         department=make_department(),
         level=make_level(),
     )
+
+
+def make_agreement_year(
+    agreement: Agreement, year: AcademicYear, **kwargs
+) -> AgreementYear:
+    defaults = {"is_active": True, "n7_places": 4}
+    defaults.update(kwargs)
+    ay, _ = AgreementYear.objects.get_or_create(
+        agreement=agreement, academic_year=year, defaults=defaults
+    )
+    return ay
 
 
 def make_agreement(moveon_id: str = "REL-001", name: str | None = None) -> Agreement:
@@ -105,11 +116,12 @@ class TestStudentWishModel:
         self.student = make_student()
         self.agreement = make_agreement()
         self.enrollment = make_enrollment(self.student, self.year)
+        self.agreement_year = make_agreement_year(self.agreement, self.year)
 
     def test_create_wish(self):
         wish = StudentWish.objects.create(
             annual_enrollment=self.enrollment,
-            agreement=self.agreement,
+            agreement_year=self.agreement_year,
             rank=1,
         )
 
@@ -119,43 +131,45 @@ class TestStudentWishModel:
     def test_unique_rank_per_enrollment(self):
         StudentWish.objects.create(
             annual_enrollment=self.enrollment,
-            agreement=self.agreement,
+            agreement_year=self.agreement_year,
             rank=1,
         )
         agreement2 = make_agreement("REL-002")
+        agreement_year2 = make_agreement_year(agreement2, self.year)
 
         with pytest.raises(IntegrityError):
             StudentWish.objects.create(
                 annual_enrollment=self.enrollment,
-                agreement=agreement2,
+                agreement_year=agreement_year2,
                 rank=1,
             )
 
-    def test_unique_agreement_per_enrollment(self):
+    def test_unique_agreement_year_per_enrollment(self):
         StudentWish.objects.create(
             annual_enrollment=self.enrollment,
-            agreement=self.agreement,
+            agreement_year=self.agreement_year,
             rank=1,
         )
 
         with pytest.raises(IntegrityError):
             StudentWish.objects.create(
                 annual_enrollment=self.enrollment,
-                agreement=self.agreement,
+                agreement_year=self.agreement_year,
                 rank=2,
             )
 
     def test_different_ranks_same_enrollment_allowed(self):
         agreement2 = make_agreement("REL-002")
+        agreement_year2 = make_agreement_year(agreement2, self.year)
         StudentWish.objects.create(
             annual_enrollment=self.enrollment,
-            agreement=self.agreement,
+            agreement_year=self.agreement_year,
             rank=1,
         )
 
         wish2 = StudentWish.objects.create(
             annual_enrollment=self.enrollment,
-            agreement=agreement2,
+            agreement_year=agreement_year2,
             rank=2,
         )
 
@@ -166,13 +180,13 @@ class TestStudentWishModel:
         enrollment2 = make_enrollment(student2, self.year)
         StudentWish.objects.create(
             annual_enrollment=self.enrollment,
-            agreement=self.agreement,
+            agreement_year=self.agreement_year,
             rank=1,
         )
 
         wish2 = StudentWish.objects.create(
             annual_enrollment=enrollment2,
-            agreement=self.agreement,
+            agreement_year=self.agreement_year,
             rank=1,
         )
 
@@ -191,6 +205,7 @@ class TestImportWishRows:
         self.student = make_student()
         self.agreement = make_agreement()
         self.enrollment = make_enrollment(self.student, self.year)
+        self.agreement_year = make_agreement_year(self.agreement, self.year)
 
     def test_creates_wish(self):
         report = import_wish_rows([make_row()], self.year)
@@ -203,9 +218,10 @@ class TestImportWishRows:
 
     def test_updates_existing_wish(self):
         agreement2 = make_agreement("REL-002")
+        agreement_year2 = make_agreement_year(agreement2, self.year)
         StudentWish.objects.create(
             annual_enrollment=self.enrollment,
-            agreement=agreement2,
+            agreement_year=agreement_year2,
             rank=1,
         )
 
@@ -216,7 +232,7 @@ class TestImportWishRows:
         assert report.updated == 1
         assert report.created == 0
         wish = StudentWish.objects.get(annual_enrollment=self.enrollment, rank=1)
-        assert wish.agreement == self.agreement
+        assert wish.agreement_year.agreement == self.agreement
 
     def test_resolves_student_by_ine(self):
         report = import_wish_rows([make_row(ine="22010000001", individu="")], self.year)
@@ -273,8 +289,8 @@ class TestImportWishRows:
         assert report.created == 1
 
     def test_multiple_wishes_per_student(self):
-        make_agreement("REL-002")
-        make_agreement("REL-003")
+        make_agreement_year(make_agreement("REL-002"), self.year)
+        make_agreement_year(make_agreement("REL-003"), self.year)
         rows = [
             make_row(rank=1, offre_de_sejour="Accord REL-001"),
             make_row(rank=2, offre_de_sejour="Accord REL-002"),
@@ -293,7 +309,7 @@ class TestImportWishRows:
             ine="22010000002", first_name="Sophie", last_name="Dupont"
         )
         make_enrollment(student2, self.year)
-        make_agreement("REL-002")
+        make_agreement_year(make_agreement("REL-002"), self.year)
         rows = [
             make_row(individu="MARTIN Jean", rank=1, offre_de_sejour="Accord REL-001"),
             make_row(
@@ -354,6 +370,7 @@ class TestImportWishRows:
             direction="outgoing",
             inp_total_places=2,
         )
+        make_agreement_year(accord_manuel, self.year)
         NomenclatureMapping.objects.create(
             partner_university=univ,
             moveon_offer_name="ERASMUS+ TU Berlin 2024",
@@ -367,7 +384,7 @@ class TestImportWishRows:
 
         assert report.created == 1
         wish = StudentWish.objects.get(annual_enrollment=self.enrollment, rank=1)
-        assert wish.agreement == accord_manuel
+        assert wish.agreement_year.agreement == accord_manuel
 
     def test_auto_updates_moveon_id_when_empty(self):
         # Si l'accord n'a pas de moveon_id mais qu'on reçoit un moveon_offer_id dans le vœu,
@@ -402,131 +419,31 @@ class TestSyncWishesAPI:
         self.student = make_student()
         self.agreement = make_agreement()
         self.enrollment = make_enrollment(self.student, self.year)
+        self.agreement_year = make_agreement_year(self.agreement, self.year)
 
-    def test_sync_creates_wishes(self, monkeypatch):
-        from app.students.services import sync_moveon as wishes_mod
+    def test_sync_triggers_background_task(self, monkeypatch):
+        import app.outgoing.api as outgoing_api
 
+        calls = []
         monkeypatch.setattr(
-            wishes_mod,
-            "MoveOnClient",
-            lambda: _FakeClient(
-                [
-                    {
-                        "Numéro étudiant": "22010000001",
-                        "Individu": "MARTIN Jean",
-                        "No": 1,
-                        "Offre de séjour": "Accord REL-001",
-                        "Période de début": "Semestre 2 - 2026/27",
-                        "Statut Sélection": "Candidat",
-                    },
-                ]
-            ),
+            outgoing_api,
+            "enqueue_sync_moveon_wishes",
+            lambda year_id, triggered_by="": calls.append(year_id) or "fake-task-id",
         )
 
         response = self.client.post(
-            f"/api/v1/students/students/wishes/sync-moveon/{self.year.id}/"
+            f"/api/v1/outgoing/wishes/sync-moveon/{self.year.id}/"
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.json()
-        assert data["created"] == 1
-        assert StudentWish.objects.filter(
-            annual_enrollment__student=self.student
-        ).exists()
+        assert data["task_id"] == "fake-task-id"
+        assert calls == [self.year.id]
 
     def test_sync_unknown_year_returns_404(self):
-        response = self.client.post(
-            "/api/v1/students/students/wishes/sync-moveon/99999/"
-        )
+        response = self.client.post("/api/v1/outgoing/wishes/sync-moveon/99999/")
 
         assert response.status_code == 404
-
-    def test_sync_processes_all_records_regardless_of_period(self, monkeypatch):
-        # The text "Période de début" is NOT used for year filtering.
-        # Filtering is done via creation/modification date vs the academic year window.
-        # A record with no date is always included.
-        from app.students.services import sync_moveon as wishes_mod
-
-        monkeypatch.setattr(
-            wishes_mod,
-            "MoveOnClient",
-            lambda: _FakeClient(
-                [
-                    {
-                        "Numéro étudiant": "22010000001",
-                        "Individu": "MARTIN Jean",
-                        "No": 1,
-                        "Offre de séjour": "Accord REL-001",
-                        "Période de début": "Semestre 1 - 2099/2100",
-                        # No "Crée le" field → date_creation is None → included
-                    },
-                ]
-            ),
-        )
-
-        response = self.client.post(
-            f"/api/v1/students/students/wishes/sync-moveon/{self.year.id}/"
-        )
-
-        data = response.json()
-        assert data["created"] == 1
-
-    def test_sync_skips_records_outside_year_window(self, monkeypatch):
-        # Year 2026-2027 (start 2026-09-01): window begins 2025-09-01.
-        # A wish created in 2022 is outside the window and must be skipped.
-        from app.students.services import sync_moveon as wishes_mod
-
-        monkeypatch.setattr(
-            wishes_mod,
-            "MoveOnClient",
-            lambda: _FakeClient(
-                [
-                    {
-                        "Numéro étudiant": "22010000001",
-                        "Individu": "MARTIN Jean",
-                        "No": 1,
-                        "Offre de séjour": "Accord REL-001",
-                        "Crée le": "15/11/2022 10:00",
-                    },
-                ]
-            ),
-        )
-
-        response = self.client.post(
-            f"/api/v1/students/students/wishes/sync-moveon/{self.year.id}/"
-        )
-
-        data = response.json()
-        assert data["created"] == 0
-        assert data["skipped"] == 1
-
-    def test_sync_includes_record_within_year_window(self, monkeypatch):
-        # A wish created in November 2025 is within the 2026-2027 window.
-        from app.students.services import sync_moveon as wishes_mod
-
-        monkeypatch.setattr(
-            wishes_mod,
-            "MoveOnClient",
-            lambda: _FakeClient(
-                [
-                    {
-                        "Numéro étudiant": "22010000001",
-                        "Individu": "MARTIN Jean",
-                        "No": 1,
-                        "Offre de séjour": "Accord REL-001",
-                        "Crée le": "15/11/2025 10:00",
-                    },
-                ]
-            ),
-        )
-
-        response = self.client.post(
-            f"/api/v1/students/students/wishes/sync-moveon/{self.year.id}/"
-        )
-
-        data = response.json()
-        assert data["created"] == 1
-        assert data["skipped"] == 0
 
 
 @pytest.mark.django_db
@@ -537,16 +454,15 @@ class TestListWishesByYearAPI:
         self.student = make_student()
         self.agreement = make_agreement()
         self.enrollment = make_enrollment(self.student, self.year)
+        self.agreement_year = make_agreement_year(self.agreement, self.year)
         StudentWish.objects.create(
             annual_enrollment=self.enrollment,
-            agreement=self.agreement,
+            agreement_year=self.agreement_year,
             rank=1,
         )
 
     def test_list_by_year(self):
-        response = self.client.get(
-            f"/api/v1/students/students/wishes/by-year/{self.year.id}/"
-        )
+        response = self.client.get(f"/api/v1/outgoing/wishes/by-year/{self.year.id}/")
 
         assert response.status_code == 200
         data = response.json()
@@ -558,15 +474,14 @@ class TestListWishesByYearAPI:
 
     def test_list_by_year_ordered_by_rank(self):
         agreement2 = make_agreement("REL-002")
+        agreement_year2 = make_agreement_year(agreement2, self.year)
         StudentWish.objects.create(
             annual_enrollment=self.enrollment,
-            agreement=agreement2,
+            agreement_year=agreement_year2,
             rank=2,
         )
 
-        response = self.client.get(
-            f"/api/v1/students/students/wishes/by-year/{self.year.id}/"
-        )
+        response = self.client.get(f"/api/v1/outgoing/wishes/by-year/{self.year.id}/")
 
         data = response.json()
         wishes = data[0]["wishes"]
@@ -578,9 +493,7 @@ class TestListWishesByYearAPI:
             label="2027-2028", start_date=date(2027, 9, 1), end_date=date(2028, 8, 31)
         )
 
-        response = self.client.get(
-            f"/api/v1/students/students/wishes/by-year/{year2.id}/"
-        )
+        response = self.client.get(f"/api/v1/outgoing/wishes/by-year/{year2.id}/")
 
         assert response.status_code == 200
         assert response.json() == []
@@ -594,15 +507,16 @@ class TestGetStudentWishesAPI:
         self.student = make_student()
         self.agreement = make_agreement()
         self.enrollment = make_enrollment(self.student, self.year)
+        self.agreement_year = make_agreement_year(self.agreement, self.year)
         StudentWish.objects.create(
             annual_enrollment=self.enrollment,
-            agreement=self.agreement,
+            agreement_year=self.agreement_year,
             rank=1,
         )
 
     def test_get_student_wishes(self):
         response = self.client.get(
-            f"/api/v1/students/students/{self.student.id}/wishes/{self.year.id}/"
+            f"/api/v1/outgoing/wishes/by-student/{self.student.id}/{self.year.id}/"
         )
 
         assert response.status_code == 200
@@ -612,7 +526,7 @@ class TestGetStudentWishesAPI:
 
     def test_get_student_not_found(self):
         response = self.client.get(
-            f"/api/v1/students/students/99999/wishes/{self.year.id}/"
+            f"/api/v1/outgoing/wishes/by-student/99999/{self.year.id}/"
         )
 
         assert response.status_code == 404
@@ -622,7 +536,7 @@ class TestGetStudentWishesAPI:
         make_enrollment(student2, self.year)
 
         response = self.client.get(
-            f"/api/v1/students/students/{student2.id}/wishes/{self.year.id}/"
+            f"/api/v1/outgoing/wishes/by-student/{student2.id}/{self.year.id}/"
         )
 
         assert response.status_code == 200

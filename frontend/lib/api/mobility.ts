@@ -64,7 +64,7 @@ export async function getMobilityData() {
     // Volatile
     getApi<PagedResponse<AgreementYear>>("/mobility/agreement-years/?page_size=200"),
     getApi<PagedResponse<AgreementYearDepartment>>("/mobility/agreement-year-departments/?page_size=200"),
-    getApi<RawImport[]>("/mobility/raw-imports/moveon-errors/"),
+    getApi<PagedResponse<RawImport>>("/mobility/raw-imports/moveon-errors/?page=1&page_size=25"),
     // Stable
     getCachedLevels(),
     // Volatile
@@ -85,7 +85,8 @@ export async function getMobilityData() {
     currentYear,
     countries,
     departments,
-    importErrors,
+    importErrors: importErrors.results,
+    importErrorsTotalCount: importErrors.count,
     mobilityLevels,
     universities: universitiesPage.results,
   };

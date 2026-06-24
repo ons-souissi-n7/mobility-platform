@@ -21,9 +21,12 @@ type ReferencesContainerProps = {
   initialDepartments: Department[];
   initialUniversities: PagedResponse<PartnerUniversity>;
   initialUniversityImportErrors: RawImport[];
+  initialUniversityImportErrorsCount: number;
   initialDepartmentImportErrors: RawImport[];
+  initialDepartmentImportErrorsCount: number;
   initialMobilityLevels: Level[];
   initialLevelImportErrors: RawImport[];
+  initialLevelImportErrorsCount: number;
   initialParcours: Parcours[];
 };
 
@@ -32,18 +35,24 @@ export function ReferencesContainer({
   initialDepartments,
   initialUniversities,
   initialUniversityImportErrors,
+  initialUniversityImportErrorsCount,
   initialDepartmentImportErrors,
+  initialDepartmentImportErrorsCount,
   initialMobilityLevels,
   initialLevelImportErrors,
+  initialLevelImportErrorsCount,
   initialParcours,
 }: ReferencesContainerProps) {
   const [countries, setCountries] = useState(initialCountries);
   const [departments, setDepartments] = useState(initialDepartments);
   const [universities, setUniversities] = useState<PagedResponse<PartnerUniversity>>(initialUniversities);
   const [universityImportErrors, setUniversityImportErrors] = useState(initialUniversityImportErrors);
+  const [universityImportErrorsCount, setUniversityImportErrorsCount] = useState(initialUniversityImportErrorsCount);
   const [departmentImportErrors, setDepartmentImportErrors] = useState(initialDepartmentImportErrors);
+  const [departmentImportErrorsCount, setDepartmentImportErrorsCount] = useState(initialDepartmentImportErrorsCount);
   const [mobilityLevels, setMobilityLevels] = useState(initialMobilityLevels);
   const [levelImportErrors, setLevelImportErrors] = useState(initialLevelImportErrors);
+  const [levelImportErrorsCount, setLevelImportErrorsCount] = useState(initialLevelImportErrorsCount);
   const [parcours, setParcours] = useState(initialParcours);
 
   return (
@@ -98,12 +107,18 @@ export function ReferencesContainer({
         setUniversities={setUniversities}
         universityImportErrors={universityImportErrors}
         setUniversityImportErrors={setUniversityImportErrors}
+        universityImportErrorsCount={universityImportErrorsCount}
+        setUniversityImportErrorsCount={setUniversityImportErrorsCount}
         departmentImportErrors={departmentImportErrors}
         setDepartmentImportErrors={setDepartmentImportErrors}
+        departmentImportErrorsCount={departmentImportErrorsCount}
+        setDepartmentImportErrorsCount={setDepartmentImportErrorsCount}
         mobilityLevels={mobilityLevels}
         setMobilityLevels={setMobilityLevels}
         levelImportErrors={levelImportErrors}
         setLevelImportErrors={setLevelImportErrors}
+        levelImportErrorsCount={levelImportErrorsCount}
+        setLevelImportErrorsCount={setLevelImportErrorsCount}
         countries={countries}
         setCountries={setCountries}
         parcours={parcours}

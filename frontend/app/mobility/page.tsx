@@ -17,6 +17,7 @@ export default async function MobilityPage() {
       currentYear,
       departments,
       importErrors,
+      importErrorsTotalCount,
       mobilityLevels,
       universities,
     },
@@ -41,6 +42,7 @@ export default async function MobilityPage() {
           initialAgreements={agreements}
           initialAgreementYearDepartments={agreementYearDepartments}
           initialImportErrors={importErrors}
+          initialImportErrorsTotalCount={importErrorsTotalCount}
           initialExpiringAgreements={expiringAgreements}
           mobilityLevels={mobilityLevels}
           universities={universities}

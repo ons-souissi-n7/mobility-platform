@@ -80,6 +80,7 @@ class ImportSource(models.TextChoices):
     MOVEON_ACCORDS = "moveon_accords", "MoveON – Accords"
     MOVEON_CATEGORIES = "moveon_categories", "MoveON – Catégories"
     MOVEON_QUOTAS = "moveon_quotas", "MoveON – Quotas"
+    MOVEON_WISHES = "moveon_wishes", "MoveON – Vœux"
     PEGASE = "pegase", "Pégase – Étudiants"
     EUDONET = "eudonet", "Eudonet – Stages"
     EXCEL = "excel", "Import Excel"

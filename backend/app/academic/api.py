@@ -4,6 +4,7 @@ from ninja import Router
 from ninja.errors import HttpError
 
 from app.mobility.services.quota_estimator import initialize_new_year_mobility
+from app.outgoing.tasks import enqueue_gale_shapley
 from app.shared.api_helpers import SelectOption, save_validated
 
 from .models import AcademicYear
@@ -112,7 +113,9 @@ def start_consolidation(request, year_id: int):
 )
 def launch_pre_assignment(request, year_id: int):
     academic_year = get_academic_year(year_id)
-    return apply_transition(academic_year, "launch_pre_assignment")
+    triggered_by = getattr(request.user, "username", "")
+    enqueue_gale_shapley(year_id, triggered_by=triggered_by)
+    return academic_year
 
 
 @router.post(

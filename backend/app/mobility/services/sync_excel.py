@@ -28,6 +28,7 @@ from app.imports.models import (
 from app.institutions.models import PartnerUniversity
 from app.mobility.models import (
     Agreement,
+    AgreementDepartment,
     AgreementYear,
     MobilityCategory,
 )
@@ -140,17 +141,18 @@ def _process_row(excel_row: ExcelRow, current_year: AcademicYear | None) -> bool
         },
     )
 
-    # Sync M2M constraints
+    # Sync department constraints
     if excel_row.department_codes:
         depts = list(Department.objects.filter(code__in=excel_row.department_codes))
-        agreement.departments.set(depts)
+        for dept in depts:
+            AgreementDepartment.objects.get_or_create(
+                agreement=agreement, department=dept
+            )
 
     if excel_row.level_codes:
         levels = []
         for code in excel_row.level_codes:
-            level, _ = Level.objects.get_or_create(
-                code=code, defaults={"name": code, "is_active": True}
-            )
+            level, _ = Level.objects.get_or_create(code=code, defaults={"name": code})
             levels.append(level)
         agreement.levels.set(levels)
 

@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.db.models import Q
+from django.db.models import Max, Q, Sum
 from django.db.models.deletion import ProtectedError
 from django.http import HttpResponse
 from django.utils import timezone
@@ -632,7 +632,7 @@ def initialize_year(request):
         raise HttpError(400, "Aucune année académique courante trouvée.")
     result = initialize_new_year_mobility(current_year)
     return {
-        "eligible_agreements": result.eligible_agreements,
+        "eligible_agreements": result.agreements_processed,
         "year_instances_created": result.year_instances_created,
         "department_quotas_created": result.department_quotas_created,
         "skipped_existing": result.skipped_existing,
@@ -662,7 +662,7 @@ def mobility_dashboard(request):
     return {
         "current_year": {"id": current_year.id, "label": current_year.label},
         "active_agreements": active.count(),
-        "total_n7_places": sum(active.values_list("n7_places", flat=True)),
+        "total_n7_places": active.aggregate(total=Sum("n7_places"))["total"] or 0,
         "validated_count": active.filter(is_validated=True).count(),
         "pending_validation": active.filter(is_validated=False).count(),
     }
@@ -687,23 +687,24 @@ def sync_mobility_from_moveon(request):
 # ──────────────────────────────────────────────
 
 
-@router.get("/raw-imports/moveon-errors/", response=list[RawImportOut])
-def list_moveon_import_errors(request):
-    raw_imports = RawImport.objects.filter(
-        entity__in=[RawImportEntity.AGREEMENT, RawImportEntity.AGREEMENT_CATEGORY]
+@router.get("/raw-imports/moveon-errors/", response=PagedResponse[RawImportOut])
+def list_moveon_import_errors(request, pagination: PaginationQuery = Query(...)):
+    latest_ids = (
+        RawImport.objects.filter(
+            entity__in=[RawImportEntity.AGREEMENT, RawImportEntity.AGREEMENT_CATEGORY]
+        )
+        .values("entity", "external_id")
+        .annotate(latest_id=Max("id"))
+        .values_list("latest_id", flat=True)
+    )
+    qs = RawImport.objects.filter(
+        id__in=latest_ids,
+        status__in=[RawImportStatus.FAILED, RawImportStatus.CONFLICT],
     ).order_by("-created_at")
-
-    latest: dict = {}
-    for ri in raw_imports:
-        key = f"{ri.entity}:{ri.external_id or ri.id}"
-        if key not in latest:
-            latest[key] = ri
-
-    return [
-        ri
-        for ri in latest.values()
-        if ri.status in (RawImportStatus.FAILED, RawImportStatus.CONFLICT)
-    ]
+    count, items = paginate(qs, pagination.page, pagination.page_size)
+    return PagedResponse(
+        count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
 
 
 @router.put("/raw-imports/{raw_import_id}/retry/", response=RawImportOut)

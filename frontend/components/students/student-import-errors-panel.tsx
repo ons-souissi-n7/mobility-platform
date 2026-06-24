@@ -3,6 +3,7 @@
 import { AlertTriangle, Check, ChevronDown, ChevronRight, RotateCw } from "lucide-react";
 import { useState } from "react";
 
+import { Pagination } from "@/components/ui/pagination";
 import type { Department, Level, Parcours, RawImport } from "@/lib/api/types";
 import type { StudentImportCorrection } from "@/lib/api/student-mutations";
 
@@ -58,6 +59,10 @@ export function StudentImportErrorsPanel({
   onRetry,
   parcourses,
   title = "Erreurs d'import étudiants",
+  totalCount,
+  page = 1,
+  pageSize = 25,
+  onPageChange,
 }: {
   departments: Department[];
   errors: RawImport[];
@@ -67,6 +72,10 @@ export function StudentImportErrorsPanel({
   onRetry: (error: RawImport, correction: StudentImportCorrection) => Promise<void>;
   parcourses: Parcours[];
   title?: string;
+  totalCount?: number;
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -100,7 +109,7 @@ export function StudentImportErrorsPanel({
       <div className="flex items-center gap-2 text-amber-900">
         <AlertTriangle className="h-5 w-5" aria-hidden="true" />
         <h3 className="text-sm font-semibold">
-          {title} ({errors.length})
+          {title} ({totalCount ?? errors.length})
         </h3>
       </div>
 
@@ -111,6 +120,7 @@ export function StudentImportErrorsPanel({
       )}
 
       <div className="mt-4 space-y-2">
+        {errors.length === 0 && <p className="text-xs text-gray-500 italic">Aucune erreur sur cette page.</p>}
         {errors.map((error) => {
           const busy = isBusy || activeId === error.id;
           const kind = classifyStudentError(error);
@@ -289,6 +299,18 @@ export function StudentImportErrorsPanel({
           );
         })}
       </div>
+
+      {onPageChange && totalCount !== undefined && totalCount > pageSize && (
+        <div className="mt-4 border-t border-amber-100 pt-3">
+          <Pagination
+            page={page}
+            totalPages={Math.ceil(totalCount / pageSize)}
+            totalItems={totalCount}
+            pageSize={pageSize}
+            onPageChange={onPageChange}
+          />
+        </div>
+      )}
     </div>
   );
 }

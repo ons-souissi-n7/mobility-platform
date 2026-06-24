@@ -1,16 +1,7 @@
 from django.db import models
 
+from app.core.models import TimeStampedModel
 from app.reference.models import Country
-
-
-class TimeStampedModel(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.CharField(max_length=255, blank=True, default="")
-    updated_by = models.CharField(max_length=255, blank=True, default="")
-
-    class Meta:
-        abstract = True
 
 
 class PartnerUniversity(TimeStampedModel):
@@ -45,7 +36,7 @@ class PartnerUniversity(TimeStampedModel):
         return f"{self.name} ({self.country.iso2})"
 
     def has_active_agreements(self) -> bool:
-        return self.agreements.filter(is_active=True).exists()
+        return self.agreements.filter(year_instances__is_active=True).exists()
 
 
 class PartnerUniversityRawImportStatus(models.TextChoices):

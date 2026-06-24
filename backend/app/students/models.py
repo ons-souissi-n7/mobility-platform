@@ -87,6 +87,16 @@ class AnnualEnrollment(TimeStampedModel):
         related_name="enrollments",
     )
     gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    is_alternant = models.BooleanField(
+        default=False,
+        verbose_name="Alternant (FISA)",
+        help_text="Vrai pour les étudiants en apprentissage (FISA). "
+        "Les FISA choisissent leur mobilité en 3ème année.",
+    )
+    is_scholarship = models.BooleanField(
+        default=False,
+        verbose_name="Boursier",
+    )
     last_sync_pegase = models.DateTimeField(
         null=True,
         blank=True,
@@ -126,6 +136,10 @@ class AnnualEnrollment(TimeStampedModel):
             models.Index(
                 fields=["academic_year", "parcours"], name="enroll_year_parcours_idx"
             ),
+            models.Index(
+                fields=["academic_year", "is_alternant"],
+                name="enroll_year_alternant_idx",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -139,8 +153,8 @@ class StudentWish(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="wishes",
     )
-    agreement = models.ForeignKey(
-        "mobility.Agreement",
+    agreement_year = models.ForeignKey(
+        "mobility.AgreementYear",
         on_delete=models.PROTECT,
         related_name="student_wishes",
     )
@@ -165,13 +179,13 @@ class StudentWish(TimeStampedModel):
                 name="unique_wish_enrollment_rank",
             ),
             models.UniqueConstraint(
-                fields=["annual_enrollment", "agreement"],
-                name="unique_wish_enrollment_agreement",
+                fields=["annual_enrollment", "agreement_year"],
+                name="unique_wish_enrollment_agreement_year",
             ),
         ]
         indexes = [
             models.Index(fields=["annual_enrollment"], name="wish_enrollment_idx"),
-            models.Index(fields=["agreement"], name="wish_agreement_idx"),
+            models.Index(fields=["agreement_year"], name="wish_agreement_year_idx"),
         ]
 
     def clean(self) -> None:

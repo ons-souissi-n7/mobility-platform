@@ -195,8 +195,8 @@ class TestMobilityAgreementAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert {item["external_id"] for item in data} == {"REL-ERR"}
-        assert "3001" not in {item["external_id"] for item in data}
+        assert {item["external_id"] for item in data["results"]} == {"REL-ERR"}
+        assert "3001" not in {item["external_id"] for item in data["results"]}
 
     def test_retry_agreement_import_with_partner_university_correction(self):
         raw_import = RawImport.objects.create(

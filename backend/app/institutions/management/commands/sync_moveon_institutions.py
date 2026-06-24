@@ -73,8 +73,7 @@ class Command(BaseCommand):
             task_id = enqueue_sync_moveon_institutions()
             self.stdout.write(
                 self.style.SUCCESS(
-                    "MoveON institutions sync queued with Django Q2: "
-                    f"task_id={task_id}"
+                    f"MoveON institutions sync queued with Django Q2: task_id={task_id}"
                 )
             )
             return
