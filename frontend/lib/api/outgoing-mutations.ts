@@ -4,6 +4,7 @@ import type {
   Assignment,
   AssignmentResult,
   AssignmentStats,
+  OverrideImportReport,
   PagedResponse,
   RawImport,
   StudentWishes,
@@ -154,4 +155,43 @@ export async function exportWishesExcel(
     `${publicApiBaseUrl}/outgoing/wishes/export-excel/${yearId}/?${params}`,
     "voeux.xlsx",
   );
+}
+
+export function validateAssignment(assignmentId: number): Promise<Assignment> {
+  return browserApi<Assignment>(
+    `/outgoing/assignments/${assignmentId}/validate/`,
+    { method: "POST" },
+  );
+}
+
+export function publishAssignment(assignmentId: number): Promise<Assignment> {
+  return browserApi<Assignment>(
+    `/outgoing/assignments/${assignmentId}/publish/`,
+    { method: "POST" },
+  );
+}
+
+export async function importOverridesFromExcel(
+  assignmentId: number,
+  file: File,
+): Promise<OverrideImportReport> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(
+    `${publicApiBaseUrl}/outgoing/assignments/${assignmentId}/import-overrides/`,
+    { method: "POST", body: formData },
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    let message = `Erreur API ${response.status}`;
+    try {
+      const payload = JSON.parse(text) as { detail?: string };
+      if (payload?.detail) message = String(payload.detail);
+      else if (text) message = text;
+    } catch {
+      if (text) message = text;
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<OverrideImportReport>;
 }

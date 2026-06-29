@@ -31,11 +31,6 @@ export function AcademicYearForm({
       end_date: String(formData.get("end_date") ?? ""),
       wishes_open_date: getOptionalDate(formData, "wishes_open_date"),
       wishes_close_date: getOptionalDate(formData, "wishes_close_date"),
-      gpa_freeze_date: getOptionalDate(formData, "gpa_freeze_date"),
-      results_publication_date: getOptionalDate(
-        formData,
-        "results_publication_date",
-      ),
     };
 
     try {
@@ -78,18 +73,6 @@ export function AcademicYearForm({
           defaultValue={item?.wishes_close_date}
           label="Fermeture des voeux"
           name="wishes_close_date"
-          type="date"
-        />
-        <Field
-          defaultValue={item?.gpa_freeze_date}
-          label="Gel des moyennes"
-          name="gpa_freeze_date"
-          type="date"
-        />
-        <Field
-          defaultValue={item?.results_publication_date}
-          label="Publication des resultats"
-          name="results_publication_date"
           type="date"
         />
       </div>
