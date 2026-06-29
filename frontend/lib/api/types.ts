@@ -254,8 +254,11 @@ export type StudentWishes = {
   last_name: string;
   department_code: string | null;
   parcours_code: string | null;
+  level_code: string | null;
   gpa: string | null;
   nationality_name_fr: string | null;
+  is_alternant: boolean;
+  is_scholarship: boolean;
   wishes: AgreementWish[];
 };
 
@@ -313,8 +316,6 @@ export type AcademicYear = {
   status: AcademicYearStatus;
   wishes_open_date: string | null;
   wishes_close_date: string | null;
-  gpa_freeze_date: string | null;
-  results_publication_date: string | null;
   closed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -348,6 +349,17 @@ export type AssignmentResult = {
   slot_type: SlotType;
   assigned_rank: number | null;
   override_reason: string;
+  override_agreement_year_id: number | null;
+  override_agreement_id: number | null;
+  override_agreement_name: string | null;
+  override_university_name: string | null;
+  source: "auto" | "override";
+};
+
+export type OverrideImportReport = {
+  updated: number;
+  unchanged: number;
+  errors: Array<{ ine: string; ligne: number; erreur: string }>;
 };
 
 export type AssignmentDeptStat = {

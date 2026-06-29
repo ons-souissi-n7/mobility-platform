@@ -80,6 +80,18 @@ class Agreement(TimeStampedModel):
     def level_ids(self) -> list[int]:
         return [lvl.id for lvl in self.levels.all()]
 
+    def is_valid_for_year(self, year: "AcademicYear") -> bool:
+        """Retourne False si l'accord est expiré par rapport à l'année donnée."""
+        if self.valid_from and year.end_date and self.valid_from > year.end_date:
+            return False
+        if self.valid_until and year.start_date and self.valid_until < year.start_date:
+            return False
+        return True
+
+    def is_eligible(self, dept_id: int) -> bool:
+        """Retourne True si le département est autorisé pour cet accord."""
+        return self.agreement_departments.filter(department_id=dept_id).exists()
+
 
 class AgreementDepartment(TimeStampedModel):
     id = models.BigAutoField(primary_key=True)
@@ -241,6 +253,12 @@ class AgreementYearDepartment(TimeStampedModel):
         related_name="year_quotas",
     )
     estimated_places = models.IntegerField(default=0)
+    adjusted_places = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Quota ajusté N7",
+        help_text="Remplace le quota estimé quand renseigné manuellement.",
+    )
 
     class Meta:
         verbose_name = "Agreement Year Department"
@@ -264,6 +282,10 @@ class AgreementYearDepartment(TimeStampedModel):
             raise ValidationError(
                 {"estimated_places": "estimated_places ne peut pas être négatif"}
             )
+        if self.adjusted_places is not None and self.adjusted_places < 0:
+            raise ValidationError(
+                {"adjusted_places": "adjusted_places ne peut pas être négatif"}
+            )
         if self.agreement_department_id and self.agreement_year_id:
             if (
                 self.agreement_department.agreement_id
@@ -274,6 +296,12 @@ class AgreementYearDepartment(TimeStampedModel):
                         "agreement_department": "Ce département n'appartient pas à cet accord."
                     }
                 )
+
+    def get_effective_quota(self) -> int:
+        """Retourne le quota ajusté s'il est renseigné, sinon le quota estimé."""
+        if self.adjusted_places is not None:
+            return self.adjusted_places
+        return self.estimated_places
 
     @property
     def department_id(self) -> int:

@@ -28,8 +28,6 @@ class AcademicYear(TimeStampedModel):
     )
     wishes_open_date = models.DateField(null=True, blank=True)
     wishes_close_date = models.DateField(null=True, blank=True)
-    gpa_freeze_date = models.DateField(null=True, blank=True)
-    results_publication_date = models.DateField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -71,10 +69,14 @@ class AcademicYear(TimeStampedModel):
                 }
             )
 
+    def _has_campaign_dates(self) -> bool:
+        return bool(self.wishes_open_date and self.wishes_close_date)
+
     @transition(
         field=status,
         source=CampaignStatus.INITIALIZATION,
         target=CampaignStatus.RECOMMENDATION,
+        conditions=[_has_campaign_dates],
     )
     def open_recommendation(self) -> None:
         pass

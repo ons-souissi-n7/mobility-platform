@@ -9,8 +9,6 @@ class AcademicYearIn(Schema):
     end_date: date
     wishes_open_date: date | None = None
     wishes_close_date: date | None = None
-    gpa_freeze_date: date | None = None
-    results_publication_date: date | None = None
 
 
 class AcademicYearOut(Schema):
@@ -21,8 +19,6 @@ class AcademicYearOut(Schema):
     status: str
     wishes_open_date: date | None
     wishes_close_date: date | None
-    gpa_freeze_date: date | None
-    results_publication_date: date | None
     closed_at: datetime | None
     created_at: datetime
     updated_at: datetime

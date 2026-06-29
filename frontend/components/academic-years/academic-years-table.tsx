@@ -52,8 +52,7 @@ function getColumns({
       header: "Jalons",
       render: (year) => (
         <div className="text-xs text-gray-600">
-          <p>Gel GPA: {formatDate(year.gpa_freeze_date)}</p>
-          <p>Resultats: {formatDate(year.results_publication_date)}</p>
+          <p>Voeux: {formatDate(year.wishes_open_date)} → {formatDate(year.wishes_close_date)}</p>
         </div>
       ),
     },

@@ -3,9 +3,11 @@ from django_fsm import TransitionNotAllowed
 from ninja import Router
 from ninja.errors import HttpError
 
+from app.mobility.models import AgreementYear
 from app.mobility.services.quota_estimator import initialize_new_year_mobility
 from app.outgoing.tasks import enqueue_gale_shapley
 from app.shared.api_helpers import SelectOption, save_validated
+from app.students.models import AnnualEnrollment
 
 from .models import AcademicYear
 from .schemas import AcademicYearIn, AcademicYearOut
@@ -93,6 +95,36 @@ def delete_academic_year(request, year_id: int):
 )
 def open_recommendation(request, year_id: int):
     academic_year = get_academic_year(year_id)
+
+    if not academic_year.wishes_open_date or not academic_year.wishes_close_date:
+        raise HttpError(
+            400,
+            "Les dates d'ouverture et de clôture des vœux sont obligatoires"
+            " avant de lancer la phase de recommandation.",
+        )
+
+    has_gpa = AnnualEnrollment.objects.filter(
+        academic_year=academic_year, gpa__isnull=False
+    ).exists()
+    if not has_gpa:
+        raise HttpError(
+            400,
+            "Aucune note GPA importée pour cette année. Importez les GPAs"
+            " avant de lancer la phase de recommandation.",
+        )
+
+    has_quotas = AgreementYear.objects.filter(
+        academic_year=academic_year,
+        is_active=True,
+        department_quotas__isnull=False,
+    ).exists()
+    if not has_quotas:
+        raise HttpError(
+            400,
+            "Aucun quota de département configuré pour les accords actifs"
+            " de cette année universitaire.",
+        )
+
     return apply_transition(academic_year, "open_recommendation")
 
 
@@ -108,14 +140,21 @@ def start_consolidation(request, year_id: int):
 
 @router.post(
     "/years/{year_id}/launch-pre-assignment/",
-    response=AcademicYearOut,
+    response={202: AcademicYearOut},
     summary="Lancer la pre-affectation",
 )
 def launch_pre_assignment(request, year_id: int):
     academic_year = get_academic_year(year_id)
+    try:
+        academic_year.launch_pre_assignment()
+        academic_year.save(update_fields=["status", "updated_at"])
+    except TransitionNotAllowed as exc:
+        raise HttpError(
+            409, f"Transition impossible depuis l'état '{academic_year.status}'."
+        ) from exc
     triggered_by = getattr(request.user, "username", "")
     enqueue_gale_shapley(year_id, triggered_by=triggered_by)
-    return academic_year
+    return 202, academic_year
 
 
 @router.post(

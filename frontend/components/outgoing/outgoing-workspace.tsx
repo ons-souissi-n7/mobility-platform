@@ -11,6 +11,8 @@ import {
   Loader2,
   Play,
   RefreshCw,
+  Send,
+  ShieldCheck,
   TrendingUp,
   Upload,
   Users,
@@ -34,9 +36,12 @@ import {
   getAssignmentsForYear,
   getWishImportErrors,
   getWishesByYear,
+  importOverridesFromExcel,
   importWishesFromExcel,
+  publishAssignment,
   retryWishImportError,
   syncWishesFromMoveon,
+  validateAssignment,
   type WishImportCorrection,
 } from "@/lib/api/outgoing-mutations";
 import {
@@ -50,6 +55,7 @@ import type {
   Assignment,
   AssignmentResult,
   AssignmentStats,
+  OverrideImportReport,
   RawImport,
   SelectOption,
   StudentWishes,
@@ -57,6 +63,13 @@ import type {
 import { WishImportErrorsPanel } from "@/components/students/wish-import-errors-panel";
 
 // ─── Labels métier ────────────────────────────────────────────────────────────
+const ASSIGNMENT_STATUS_LABELS: Record<string, { label: string; cls: string }> = {
+  proposed:  { label: "Proposé",  cls: "bg-amber-100 text-amber-800"   },
+  validated: { label: "Validé",   cls: "bg-blue-100 text-blue-800"     },
+  published: { label: "Publié",   cls: "bg-emerald-100 text-emerald-800" },
+  cancelled: { label: "Annulé",   cls: "bg-red-100 text-red-800"       },
+};
+
 const SLOT_LABELS: Record<string, string> = {
   dept:        "Quota département",
   surplus:     "Quota mutualisé",
@@ -101,6 +114,10 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   const [resultsMap, setResultsMap]   = useState<Map<string, AssignmentResult>>(new Map());
   const [launching, setLaunching]     = useState(false);
   const [polling, setPolling]         = useState(false);
+  const [validating, setValidating]           = useState(false);
+  const [publishing, setPublishing]           = useState(false);
+  const [importingOverrides, setImportingOverrides] = useState(false);
+  const [overrideReport, setOverrideReport]   = useState<OverrideImportReport | null>(null);
 
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -241,6 +258,54 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
     }
   }
 
+  // ── Supervision actions ───────────────────────────────────────────────────
+  async function handleValidate() {
+    if (!assignment || !selectedYearId) return;
+    if (!window.confirm("Valider toutes les affectations ? Les modifications seront bloquées.")) return;
+    setValidating(true);
+    setError("");
+    try {
+      const updated = await validateAssignment(assignment.id);
+      setAssignment(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la validation.");
+    } finally {
+      setValidating(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (!assignment || !selectedYearId) return;
+    if (!window.confirm("Publier les résultats ? L'année universitaire sera clôturée.")) return;
+    setPublishing(true);
+    setError("");
+    try {
+      const updated = await publishAssignment(assignment.id);
+      setAssignment(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la publication.");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  async function handleImportOverrides(file: File) {
+    if (!assignment || !selectedYearId) return;
+    const yearId = selectedYearId;
+    setError("");
+    setImportingOverrides(true);
+    setOverrideReport(null);
+    try {
+      const report = await importOverridesFromExcel(assignment.id, file);
+      setOverrideReport(report);
+      await loadAssignment(yearId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de l'import des corrections.");
+    } finally {
+      setImportingOverrides(false);
+    }
+  }
+
   // ── Wishes actions ────────────────────────────────────────────────────────
   async function handleTemplateDownload() {
     if (!selectedYear) return;
@@ -286,12 +351,25 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   }
 
   // ── Computed values ───────────────────────────────────────────────────────
-  const deptOptions = [...new Set(wishes.map((w) => w.department_code).filter(Boolean))].sort() as string[];
-  const maxRank     = wishes.reduce((m, w) => Math.max(m, w.wishes.length), 0);
+  const [filterParcours, setFilterParcours] = useState("");
+  const [filterLevel, setFilterLevel]       = useState("");
+  const [filterType, setFilterType]         = useState<"" | "fisa" | "fise">("");
+  const [filterScholarship, setFilterScholarship] = useState<"" | "yes" | "no">("");
+
+  const deptOptions     = [...new Set(wishes.map((w) => w.department_code).filter(Boolean))].sort() as string[];
+  const parcoursOptions = [...new Set(wishes.map((w) => w.parcours_code).filter(Boolean))].sort() as string[];
+  const levelOptions    = [...new Set(wishes.map((w) => w.level_code).filter(Boolean))].sort() as string[];
+  const maxRank         = wishes.reduce((m, w) => Math.max(m, w.wishes.length), 0);
   const studentsWithWishes = wishes.filter((w) => w.wishes.length > 0).length;
 
   const displayed = wishes.filter((w) => {
     if (filterDept && w.department_code !== filterDept) return false;
+    if (filterParcours && w.parcours_code !== filterParcours) return false;
+    if (filterLevel && w.level_code !== filterLevel) return false;
+    if (filterType === "fisa" && !w.is_alternant) return false;
+    if (filterType === "fise" && w.is_alternant) return false;
+    if (filterScholarship === "yes" && !w.is_scholarship) return false;
+    if (filterScholarship === "no" && w.is_scholarship) return false;
     if (query) {
       const q = query.toLowerCase();
       return (
@@ -312,6 +390,12 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   const isReadOnly = selectedYear?.status === "closed";
   // Verrouillé pendant le calcul ou pour une année clôturée
   const isLocked = polling || isReadOnly;
+  // Phase vœux terminée dès que l'algo est lancé (pre_assignment, validation, closed)
+  const isPastWishPhase =
+    !!selectedYear &&
+    !["initialization", "recommendation", "consolidation"].includes(selectedYear.status);
+  // Des corrections manuelles ont été importées → relancer l'algo les écraserait
+  const hasOverrides = [...resultsMap.values()].some((r) => r.source === "override");
 
   // Fill-rate par département — total calculé depuis les résultats de l'affectation (même run que stats)
   const totalByDept = [...resultsMap.values()].reduce<Record<string, number>>((acc, r) => {
@@ -379,9 +463,17 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
             {polling
               ? "Algorithme Gale-Shapley en cours — les résultats s'afficheront automatiquement."
               : assignment
-                ? `Affectation calculée — ${assignment.assigned_count} étudiants placés sur ${assignment.total_students} (${assignedPct}%)`
+                ? `Affectation — ${assignment.assigned_count} étudiants placés sur ${assignment.total_students} (${assignedPct}%)`
                 : "Aucune affectation calculée pour cette année. Cliquez sur « Lancer l'affectation »."}
           </span>
+          {!polling && assignment && (() => {
+            const s = ASSIGNMENT_STATUS_LABELS[assignment.status];
+            return s ? (
+              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${s.cls}`}>
+                {s.label}
+              </span>
+            ) : null;
+          })()}
         </div>
       )}
 
@@ -390,8 +482,16 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
         <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
           <CheckCircle2 className="h-5 w-5 text-emerald-600" />
           <span className="text-sm font-medium text-emerald-700">
-            {`Affectation calculée — ${assignment.assigned_count} étudiants placés sur ${assignment.total_students} (${assignedPct}%)`}
+            {`Affectation — ${assignment.assigned_count} étudiants placés sur ${assignment.total_students} (${assignedPct}%)`}
           </span>
+          {(() => {
+            const s = ASSIGNMENT_STATUS_LABELS[assignment.status];
+            return s ? (
+              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${s.cls}`}>
+                {s.label}
+              </span>
+            ) : null;
+          })()}
         </div>
       )}
 
@@ -456,36 +556,76 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
         </div>
       )}
 
+      {/* Rapport import corrections */}
+      {overrideReport && (
+        <div className={`flex flex-col gap-1 rounded-md border px-4 py-3 text-sm ${
+          overrideReport.errors.length > 0
+            ? "border-amber-200 bg-amber-50"
+            : "border-emerald-200 bg-emerald-50"
+        }`}>
+          <p className={`font-medium ${overrideReport.errors.length > 0 ? "text-amber-800" : "text-emerald-800"}`}>
+            Import corrections : {overrideReport.updated} appliquée(s), {overrideReport.unchanged} inchangée(s)
+            {overrideReport.errors.length > 0 ? `, ${overrideReport.errors.length} erreur(s)` : ""}
+          </p>
+          {overrideReport.errors.map((e, i) => (
+            <p key={i} className="text-xs text-amber-700">
+              Ligne {e.ligne} (INE {e.ine}) — {e.erreur}
+            </p>
+          ))}
+        </div>
+      )}
+
       {/* Toolbar */}
       <Toolbar
         search={{ value: query, onChange: setQuery, placeholder: "Rechercher par INE, nom, prénom..." }}
         actions={
           <>
-            <Btn disabled={!selectedYear || isLocked} onClick={handleTemplateDownload}>
+            <Btn disabled={!selectedYear || isLocked || isPastWishPhase} onClick={handleTemplateDownload}>
               <Download className="h-4 w-4" />
               Template
             </Btn>
             <FileBtn
-              disabled={!selectedYear || excelInProgress || isLocked}
+              disabled={!selectedYear || excelInProgress || isLocked || isPastWishPhase}
               onFile={(file) => { handleExcelImport(file).catch(() => null); }}
             >
               {excelInProgress ? <Upload className="h-4 w-4 animate-bounce" /> : <FileSpreadsheet className="h-4 w-4" />}
               {excelInProgress ? "Import..." : "Importer Excel"}
             </FileBtn>
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
-            <Btn disabled={syncInProgress || !selectedYear || isLocked} onClick={handleSync}>
+            <Btn disabled={syncInProgress || !selectedYear || isLocked || isPastWishPhase} onClick={handleSync}>
               <RefreshCw className={`h-4 w-4 ${syncInProgress ? "animate-spin" : ""}`} />
               {syncInProgress ? "Synchronisation..." : "Sync MoveON"}
             </Btn>
-            <span className="hidden h-6 w-px bg-gray-200 md:block" />
-            <Btn disabled={!selectedYear || exportInProgress || isLoading} onClick={handleExport}>
+            <Btn disabled={!selectedYear || exportInProgress} onClick={handleExport}>
               <FileDown className="h-4 w-4" />
               {exportInProgress ? "Export..." : "Exporter"}
             </Btn>
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
+            <FileBtn
+              disabled={!assignment || assignment.status !== "proposed" || isLocked || importingOverrides}
+              onFile={(file) => { handleImportOverrides(file).catch(() => null); }}
+            >
+              {importingOverrides ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {importingOverrides ? "Import..." : "Importer corrections"}
+            </FileBtn>
+            <Btn
+              disabled={!assignment || assignment.status !== "proposed" || isLocked || validating}
+              onClick={() => { handleValidate().catch(() => null); }}
+            >
+              {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              {validating ? "Validation..." : "Valider"}
+            </Btn>
+            <Btn
+              disabled={!assignment || assignment.status !== "validated" || isLocked || publishing}
+              onClick={() => { handlePublish().catch(() => null); }}
+            >
+              {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {publishing ? "Publication..." : "Publier"}
+            </Btn>
+            <span className="hidden h-6 w-px bg-gray-200 md:block" />
             <Btn
               variant="primary"
-              disabled={launching || isLocked || !selectedYear}
+              disabled={launching || isLocked || !selectedYear || isPastWishPhase || hasOverrides}
               onClick={() => { handleLaunch().catch(() => null); }}
             >
               {launching || polling
@@ -495,20 +635,60 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
             </Btn>
           </>
         }
-        filters={selectedYear && deptOptions.length > 0 ? (
+        filters={selectedYear ? (
           <>
+            {deptOptions.length > 0 && (
+              <select
+                className="w-36 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
+                value={filterDept}
+                onChange={(e) => setFilterDept(e.target.value)}
+              >
+                <option value="">Tous les depts</option>
+                {deptOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            )}
+            {parcoursOptions.length > 0 && (
+              <select
+                className="w-36 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
+                value={filterParcours}
+                onChange={(e) => setFilterParcours(e.target.value)}
+              >
+                <option value="">Tous les parcours</option>
+                {parcoursOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
+            {levelOptions.length > 0 && (
+              <select
+                className="w-32 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
+                value={filterLevel}
+                onChange={(e) => setFilterLevel(e.target.value)}
+              >
+                <option value="">Tous niveaux</option>
+                {levelOptions.map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+            )}
             <select
-              className="w-40 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
-              value={filterDept}
-              onChange={(e) => setFilterDept(e.target.value)}
+              className="w-28 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as "" | "fisa" | "fise")}
             >
-              <option value="">Tous les départements</option>
-              {deptOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+              <option value="">FISA + FISE</option>
+              <option value="fise">FISE</option>
+              <option value="fisa">FISA</option>
             </select>
-            {filterDept && (
+            <select
+              className="w-32 shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700"
+              value={filterScholarship}
+              onChange={(e) => setFilterScholarship(e.target.value as "" | "yes" | "no")}
+            >
+              <option value="">Tous (bourse)</option>
+              <option value="yes">Boursier</option>
+              <option value="no">Non boursier</option>
+            </select>
+            {(filterDept || filterParcours || filterLevel || filterType || filterScholarship) && (
               <button
                 className="shrink-0 inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
-                onClick={() => setFilterDept("")}
+                onClick={() => { setFilterDept(""); setFilterParcours(""); setFilterLevel(""); setFilterType(""); setFilterScholarship(""); }}
                 type="button"
               >
                 <X className="h-3.5 w-3.5" /> Réinitialiser
@@ -824,6 +1004,8 @@ function WishesAssignmentTable({
               <Th>INE</Th>
               <Th>Étudiant</Th>
               <Th>Filière</Th>
+              <Th>Type</Th>
+              <Th>Bourse</Th>
               <Th>GPA</Th>
               {rankCols.map((r) => <Th key={r}>Vœu {r}</Th>)}
               {hasAssignment && (
@@ -866,10 +1048,26 @@ function WishesAssignmentTable({
                           {row.parcours_code}
                         </span>
                       ) : null}
-                      {!row.department_code && !row.parcours_code && (
-                        <span className="text-xs italic text-gray-300">—</span>
-                      )}
+                      {row.level_code ? (
+                        <span className="inline-flex w-fit items-center rounded bg-gray-50 px-1.5 py-0.5 text-xs text-gray-500">
+                          {row.level_code}
+                        </span>
+                      ) : null}
                     </div>
+                  </Td>
+                  <Td>
+                    <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-semibold ${row.is_alternant ? "bg-violet-100 text-violet-700" : "bg-blue-50 text-blue-700"}`}>
+                      {row.is_alternant ? "FISA" : "FISE"}
+                    </span>
+                  </Td>
+                  <Td>
+                    {row.is_scholarship ? (
+                      <span className="inline-flex w-fit items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                        Boursier
+                      </span>
+                    ) : (
+                      <span className="text-xs italic text-gray-300">—</span>
+                    )}
                   </Td>
                   <Td>
                     {row.gpa != null ? (
@@ -882,7 +1080,14 @@ function WishesAssignmentTable({
                   </Td>
                   {rankCols.map((r) => {
                     const wish = row.wishes.find((w) => w.rank === r);
-                    const isChosen = isAssigned && result?.assigned_rank === r;
+                    // Highlight the FINAL retained wish:
+                    // - override → the wish matching override_agreement_id (if in list)
+                    // - auto     → the wish at assigned_rank
+                    const isChosen = isAssigned && (
+                      result.source === "override"
+                        ? wish?.agreement_id === result.override_agreement_id
+                        : result.assigned_rank === r
+                    );
                     return (
                       <Td key={r}>
                         {wish ? (
@@ -921,11 +1126,11 @@ function WishesAssignmentTable({
 // ─── Cellule vœu ─────────────────────────────────────────────────────────────
 function WishCell({ wish, highlighted }: { wish: AgreementWish; highlighted: boolean }) {
   return (
-    <div className={`min-w-40 space-y-0.5 rounded px-1.5 py-1 ${highlighted ? "bg-emerald-50 ring-1 ring-emerald-200" : ""}`}>
-      <p className={`text-xs font-medium leading-tight truncate max-w-48 ${highlighted ? "text-emerald-800" : "text-gray-900"}`}>
+    <div className={`w-44 space-y-0.5 rounded px-1.5 py-1 ${highlighted ? "bg-emerald-50 ring-1 ring-emerald-200" : ""}`}>
+      <p className={`text-xs font-medium leading-snug break-words ${highlighted ? "text-emerald-800" : "text-gray-900"}`}>
         {wish.university_name}
       </p>
-      <p className={`text-xs truncate max-w-48 ${highlighted ? "text-emerald-600" : "text-gray-500"}`}>
+      <p className={`text-xs leading-snug break-words ${highlighted ? "text-emerald-600" : "text-gray-500"}`}>
         {wish.agreement_name}
       </p>
       {wish.moveon_id && (
@@ -948,23 +1153,50 @@ function DecisionCell({ result }: { result: AssignmentResult | null }) {
     return <span className="text-xs italic text-gray-300">—</span>;
   }
 
-  const isAssigned = result.slot_type !== "unassigned";
+  const isOverride = result.source === "override";
+
+  // Final (effective) assignment data
+  const finalUniversity = isOverride ? result.override_university_name : result.university_name;
+  const finalAgreement  = isOverride ? result.override_agreement_name  : result.agreement_name;
+
+  // Original auto data — shown as context when overridden
+  const autoUniversity = isOverride ? result.university_name  : null;
+  const autoAgreement  = isOverride ? result.agreement_name   : null;
 
   return (
-    <div className="flex flex-col gap-1 min-w-44">
-      {isAssigned ? (
-        <>
-          <p className="text-xs font-medium text-gray-900 truncate max-w-48">
-            {result.agreement_name ?? "—"}
-          </p>
-          {result.university_name && (
-            <p className="text-xs text-gray-500 truncate max-w-48">{result.university_name}</p>
+    <div className="flex flex-col gap-1 w-44">
+      {/* Final university */}
+      {finalUniversity && (
+        <p className="text-xs font-semibold text-gray-900 leading-snug break-words">{finalUniversity}</p>
+      )}
+      {/* Final agreement */}
+      {finalAgreement && (
+        <p className="text-xs text-gray-500 leading-snug break-words">{finalAgreement}</p>
+      )}
+
+      {/* Slot type + override badge */}
+      <div className="flex flex-wrap items-center gap-1 mt-0.5">
+        <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium ${SLOT_COLORS[result.slot_type] ?? "bg-gray-100 text-gray-700"}`}>
+          {SLOT_LABELS[result.slot_type] ?? result.slot_type}
+        </span>
+        {isOverride && (
+          <span className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
+            Modifié
+          </span>
+        )}
+      </div>
+
+      {/* Original auto assignment context */}
+      {isOverride && (autoUniversity || autoAgreement) && (
+        <div className="mt-1 border-t border-gray-100 pt-1 space-y-0.5">
+          {autoUniversity && (
+            <p className="text-xs text-gray-400 leading-snug break-words">Auto : {autoUniversity}</p>
           )}
-        </>
-      ) : null}
-      <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium ${SLOT_COLORS[result.slot_type] ?? "bg-gray-100 text-gray-700"}`}>
-        {SLOT_LABELS[result.slot_type] ?? result.slot_type}
-      </span>
+          {autoAgreement && (
+            <p className="text-xs text-gray-300 leading-snug break-words">{autoAgreement}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

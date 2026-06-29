@@ -51,3 +51,15 @@ def build_filename(*parts: str, extension: str = "xlsx") -> str:
         p.replace("/", "-").replace(" ", "_").replace("\\", "-") for p in parts if p
     )
     return f"{slug}.{extension}"
+
+
+def format_agreement_label(name: str, university: str, country: str) -> str:
+    """Formate un accord pour affichage Excel : 'Accord — Université — Pays'."""
+    parts = [p for p in [name, university, country] if p]
+    return " — ".join(parts)
+
+
+def format_university_label(name: str, short_name: str, country: str) -> str:
+    """Formate une université pour affichage Excel : 'Nom (Sigle) — Pays'."""
+    univ_part = f"{name} ({short_name})" if short_name else name
+    return f"{univ_part} — {country}" if country else univ_part

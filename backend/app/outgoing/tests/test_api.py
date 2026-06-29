@@ -1,5 +1,7 @@
+import io
 from datetime import date
 
+import openpyxl
 import pytest
 from django.test import Client
 
@@ -11,7 +13,13 @@ from app.mobility.models import (
     AgreementYear,
     AgreementYearDepartment,
 )
-from app.outgoing.models import Assignment, AssignmentResult, AssignmentStatus, SlotType
+from app.outgoing.models import (
+    Assignment,
+    AssignmentResult,
+    AssignmentStatus,
+    ResultSource,
+    SlotType,
+)
 from app.reference.models import Country, CTIRegion, Department, Level
 from app.students.models import AnnualEnrollment, Student
 
@@ -501,7 +509,7 @@ class TestGetAssignmentStatsWithAgreement:
         result = response.json()["results"][0]
         assert result["agreement_year_id"] == self.agreement_year.id
         assert result["agreement_name"] == "Accord Test"
-        assert result["university_name"] == "Universite Test"
+        assert result["university_name"] == "Universite Test — France"
         assert result["assigned_rank"] == 1
 
     def test_fill_rate_100_percent(self):
@@ -558,3 +566,317 @@ class TestGetAssignmentStatsWithAgreement:
         assert sn["dept_code"] == "SN"
         assert sn["quota"] == 0
         assert sn["assigned"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Helper : résultat d'affectation
+# ---------------------------------------------------------------------------
+
+
+def make_assignment_result(assignment, enrollment, **kwargs) -> AssignmentResult:
+    defaults = {"slot_type": SlotType.UNASSIGNED}
+    defaults.update(kwargs)
+    return AssignmentResult.objects.create(
+        assignment=assignment, annual_enrollment=enrollment, **defaults
+    )
+
+
+def make_validated_assignment(year) -> Assignment:
+    a = make_assignment(year)
+    Assignment.objects.filter(pk=a.pk).update(status=AssignmentStatus.VALIDATED)
+    return Assignment.objects.get(pk=a.pk)
+
+
+def make_override_excel(rows: list[tuple[str, str, str]]) -> bytes:
+    """Construit un fichier Excel de supervision minimal pour les tests."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(
+        [
+            "INE",
+            "Auto-affectation",
+            "Type de quota",
+            "Rang d'affectation",
+            "Correction (accord)",
+            "Motif de correction",
+        ]
+    )
+    for ine, correction, motif in rows:
+        ws.append([ine, "", "", "", correction, motif])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# POST /outgoing/assignments/{id}/validate/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestValidateAssignment:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+
+    def test_validate_proposed(self):
+        a = make_assignment(self.year)
+        response = self.client.post(f"/api/v1/outgoing/assignments/{a.id}/validate/")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == AssignmentStatus.VALIDATED
+
+    def test_validate_not_found(self):
+        response = self.client.post("/api/v1/outgoing/assignments/9999/validate/")
+        assert response.status_code == 404
+
+    def test_validate_not_proposed_returns_409(self):
+        a = make_validated_assignment(self.year)
+        response = self.client.post(f"/api/v1/outgoing/assignments/{a.id}/validate/")
+        assert response.status_code == 409
+
+    def test_validate_advances_year_to_validation(self):
+        AcademicYear.objects.filter(pk=self.year.pk).update(status="pre_assignment")
+        a = make_assignment(self.year)
+        self.client.post(f"/api/v1/outgoing/assignments/{a.id}/validate/")
+        self.year = AcademicYear.objects.get(pk=self.year.pk)
+        assert self.year.status == "validation"
+
+
+# ---------------------------------------------------------------------------
+# POST /outgoing/assignments/{id}/publish/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestPublishAssignment:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+
+    def test_publish_validated(self):
+        a = make_validated_assignment(self.year)
+        response = self.client.post(f"/api/v1/outgoing/assignments/{a.id}/publish/")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == AssignmentStatus.PUBLISHED
+
+    def test_publish_not_validated_returns_409(self):
+        a = make_assignment(self.year)
+        response = self.client.post(f"/api/v1/outgoing/assignments/{a.id}/publish/")
+        assert response.status_code == 409
+
+    def test_publish_not_found(self):
+        response = self.client.post("/api/v1/outgoing/assignments/9999/publish/")
+        assert response.status_code == 404
+
+    def test_publish_closes_year(self):
+        AcademicYear.objects.filter(pk=self.year.pk).update(status="validation")
+        a = make_validated_assignment(self.year)
+        self.client.post(f"/api/v1/outgoing/assignments/{a.id}/publish/")
+        self.year = AcademicYear.objects.get(pk=self.year.pk)
+        assert self.year.status == "closed"
+
+
+# ---------------------------------------------------------------------------
+# POST /outgoing/assignments/{id}/import-overrides/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestImportOverrides:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        self.dept = make_dept()
+        self.level = make_level()
+        self.student = make_student("INE001")
+        self.enrollment = make_enrollment(
+            self.student, self.year, self.dept, self.level
+        )
+        self.assignment = make_assignment(self.year, total_students=1)
+        self.agreement_year = make_agreement_year(self.year)
+        self.result = make_assignment_result(
+            self.assignment, self.enrollment, slot_type=SlotType.UNASSIGNED
+        )
+
+    def _post_excel(self, rows):
+        data = make_override_excel(rows)
+        return self.client.post(
+            f"/api/v1/outgoing/assignments/{self.assignment.id}/import-overrides/",
+            data={
+                "file": (
+                    "corrections.xlsx",
+                    io.BytesIO(data),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+        )
+
+    def test_import_applies_override(self):
+        accord_name = self.agreement_year.agreement.name
+        response = self._post_excel([("INE001", accord_name, "Étudiant très motivé")])
+        assert response.status_code == 200
+        body = response.json()
+        assert body["updated"] == 1
+        assert body["unchanged"] == 0
+        assert body["errors"] == []
+        self.result.refresh_from_db()
+        assert self.result.source == ResultSource.OVERRIDE
+        assert self.result.override_agreement_year_id == self.agreement_year.id
+        assert self.result.override_reason == "Étudiant très motivé"
+
+    def test_import_missing_motif_returns_error(self):
+        accord_name = self.agreement_year.agreement.name
+        response = self._post_excel([("INE001", accord_name, "")])
+        assert response.status_code == 200
+        body = response.json()
+        assert body["updated"] == 0
+        assert len(body["errors"]) == 1
+        assert "Motif" in body["errors"][0]["erreur"]
+
+    def test_import_empty_correction_is_unchanged(self):
+        response = self._post_excel([("INE001", "", "")])
+        assert response.status_code == 200
+        body = response.json()
+        assert body["unchanged"] == 1
+        assert body["updated"] == 0
+
+    def test_import_blocked_when_validated(self):
+        Assignment.objects.filter(pk=self.assignment.pk).update(
+            status=AssignmentStatus.VALIDATED
+        )
+        accord_name = self.agreement_year.agreement.name
+        response = self._post_excel([("INE001", accord_name, "Motif")])
+        assert response.status_code == 403
+
+    def test_import_unknown_accord_returns_error(self):
+        response = self._post_excel([("INE001", "Accord Inexistant XYZ", "Motif")])
+        assert response.status_code == 200
+        body = response.json()
+        assert body["updated"] == 0
+        assert len(body["errors"]) == 1
+        assert "introuvable" in body["errors"][0]["erreur"]
+
+
+# ---------------------------------------------------------------------------
+# PATCH /outgoing/assignments/{id}/results/{result_id}/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestOverrideAssignmentResult:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        self.dept = make_dept()
+        self.level = make_level()
+        self.student = make_student("INE_PATCH")
+        self.enrollment = make_enrollment(
+            self.student, self.year, self.dept, self.level
+        )
+        self.assignment = make_assignment(self.year, total_students=1)
+        self.agreement_year = make_agreement_year(self.year)
+        self.result = make_assignment_result(
+            self.assignment, self.enrollment, slot_type=SlotType.UNASSIGNED
+        )
+
+    def _patch(self, result_id, payload):
+        import json
+
+        return self.client.patch(
+            f"/api/v1/outgoing/assignments/{self.assignment.id}/results/{result_id}/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+    def test_override_sets_source_and_reason(self):
+        response = self._patch(
+            self.result.id,
+            {
+                "override_agreement_year_id": self.agreement_year.id,
+                "override_reason": "Cas particulier validé",
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["source"] == ResultSource.OVERRIDE
+        assert body["override_agreement_year_id"] == self.agreement_year.id
+        self.result.refresh_from_db()
+        assert self.result.override_reason == "Cas particulier validé"
+        assert self.result.source == ResultSource.OVERRIDE
+
+    def test_clear_override_reverts_to_auto(self):
+        self.result.override_agreement_year_id = self.agreement_year.id
+        self.result.source = ResultSource.OVERRIDE
+        self.result.save(update_fields=["override_agreement_year_id", "source"])
+
+        response = self._patch(
+            self.result.id,
+            {"override_agreement_year_id": None, "override_reason": ""},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["source"] == ResultSource.AUTO
+        assert body["override_agreement_year_id"] is None
+
+    def test_override_blocked_when_published(self):
+        Assignment.objects.filter(pk=self.assignment.pk).update(
+            status=AssignmentStatus.PUBLISHED
+        )
+        response = self._patch(
+            self.result.id,
+            {
+                "override_agreement_year_id": self.agreement_year.id,
+                "override_reason": "Motif",
+            },
+        )
+        assert response.status_code == 403
+
+    def test_override_blocked_when_validated(self):
+        Assignment.objects.filter(pk=self.assignment.pk).update(
+            status=AssignmentStatus.VALIDATED
+        )
+        response = self._patch(
+            self.result.id,
+            {
+                "override_agreement_year_id": self.agreement_year.id,
+                "override_reason": "Motif",
+            },
+        )
+        assert response.status_code == 403
+
+    def test_override_missing_reason_returns_400(self):
+        response = self._patch(
+            self.result.id,
+            {
+                "override_agreement_year_id": self.agreement_year.id,
+                "override_reason": "",
+            },
+        )
+        assert response.status_code == 400
+
+    def test_result_not_found(self):
+        response = self._patch(
+            9999,
+            {
+                "override_agreement_year_id": self.agreement_year.id,
+                "override_reason": "Motif",
+            },
+        )
+        assert response.status_code == 404
+
+    def test_assignment_not_found(self):
+        import json
+
+        response = self.client.patch(
+            f"/api/v1/outgoing/assignments/9999/results/{self.result.id}/",
+            data=json.dumps(
+                {
+                    "override_agreement_year_id": None,
+                    "override_reason": "",
+                }
+            ),
+            content_type="application/json",
+        )
+        assert response.status_code == 404

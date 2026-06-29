@@ -3,6 +3,13 @@ from decimal import Decimal
 
 from ninja import Schema
 
+from app.shared.excel_utils import format_university_label
+
+
+def _univ_label(univ) -> str:
+    country = univ.country.name_fr if univ.country_id else ""
+    return format_university_label(univ.name, univ.short_name or "", country)
+
 
 class AssignmentResultOut(Schema):
     id: int
@@ -17,6 +24,11 @@ class AssignmentResultOut(Schema):
     slot_type: str
     assigned_rank: int | None
     override_reason: str
+    override_agreement_year_id: int | None
+    override_agreement_id: int | None
+    override_agreement_name: str | None
+    override_university_name: str | None
+    source: str
 
     @staticmethod
     def resolve_student_ine(obj) -> str:
@@ -41,8 +53,37 @@ class AssignmentResultOut(Schema):
     @staticmethod
     def resolve_university_name(obj) -> str | None:
         if obj.agreement_year_id:
-            return obj.agreement_year.agreement.partner_university.name
+            return _univ_label(obj.agreement_year.agreement.partner_university)
         return None
+
+    @staticmethod
+    def resolve_override_agreement_id(obj) -> int | None:
+        if obj.override_agreement_year_id:
+            return obj.override_agreement_year.agreement_id
+        return None
+
+    @staticmethod
+    def resolve_override_agreement_name(obj) -> str | None:
+        if obj.override_agreement_year_id:
+            return obj.override_agreement_year.agreement.name
+        return None
+
+    @staticmethod
+    def resolve_override_university_name(obj) -> str | None:
+        if obj.override_agreement_year_id:
+            return _univ_label(obj.override_agreement_year.agreement.partner_university)
+        return None
+
+
+class AssignmentResultOverrideIn(Schema):
+    override_agreement_year_id: int | None
+    override_reason: str
+
+
+class OverrideImportReportOut(Schema):
+    updated: int
+    unchanged: int
+    errors: list[dict]
 
 
 class AssignmentAgreementDeptStat(Schema):
@@ -108,8 +149,11 @@ class StudentWishesOut(Schema):
     last_name: str
     department_code: str | None
     parcours_code: str | None
+    level_code: str | None
     gpa: Decimal | None
     nationality_name_fr: str | None
+    is_alternant: bool
+    is_scholarship: bool
     wishes: list[AgreementWishOut]
 
 

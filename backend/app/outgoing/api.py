@@ -1,15 +1,27 @@
 import openpyxl
+import openpyxl.worksheet.datavalidation
+from django.db import transaction
 from django.db.models import Count, F, Max
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse
+from django_fsm import TransitionNotAllowed
 from ninja import File, Query, Router, UploadedFile
 from ninja.errors import HttpError
+from openpyxl.utils import get_column_letter
 
 from app.academic.api import get_academic_year
+from app.academic.models import AcademicYear
 from app.audit.logger import log_action
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
-from app.mobility.models import Agreement
+from app.mobility.models import Agreement, AgreementYear
 from app.shared.api_helpers import PagedResponse, PaginationQuery, paginate
-from app.shared.excel_utils import build_filename, workbook_response, write_header_row
+from app.shared.excel_utils import (
+    build_filename,
+    format_agreement_label,
+    format_university_label,
+    workbook_response,
+    write_header_row,
+)
 from app.shared.validators import DomainValidationError
 from app.students.models import AnnualEnrollment, Student, StudentWish
 from app.students.schemas import StudentRawImportOut
@@ -18,14 +30,22 @@ from app.students.services.student_transformer import transform_wish
 from app.students.services.student_validator import validate_wish
 from app.students.services.sync_moveon import WishRow, import_wish_rows
 
-from .models import Assignment, AssignmentResult, SlotType
+from .models import (
+    Assignment,
+    AssignmentResult,
+    AssignmentStatus,
+    ResultSource,
+    SlotType,
+)
 from .schemas import (
     AgreementWishOut,
     AssignmentAgreementDeptStat,
     AssignmentAgreementStat,
     AssignmentOut,
     AssignmentResultOut,
+    AssignmentResultOverrideIn,
     AssignmentStatsOut,
+    OverrideImportReportOut,
     StudentWishesOut,
     WishImportRetryIn,
 )
@@ -88,7 +108,8 @@ def list_assignment_results(
         .select_related(
             "annual_enrollment__student",
             "annual_enrollment__department",
-            "agreement_year__agreement__partner_university",
+            "agreement_year__agreement__partner_university__country",
+            "override_agreement_year__agreement__partner_university__country",
         )
         .order_by(
             "annual_enrollment__student__last_name",
@@ -187,12 +208,13 @@ def get_assignment_stats(request, assignment_id: int):
         .annotate(
             dept_code=F("agreement_department__department__code"),
             dept_name=F("agreement_department__department__name"),
+            effective_quota=Coalesce("adjusted_places", "estimated_places"),
         )
-        .values("agreement_year_id", "dept_code", "dept_name", "estimated_places")
+        .values("agreement_year_id", "dept_code", "dept_name", "effective_quota")
     ):
         ay_id = row["agreement_year_id"]
         quotas_by_ay_dept.setdefault(ay_id, {})[row["dept_code"]] = {
-            "quota": row["estimated_places"],
+            "quota": row["effective_quota"],
             "dept_name": row["dept_name"],
         }
 
@@ -478,6 +500,7 @@ def export_wishes_excel(
             assignment=assignment
         ).select_related(
             "agreement_year__agreement__partner_university__country",
+            "override_agreement_year__agreement__partner_university__country",
         ):
             result_lookup[res.annual_enrollment_id] = res
 
@@ -511,21 +534,44 @@ def export_wishes_excel(
         sid = enr.student_id
         if sid not in rows:
             res = result_lookup.get(enr.id)
-            assigned_agreement = assigned_university = assigned_country = ""
-            assigned_slot = assigned_rank = remarks = ""
-            if res and res.slot_type != SlotType.UNASSIGNED and res.agreement_year_id:
-                ag = res.agreement_year.agreement
-                univ = ag.partner_university if ag.partner_university_id else None
-                assigned_agreement = ag.name
-                assigned_university = univ.name if univ else ""
-                assigned_country = (
-                    univ.country.name_fr if univ and univ.country_id else ""
-                )
+            auto_decision = correction_accord = correction_motif = ""
+            assigned_slot = assigned_rank = ""
+            if res:
+                if res.agreement_year_id:
+                    ag = res.agreement_year.agreement
+                    univ = ag.partner_university if ag.partner_university_id else None
+                    parts = [
+                        p
+                        for p in [
+                            ag.name,
+                            univ.name if univ else "",
+                            univ.country.name_fr if univ and univ.country_id else "",
+                        ]
+                        if p
+                    ]
+                    auto_decision = " — ".join(parts)
+                else:
+                    auto_decision = "Non affecté"
                 assigned_slot = slot_labels.get(res.slot_type, res.slot_type)
                 assigned_rank = (
                     res.assigned_rank if res.assigned_rank is not None else ""
                 )
-                remarks = res.override_reason or ""
+                if res.source == ResultSource.OVERRIDE:
+                    if res.override_agreement_year_id:
+                        _ov_ag = res.override_agreement_year.agreement
+                        _ov_univ = (
+                            _ov_ag.partner_university
+                            if _ov_ag.partner_university_id
+                            else None
+                        )
+                        correction_accord = format_agreement_label(
+                            _ov_ag.name,
+                            _ov_univ.name if _ov_univ else "",
+                            _ov_univ.country.name_fr
+                            if _ov_univ and _ov_univ.country_id
+                            else "",
+                        )
+                    correction_motif = res.override_reason or ""
             rows[sid] = {
                 "ine": enr.student.ine,
                 "nom": enr.student.last_name,
@@ -537,12 +583,11 @@ def export_wishes_excel(
                 "nationalite": enr.student.nationality.name_fr
                 if enr.student.nationality_id
                 else "",
-                "assigned_agreement": assigned_agreement,
-                "assigned_university": assigned_university,
-                "assigned_country": assigned_country,
+                "auto_decision": auto_decision,
                 "assigned_slot": assigned_slot,
                 "assigned_rank": assigned_rank,
-                "remarks": remarks,
+                "correction_accord": correction_accord,
+                "correction_motif": correction_motif,
                 "wishes": [],
             }
         agreement = w.agreement_year.agreement
@@ -585,14 +630,13 @@ def export_wishes_excel(
         widths.append(70)
     if assignment:
         headers += [
-            "Décision d'affectation",
-            "Université affectée",
-            "Pays",
+            "Auto-affectation",
             "Type de quota",
             "Rang d'affectation",
-            "Remarques",
+            "Correction (accord)",
+            "Motif de correction",
         ]
-        widths += [60, 50, 25, 22, 10, 40]
+        widths += [80, 22, 10, 60, 50]
     write_header_row(ws, headers, widths)
 
     for r in sorted(rows.values(), key=lambda x: (x["nom"], x["prenom"])):
@@ -616,16 +660,340 @@ def export_wishes_excel(
                 row_data.append("")
         if assignment:
             row_data += [
-                r["assigned_agreement"],
-                r["assigned_university"],
-                r["assigned_country"],
+                r["auto_decision"],
                 r["assigned_slot"],
                 r["assigned_rank"],
-                r["remarks"],
+                r["correction_accord"],
+                r["correction_motif"],
             ]
         ws.append(row_data)
 
+    # Feuille 2 : accords disponibles + dropdown sur la colonne Correction
+    if assignment:
+        active_ays = list(
+            AgreementYear.objects.filter(academic_year=academic_year, is_active=True)
+            .select_related("agreement__partner_university__country")
+            .order_by("agreement__name")
+        )
+        accord_names = [
+            format_agreement_label(
+                ay.agreement.name,
+                ay.agreement.partner_university.name
+                if ay.agreement.partner_university_id
+                else "",
+                ay.agreement.partner_university.country.name_fr
+                if ay.agreement.partner_university_id
+                and ay.agreement.partner_university.country_id
+                else "",
+            )
+            for ay in active_ays
+        ]
+
+        # Feuille cachée pour la validation de données
+        if accord_names:
+            acc_ws = wb.create_sheet("_Accords")
+            for i, label in enumerate(accord_names, start=1):
+                acc_ws.cell(row=i, column=1, value=label)
+            acc_ws.sheet_state = "hidden"
+
+            corr_col_letter = get_column_letter(
+                headers.index("Correction (accord)") + 1
+            )
+            dv = openpyxl.worksheet.datavalidation.DataValidation(
+                type="list",
+                formula1=f"_Accords!$A$1:$A${len(accord_names)}",
+                allow_blank=True,
+            )
+            dv.sqref = f"{corr_col_letter}2:{corr_col_letter}10000"
+            ws.add_data_validation(dv)
+
+        # Feuille 2 visible : accords disponibles (aide visuelle)
+        ws2 = wb.create_sheet("Accords disponibles")
+        write_header_row(
+            ws2, ["Accord", "Université", "Pays", "Places N7"], [50, 50, 25, 10]
+        )
+        for ay in active_ays:
+            ag = ay.agreement
+            univ = ag.partner_university if ag.partner_university_id else None
+            ws2.append(
+                [
+                    ag.name,
+                    univ.name if univ else "",
+                    univ.country.name_fr if univ and univ.country_id else "",
+                    ay.n7_places,
+                ]
+            )
+
     return workbook_response(wb, filename)
+
+
+@router.post(
+    "/assignments/{assignment_id}/validate/",
+    response={200: AssignmentOut},
+    summary="Valider les affectations (proposé → validé)",
+)
+def validate_assignment(request, assignment_id: int):
+    try:
+        assignment = Assignment.objects.select_related("academic_year").get(
+            pk=assignment_id
+        )
+    except Assignment.DoesNotExist as exc:
+        raise HttpError(404, "Affectation introuvable.") from exc
+
+    try:
+        assignment.validate()
+    except TransitionNotAllowed as exc:
+        raise HttpError(
+            409, f"Transition impossible depuis l'état '{assignment.status}'."
+        ) from exc
+
+    assignment.save(update_fields=["status", "updated_at"])
+
+    year = assignment.academic_year
+    if year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT:
+        try:
+            year.submit_for_validation()
+            year.save(update_fields=["status", "updated_at"])
+        except TransitionNotAllowed:
+            pass
+
+    log_action(
+        request,
+        action="validate_assignment",
+        detail=f"Affectation {assignment_id} ({year.label}) validée.",
+    )
+    return assignment
+
+
+@router.post(
+    "/assignments/{assignment_id}/publish/",
+    response={200: AssignmentOut},
+    summary="Publier les résultats d'affectation (validé → publié)",
+)
+def publish_assignment(request, assignment_id: int):
+    try:
+        assignment = Assignment.objects.select_related("academic_year").get(
+            pk=assignment_id
+        )
+    except Assignment.DoesNotExist as exc:
+        raise HttpError(404, "Affectation introuvable.") from exc
+
+    try:
+        assignment.publish()
+    except TransitionNotAllowed as exc:
+        raise HttpError(
+            409, f"Transition impossible depuis l'état '{assignment.status}'."
+        ) from exc
+
+    assignment.save(update_fields=["status", "updated_at"])
+
+    year = assignment.academic_year
+    if year.status == AcademicYear.CampaignStatus.VALIDATION:
+        try:
+            year.close()
+            year.save(update_fields=["status", "closed_at", "updated_at"])
+        except TransitionNotAllowed:
+            pass
+
+    log_action(
+        request,
+        action="publish_assignment",
+        detail=f"Affectation {assignment_id} ({year.label}) publiée.",
+    )
+    return assignment
+
+
+@router.post(
+    "/assignments/{assignment_id}/import-overrides/",
+    response={200: OverrideImportReportOut},
+    summary="Importer les corrections de supervision depuis le fichier Excel",
+)
+def import_assignment_overrides(
+    request, assignment_id: int, file: UploadedFile = File(...)
+):
+    try:
+        assignment = Assignment.objects.select_related("academic_year").get(
+            pk=assignment_id
+        )
+    except Assignment.DoesNotExist as exc:
+        raise HttpError(404, "Affectation introuvable.") from exc
+
+    if assignment.status in (AssignmentStatus.VALIDATED, AssignmentStatus.PUBLISHED):
+        raise HttpError(
+            403, "Modifications interdites — affectation déjà validée ou publiée."
+        )
+
+    try:
+        wb = openpyxl.load_workbook(file, read_only=True, data_only=True)
+    except Exception as exc:
+        raise HttpError(400, f"Fichier Excel invalide : {exc}") from exc
+
+    ws = wb.active
+    rows_iter = ws.iter_rows(values_only=True)
+    header_row = next(rows_iter, None)
+    if header_row is None:
+        raise HttpError(400, "Fichier Excel vide.")
+    headers = [str(h or "").strip() for h in header_row]
+
+    try:
+        ine_col = headers.index("INE")
+        correction_col = headers.index("Correction (accord)")
+        motif_col = headers.index("Motif de correction")
+    except ValueError as exc:
+        raise HttpError(400, f"Colonnes requises manquantes : {exc}") from exc
+
+    ay_by_name: dict[str, int] = {}
+    for _ay in AgreementYear.objects.filter(
+        academic_year=assignment.academic_year, is_active=True
+    ).select_related("agreement__partner_university__country"):
+        _ag = _ay.agreement
+        _univ = _ag.partner_university if _ag.partner_university_id else None
+        _full_label = format_agreement_label(
+            _ag.name,
+            _univ.name if _univ else "",
+            _univ.country.name_fr if _univ and _univ.country_id else "",
+        )
+        ay_by_name[_full_label.strip().lower()] = _ay.id
+        ay_by_name[_ag.name.strip().lower()] = _ay.id
+
+    result_by_ine: dict[str, AssignmentResult] = {
+        res.annual_enrollment.student.ine: res
+        for res in AssignmentResult.objects.filter(
+            assignment=assignment
+        ).select_related("annual_enrollment__student")
+    }
+
+    updated = 0
+    unchanged = 0
+    errors: list[dict] = []
+
+    with transaction.atomic():
+        for row_idx, row in enumerate(rows_iter, start=2):
+            ine = str(row[ine_col] or "").strip()
+            if not ine:
+                continue
+
+            correction = str(row[correction_col] or "").strip()
+            motif = str(row[motif_col] or "").strip()
+
+            if not correction:
+                unchanged += 1
+                continue
+
+            if not motif:
+                errors.append(
+                    {
+                        "ine": ine,
+                        "ligne": row_idx,
+                        "erreur": "Motif de correction obligatoire.",
+                    }
+                )
+                continue
+
+            ay_id = ay_by_name.get(correction.strip().lower())
+            if ay_id is None:
+                errors.append(
+                    {
+                        "ine": ine,
+                        "ligne": row_idx,
+                        "erreur": f"Accord '{correction}' introuvable pour cette année.",
+                    }
+                )
+                continue
+
+            res = result_by_ine.get(ine)
+            if res is None:
+                errors.append(
+                    {
+                        "ine": ine,
+                        "ligne": row_idx,
+                        "erreur": f"Étudiant INE '{ine}' non trouvé dans cette affectation.",
+                    }
+                )
+                continue
+
+            res.override_agreement_year_id = ay_id
+            res.override_reason = motif
+            res.source = ResultSource.OVERRIDE
+            res.save(
+                update_fields=[
+                    "override_agreement_year_id",
+                    "override_reason",
+                    "source",
+                    "updated_at",
+                ]
+            )
+            updated += 1
+
+    log_action(
+        request,
+        action="import_assignment_overrides",
+        detail=f"Affectation {assignment_id} — {updated} correction(s) importée(s), {len(errors)} erreur(s).",
+    )
+    return OverrideImportReportOut(updated=updated, unchanged=unchanged, errors=errors)
+
+
+@router.patch(
+    "/assignments/{assignment_id}/results/{result_id}/",
+    response={200: AssignmentResultOut},
+    summary="Modifier individuellement l'affectation d'un étudiant",
+)
+def override_assignment_result(
+    request,
+    assignment_id: int,
+    result_id: int,
+    payload: AssignmentResultOverrideIn,
+):
+    try:
+        assignment = Assignment.objects.get(pk=assignment_id)
+    except Assignment.DoesNotExist as exc:
+        raise HttpError(404, "Affectation introuvable.") from exc
+
+    if assignment.status in (AssignmentStatus.VALIDATED, AssignmentStatus.PUBLISHED):
+        raise HttpError(
+            403, "Modifications interdites — affectation déjà validée ou publiée."
+        )
+
+    try:
+        result = AssignmentResult.objects.select_related(
+            "annual_enrollment__student",
+            "annual_enrollment__department",
+            "agreement_year__agreement__partner_university",
+            "override_agreement_year__agreement",
+        ).get(pk=result_id, assignment_id=assignment_id)
+    except AssignmentResult.DoesNotExist as exc:
+        raise HttpError(404, "Résultat d'affectation introuvable.") from exc
+
+    if (
+        payload.override_agreement_year_id is not None
+        and not (payload.override_reason or "").strip()
+    ):
+        raise HttpError(400, "Le motif de correction est obligatoire.")
+
+    result.override_agreement_year_id = payload.override_agreement_year_id
+    result.override_reason = payload.override_reason
+    result.source = (
+        ResultSource.OVERRIDE
+        if payload.override_agreement_year_id is not None
+        else ResultSource.AUTO
+    )
+    result.save(
+        update_fields=[
+            "override_agreement_year_id",
+            "override_reason",
+            "source",
+            "updated_at",
+        ]
+    )
+
+    log_action(
+        request,
+        action="override_assignment_result",
+        detail=(
+            f"Résultat {result_id} (étudiant {result.annual_enrollment.student.ine}) modifié."
+        ),
+    )
+    return result
 
 
 @router.post(
@@ -663,7 +1031,8 @@ def list_wishes_by_year(request, year_id: int):
             "annual_enrollment__student__nationality",
             "annual_enrollment__department",
             "annual_enrollment__parcours",
-            "agreement_year__agreement__partner_university",
+            "annual_enrollment__level",
+            "agreement_year__agreement__partner_university__country",
         )
         .order_by(
             "annual_enrollment__student__last_name",
@@ -687,20 +1056,28 @@ def list_wishes_by_year(request, year_id: int):
                 parcours_code=enrollment.parcours.code
                 if enrollment.parcours_id
                 else None,
+                level_code=enrollment.level.code if enrollment.level_id else None,
                 gpa=enrollment.gpa,
                 nationality_name_fr=student.nationality.name_fr
                 if student.nationality_id
                 else None,
+                is_alternant=enrollment.is_alternant,
+                is_scholarship=enrollment.is_scholarship,
                 wishes=[],
             )
         agreement = w.agreement_year.agreement
+        univ = agreement.partner_university
         grouped[sid].wishes.append(
             AgreementWishOut(
                 rank=w.rank,
                 agreement_id=agreement.id,
                 moveon_id=agreement.moveon_id,
                 agreement_name=agreement.name,
-                university_name=agreement.partner_university.name,
+                university_name=format_university_label(
+                    univ.name,
+                    univ.short_name or "",
+                    univ.country.name_fr if univ.country_id else "",
+                ),
                 direction=agreement.direction,
             )
         )
@@ -731,13 +1108,29 @@ def get_student_wishes(request, student_id: int, year_id: int):
         (
             StudentWish.objects.filter(annual_enrollment=enrollment)
             .select_related(
-                "agreement_year__agreement__partner_university",
+                "agreement_year__agreement__partner_university__country",
             )
             .order_by("rank")
         )
         if enrollment
         else StudentWish.objects.none()
     )
+
+    def _wish_out(w) -> AgreementWishOut:
+        ag = w.agreement_year.agreement
+        univ = ag.partner_university
+        return AgreementWishOut(
+            rank=w.rank,
+            agreement_id=ag.id,
+            moveon_id=ag.moveon_id,
+            agreement_name=ag.name,
+            university_name=format_university_label(
+                univ.name,
+                univ.short_name or "",
+                univ.country.name_fr if univ.country_id else "",
+            ),
+            direction=ag.direction,
+        )
 
     return StudentWishesOut(
         student_id=student.id,
@@ -748,19 +1141,14 @@ def get_student_wishes(request, student_id: int, year_id: int):
         parcours_code=enrollment.parcours.code
         if enrollment and enrollment.parcours_id
         else None,
+        level_code=enrollment.level.code
+        if enrollment and enrollment.level_id
+        else None,
         gpa=enrollment.gpa if enrollment else None,
         nationality_name_fr=student.nationality.name_fr
         if student.nationality_id
         else None,
-        wishes=[
-            AgreementWishOut(
-                rank=w.rank,
-                agreement_id=w.agreement_year.agreement_id,
-                moveon_id=w.agreement_year.agreement.moveon_id,
-                agreement_name=w.agreement_year.agreement.name,
-                university_name=w.agreement_year.agreement.partner_university.name,
-                direction=w.agreement_year.agreement.direction,
-            )
-            for w in wishes
-        ],
+        is_alternant=enrollment.is_alternant if enrollment else False,
+        is_scholarship=enrollment.is_scholarship if enrollment else False,
+        wishes=[_wish_out(w) for w in wishes],
     )
