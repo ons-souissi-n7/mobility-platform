@@ -63,7 +63,7 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
         quota_dept: dict[int, int] = {}
         for dq in ay.department_quotas.all():
             dept_id = dq.agreement_department.department_id
-            quota_dept[dept_id] = dq.estimated_places
+            quota_dept[dept_id] = dq.get_effective_quota()
         agreement_inputs.append(
             AgreementInput(
                 agreement_year_id=ay.id,

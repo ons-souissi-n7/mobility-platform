@@ -19,6 +19,11 @@ class SlotType(models.TextChoices):
     UNASSIGNED = "unassigned", "Non affecté"
 
 
+class ResultSource(models.TextChoices):
+    AUTO = "auto", "Auto-affectation"
+    OVERRIDE = "override", "Correction manuelle"
+
+
 class Assignment(TimeStampedModel):
     """Résultat d'un run de l'algorithme Gale-Shapley pour une année académique."""
 
@@ -108,6 +113,18 @@ class AssignmentResult(TimeStampedModel):
         null=True, blank=True, verbose_name="Rang du vœu retenu"
     )
     override_reason = models.TextField(blank=True)
+    override_agreement_year = models.ForeignKey(
+        "mobility.AgreementYear",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="override_results",
+    )
+    source = models.CharField(
+        max_length=20,
+        choices=ResultSource.choices,
+        default=ResultSource.AUTO,
+    )
 
     class Meta:
         verbose_name = "Résultat d'affectation"
@@ -123,6 +140,7 @@ class AssignmentResult(TimeStampedModel):
             models.Index(fields=["annual_enrollment"], name="result_enrollment_idx"),
             models.Index(fields=["agreement_year"], name="result_agreement_year_idx"),
             models.Index(fields=["slot_type"], name="result_slot_type_idx"),
+            models.Index(fields=["source"], name="result_source_idx"),
         ]
 
     def __str__(self) -> str:

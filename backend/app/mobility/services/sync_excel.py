@@ -178,15 +178,40 @@ def _process_row(excel_row: ExcelRow, current_year: AcademicYear | None) -> bool
     return created
 
 
-def _resolve_or_create_university(name: str) -> PartnerUniversity:
-    university = PartnerUniversity.objects.filter(name__iexact=name).first()
-    if university:
-        return university
-    university = PartnerUniversity.objects.filter(short_name__iexact=name).first()
-    if university:
-        return university
+def _resolve_or_create_university(raw_label: str) -> PartnerUniversity:
+    # Essai direct (rétrocompatibilité avec les fichiers anciens)
+    u = PartnerUniversity.objects.filter(name__iexact=raw_label).first()
+    if u:
+        return u
+    u = PartnerUniversity.objects.filter(short_name__iexact=raw_label).first()
+    if u:
+        return u
+
+    # Nouveau format "Nom (Sigle) — Pays" : extraire la partie université
+    name_part = raw_label.split(" — ")[0].strip()
+    if name_part != raw_label:
+        u = PartnerUniversity.objects.filter(name__iexact=name_part).first()
+        if u:
+            return u
+        u = PartnerUniversity.objects.filter(short_name__iexact=name_part).first()
+        if u:
+            return u
+
+    # Si name_part contient " (Sigle)", tester nom de base et sigle séparément
+    if name_part.endswith(")") and " (" in name_part:
+        idx = name_part.rfind(" (")
+        base_name = name_part[:idx].strip()
+        short = name_part[idx + 2 : -1].strip()
+        u = PartnerUniversity.objects.filter(name__iexact=base_name).first()
+        if u:
+            return u
+        if short:
+            u = PartnerUniversity.objects.filter(short_name__iexact=short).first()
+            if u:
+                return u
+
     raise ValueError(
-        f"Université introuvable : « {name} ». "
+        f"Université introuvable : « {raw_label} ». "
         "Ajoutez d'abord l'université dans le référentiel, puis relancez l'import."
     )
 

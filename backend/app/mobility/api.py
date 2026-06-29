@@ -23,7 +23,12 @@ from app.shared.api_helpers import (
     paginate,
     save_validated,
 )
-from app.shared.excel_utils import build_filename, workbook_response, write_header_row
+from app.shared.excel_utils import (
+    build_filename,
+    format_university_label,
+    workbook_response,
+    write_header_row,
+)
 
 from .models import (
     Agreement,
@@ -84,9 +89,9 @@ def validate_year_consistency(agreement_year: AgreementYear) -> None:
             400, "Le quota N7 ne peut pas être supérieur au quota INP de l'accord."
         )
 
-    dept_quotas = list(
-        agreement_year.department_quotas.values_list("estimated_places", flat=True)
-    )
+    dept_quotas = [
+        dq.get_effective_quota() for dq in agreement_year.department_quotas.all()
+    ]
     if not dept_quotas:
         return
 
@@ -783,9 +788,14 @@ def download_excel_template(request):
     departments = list(
         RefDepartment.objects.values_list("code", flat=True).order_by("code")
     )
-    universities = list(
-        PartnerUniv.objects.values_list("name", flat=True).order_by("name")
-    )
+    universities = [
+        format_university_label(
+            u.name,
+            u.short_name,
+            u.country.name_fr if u.country_id else "",
+        )
+        for u in PartnerUniv.objects.select_related("country").order_by("name")
+    ]
     categories = list(
         MobilityCategory.objects.values_list("name", flat=True).order_by("name")
     )

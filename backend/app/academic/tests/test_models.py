@@ -46,7 +46,11 @@ class TestAcademicYear:
             academic_year.full_clean()
 
     def test_campaign_workflow(self):
-        academic_year = create_current_year()
+        today = timezone.now().date()
+        academic_year = create_current_year(
+            wishes_open_date=today,
+            wishes_close_date=today + timedelta(days=30),
+        )
 
         academic_year.open_recommendation()
         academic_year.save()

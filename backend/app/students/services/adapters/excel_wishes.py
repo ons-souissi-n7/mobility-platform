@@ -21,6 +21,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 
 from app.academic.models import AcademicYear
 from app.mobility.models import Agreement
+from app.shared.excel_utils import format_agreement_label
 
 from ..sync_moveon import WishRow
 
@@ -74,19 +75,31 @@ def generate_wish_template(
     ]
 
     # Accords actifs pour cette année (fallback = tous)
-    agreements = list(
+    def _to_label(a: Agreement) -> str:
+        univ = a.partner_university if a.partner_university_id else None
+        return format_agreement_label(
+            a.name,
+            univ.name if univ else "",
+            univ.country.name_fr if univ and univ.country_id else "",
+        )
+
+    _agreement_qs = (
         Agreement.objects.filter(
             year_instances__academic_year=academic_year,
             year_instances__is_active=True,
         )
         .distinct()
+        .select_related("partner_university__country")
         .order_by("name")
-        .values_list("name", flat=True)
     )
+    agreements = [_to_label(a) for a in _agreement_qs]
     if not agreements:
-        agreements = list(
-            Agreement.objects.order_by("name").values_list("name", flat=True)
-        )
+        agreements = [
+            _to_label(a)
+            for a in Agreement.objects.select_related(
+                "partner_university__country"
+            ).order_by("name")
+        ]
 
     wb = openpyxl.Workbook()
 
@@ -271,10 +284,12 @@ def parse_wish_excel(file_bytes: bytes) -> list[WishRow]:
             accord = str(get(col_idx) or "").strip()
             if not accord:
                 continue
+            # Extrait le nom de l'accord depuis "Accord — Université — Pays"
+            accord_name = accord.split(" — ")[0].strip() if " — " in accord else accord
             result.append(
                 WishRow(
                     individu=individu,
-                    offre_de_sejour=accord,
+                    offre_de_sejour=accord_name,
                     rank=rank,
                     ine=ine,
                 )
