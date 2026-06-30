@@ -8,6 +8,7 @@ from app.mobility.api import router as mobility_router
 from app.outgoing.api import router as outgoing_router
 from app.reference.api import router as reference_router
 from app.students.api import router as students_router
+from app.students.student_api import router as student_portal_router
 
 api = NinjaAPI(
     title="Mobility Platform API",
@@ -24,3 +25,4 @@ api.add_router("/imports/", imports_router, tags=["Imports"])
 api.add_router("/audit/", audit_router, tags=["Audit"])
 api.add_router("/students/", students_router, tags=["Students"])
 api.add_router("/outgoing/", outgoing_router, tags=["Outgoing"])
+api.add_router("/student/", student_portal_router, tags=["Student Portal"])

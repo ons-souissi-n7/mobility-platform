@@ -8,8 +8,11 @@ from django.test import Client
 
 from app.academic.models import AcademicYear
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
-from app.reference.models import Department, Level
+from app.mobility.models import Agreement, AgreementYear
+from app.outgoing.models import Assignment, AssignmentResult, AssignmentStatus, SlotType
+from app.reference.models import Country, CTIRegion, Department, Level
 from app.students.models import AnnualEnrollment, Student
+from app.institutions.models import PartnerUniversity
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -662,3 +665,126 @@ class TestTemplateDownload:
         headers = [cell.value for cell in ws[1]]
         assert "INE" in headers
         assert "GPA" in headers
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/student/{ine}/assignment/
+# ---------------------------------------------------------------------------
+
+
+def _make_published_assignment(ine: str) -> AssignmentResult:
+    year = AcademicYear.objects.create(
+        label="2026-2027", start_date=date(2026, 9, 1), end_date=date(2027, 8, 31)
+    )
+    dept = Department.objects.create(code="SN", name="Sciences du Numerique")
+    level = Level.objects.create(code="3A", name="Troisieme annee")
+    student = Student.objects.create(ine=ine, first_name="Alice", last_name="Dupont")
+    enrollment = AnnualEnrollment.objects.create(
+        student=student, academic_year=year, department=dept, level=level
+    )
+    assignment = Assignment.objects.create(academic_year=year)
+    Assignment.objects.filter(pk=assignment.pk).update(status=AssignmentStatus.PUBLISHED)
+    assignment = Assignment.objects.get(pk=assignment.pk)
+    return enrollment, assignment, year
+
+
+def _make_agreement_year(year: AcademicYear) -> AgreementYear:
+    country = Country.objects.create(
+        iso2="IT", name_fr="Italie", name_en="Italy", cti_region=CTIRegion.EUROPE_HORS_FRANCE
+    )
+    univ = PartnerUniversity.objects.create(
+        name="Politecnico di Milano", short_name="PoliMi", country=country
+    )
+    agreement = Agreement.objects.create(
+        name="Erasmus+ Polimi",
+        partner_university=univ,
+        direction="outgoing",
+        inp_total_places=5,
+    )
+    return AgreementYear.objects.create(
+        agreement=agreement, academic_year=year, is_active=True, n7_places=5
+    )
+
+
+@pytest.mark.django_db
+class TestGetStudentAssignment:
+    def setup_method(self):
+        self.client = Client()
+
+    def test_returns_404_when_no_published_assignment(self):
+        response = self.client.get("/api/v1/student/UNKNOWN123/assignment/")
+        assert response.status_code == 404
+
+    def test_returns_assigned_result(self):
+        enrollment, assignment, year = _make_published_assignment("20SN001")
+        ay = _make_agreement_year(year)
+        AssignmentResult.objects.create(
+            assignment=assignment,
+            annual_enrollment=enrollment,
+            slot_type=SlotType.DEPT,
+            agreement_year=ay,
+            assigned_rank=1,
+        )
+
+        response = self.client.get("/api/v1/student/20SN001/assignment/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_assigned"] is True
+        assert data["slot_type"] == "dept"
+        assert "Politecnico di Milano" in data["university_name"]
+        assert data["country_name"] == "Italie"
+        assert data["agreement_name"] == "Erasmus+ Polimi"
+        assert data["effective_rank"] == 1
+
+    def test_returns_unassigned_result(self):
+        enrollment, assignment, _ = _make_published_assignment("20SN002")
+        AssignmentResult.objects.create(
+            assignment=assignment,
+            annual_enrollment=enrollment,
+            slot_type=SlotType.UNASSIGNED,
+        )
+
+        response = self.client.get("/api/v1/student/20SN002/assignment/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_assigned"] is False
+        assert data["university_name"] is None
+
+    def test_override_agreement_takes_precedence(self):
+        enrollment, assignment, year = _make_published_assignment("20SN003")
+        ay_auto = _make_agreement_year(year)
+        country2 = Country.objects.create(
+            iso2="ES", name_fr="Espagne", name_en="Spain", cti_region=CTIRegion.EUROPE_HORS_FRANCE
+        )
+        univ2 = PartnerUniversity.objects.create(
+            name="UPM Madrid", short_name="UPM", country=country2
+        )
+        agreement2 = Agreement.objects.create(
+            name="Erasmus+ UPM",
+            partner_university=univ2,
+            direction="outgoing",
+            inp_total_places=3,
+        )
+        ay_override = AgreementYear.objects.create(
+            agreement=agreement2, academic_year=year, is_active=True, n7_places=3
+        )
+        AssignmentResult.objects.create(
+            assignment=assignment,
+            annual_enrollment=enrollment,
+            slot_type=SlotType.DEPT,
+            agreement_year=ay_auto,
+            override_agreement_year=ay_override,
+            override_reason="Meilleure adéquation pédagogique",
+            source="override",
+        )
+
+        response = self.client.get("/api/v1/student/20SN003/assignment/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_assigned"] is True
+        assert "UPM Madrid" in data["university_name"]
+        assert data["country_name"] == "Espagne"
+        assert data["override_reason"] == "Meilleure adéquation pédagogique"
