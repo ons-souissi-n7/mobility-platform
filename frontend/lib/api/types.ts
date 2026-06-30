@@ -96,6 +96,8 @@ export type AgreementYearDepartment = {
   agreement_year_id: number;
   department_id: number;
   estimated_places: number;
+  adjusted_places: number | null;
+  effective_places: number;
   created_at: string;
   updated_at: string;
 };
@@ -353,6 +355,8 @@ export type AssignmentResult = {
   override_agreement_id: number | null;
   override_agreement_name: string | null;
   override_university_name: string | null;
+  override_slot_type: string | null;
+  override_rank: number | null;
   source: "auto" | "override";
 };
 
@@ -360,6 +364,11 @@ export type OverrideImportReport = {
   updated: number;
   unchanged: number;
   errors: Array<{ ine: string; ligne: number; erreur: string }>;
+};
+
+export type AgreementYearOption = {
+  id: number;
+  label: string;
 };
 
 export type AssignmentDeptStat = {
@@ -409,4 +418,57 @@ export type AssignmentStats = {
   by_agreement: AssignmentAgreementStat[];
   by_country: AssignmentCountryStat[];
   by_dept_country: AssignmentDeptCountryStat[];
+};
+
+export type StudentAssignment = {
+  is_assigned: boolean;
+  slot_type: string;
+  university_name: string | null;
+  country_name: string | null;
+  agreement_name: string | null;
+  effective_rank: number | null;
+  override_reason: string | null;
+};
+
+export type EnrolledYear = {
+  academic_year_id: number;
+  academic_year_label: string;
+  academic_year_status: string;
+};
+
+export type StudentProfile = {
+  ine: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  enrolled_years: EnrolledYear[];
+};
+
+export type StudentAgreementDeptQuota = {
+  department_id: number;
+  department_code: string;
+  effective_places: number;
+};
+
+export type StudentAgreement = {
+  agreement_year_id: number;
+  agreement_id: number;
+  agreement_name: string;
+  university_name: string;
+  country_name: string;
+  country_iso2: string;
+  n7_places: number;
+  dept_quotas: StudentAgreementDeptQuota[];
+  valid_from: string | null;
+  valid_until: string | null;
+  direction: string;
+};
+
+export type StudentWishItem = {
+  rank: number;
+  agreement_year_id: number;
+  agreement_name: string;
+  university_name: string;
+  country_name: string;
+  country_iso2: string;
 };

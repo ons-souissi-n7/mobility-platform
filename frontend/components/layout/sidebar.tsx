@@ -31,7 +31,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     >
       <div className="flex h-20 items-center justify-between px-6">
         <Link
-          href="/references"
+          href="/admin/references"
           className="text-xl font-bold tracking-wider text-white"
         >
           N7 MOBILITE
@@ -51,8 +51,8 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           {adminNavigation.map((item) => {
             const Icon = item.icon;
             const isActive =
-              item.href === "/"
-                ? pathname === "/"
+              item.href === "/" || item.href === "/admin"
+                ? pathname === item.href
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             return (

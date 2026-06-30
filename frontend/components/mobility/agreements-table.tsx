@@ -218,7 +218,7 @@ export function AgreementsTable({
 
         // ── Actif ou validé : affichage complet ───────────────────────────────
         const locked = yearInstance.is_validated || isYearClosed;
-        const deptTotal = deptQuotas.reduce((s, dq) => s + dq.estimated_places, 0);
+        const deptTotal = deptQuotas.reduce((s, dq) => s + dq.effective_places, 0);
         const isInconsistent = deptQuotas.length > 0 && deptTotal !== yearInstance.n7_places;
 
         return (
@@ -286,13 +286,19 @@ export function AgreementsTable({
                         <button
                           className={`rounded px-1 py-0.5 text-[10px] font-semibold ${
                             locked ? "cursor-default text-gray-700" : "text-[#1E3A8A] hover:bg-blue-50 cursor-text"
-                          }`}
+                          } ${dq.adjusted_places !== null ? "underline decoration-dotted" : ""}`}
                           disabled={locked}
                           onClick={() => !locked && startEditDept(dq)}
-                          title={locked ? "Validé" : "Cliquer pour modifier"}
+                          title={
+                            locked
+                              ? "Validé"
+                              : dq.adjusted_places !== null
+                                ? `Ajusté manuellement (estimé : ${dq.estimated_places})`
+                                : "Cliquer pour modifier"
+                          }
                           type="button"
                         >
-                          {dq.estimated_places}
+                          {dq.effective_places}
                         </button>
                       )}
                     </span>

@@ -1,6 +1,7 @@
 import { browserApi } from "@/lib/api/browser-client";
 import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
 import type {
+  AgreementYearOption,
   Assignment,
   AssignmentResult,
   AssignmentStats,
@@ -48,6 +49,15 @@ export function getAssignmentResults(
 export function getAssignmentStats(assignmentId: number): Promise<AssignmentStats> {
   return browserApi<AssignmentStats>(
     `/outgoing/assignments/${assignmentId}/stats/`,
+    { method: "GET" },
+  );
+}
+
+export function getAssignmentAgreementYears(
+  assignmentId: number,
+): Promise<AgreementYearOption[]> {
+  return browserApi<AgreementYearOption[]>(
+    `/outgoing/assignments/${assignmentId}/agreement-years/`,
     { method: "GET" },
   );
 }
@@ -168,6 +178,23 @@ export function publishAssignment(assignmentId: number): Promise<Assignment> {
   return browserApi<Assignment>(
     `/outgoing/assignments/${assignmentId}/publish/`,
     { method: "POST" },
+  );
+}
+
+export type ResultOverridePatch = {
+  override_agreement_year_id: number | null;
+  override_reason: string;
+  force_unassigned?: boolean;
+};
+
+export function patchAssignmentResult(
+  assignmentId: number,
+  resultId: number,
+  payload: ResultOverridePatch,
+): Promise<AssignmentResult> {
+  return browserApi<AssignmentResult>(
+    `/outgoing/assignments/${assignmentId}/results/${resultId}/`,
+    { method: "PATCH", body: payload },
   );
 }
 

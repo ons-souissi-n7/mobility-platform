@@ -38,7 +38,7 @@ export function AdminShell({ children }: AdminShellProps) {
             <Menu className="h-5 w-5" aria-hidden="true" />
           </button>
           <Link
-            href="/references"
+            href="/admin/references"
             className="text-lg font-bold tracking-wider text-[#1E3A8A]"
           >
             N7 MOBILITE

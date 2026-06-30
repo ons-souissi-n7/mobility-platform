@@ -10,11 +10,13 @@ import type { AcademicYear, ImportErrorItem, ImportReportDetail, ImportReportLis
 import { formatDateTime, SELECT_CLS } from "@/lib/utils";
 
 const SOURCE_STYLES: Record<string, BadgeStyle> = {
-  moveon_accords:     { label: "MoveOn Accords",     className: "bg-blue-50 text-blue-700"    },
-  moveon_categories:  { label: "MoveOn Catégories",  className: "bg-indigo-50 text-indigo-700" },
-  moveon_quotas:      { label: "MoveOn Quotas",      className: "bg-violet-50 text-violet-700" },
-  pegase:             { label: "Pégase",              className: "bg-emerald-50 text-emerald-700" },
-  excel:              { label: "Excel",               className: "bg-amber-50 text-amber-700"  },
+  moveon_accords:     { label: "MoveOn Accords",         className: "bg-blue-50 text-blue-700"      },
+  moveon_categories:  { label: "MoveOn Catégories",      className: "bg-indigo-50 text-indigo-700"  },
+  moveon_quotas:      { label: "MoveOn Quotas",          className: "bg-violet-50 text-violet-700"  },
+  moveon_wishes:      { label: "MoveOn Vœux",            className: "bg-purple-50 text-purple-700"  },
+  pegase:             { label: "Pégase",                  className: "bg-emerald-50 text-emerald-700" },
+  excel:              { label: "Excel",                   className: "bg-amber-50 text-amber-700"    },
+  excel_overrides:    { label: "Excel – Corrections",    className: "bg-orange-50 text-orange-700"  },
 };
 
 function SourceBadge({ source, label }: { source: string; label: string }) {

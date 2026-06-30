@@ -48,15 +48,6 @@ function getColumns({
         `${formatDate(year.wishes_open_date)} - ${formatDate(year.wishes_close_date)}`,
     },
     {
-      key: "milestones",
-      header: "Jalons",
-      render: (year) => (
-        <div className="text-xs text-gray-600">
-          <p>Voeux: {formatDate(year.wishes_open_date)} → {formatDate(year.wishes_close_date)}</p>
-        </div>
-      ),
-    },
-    {
       key: "transition",
       header: "Transition",
       render: (year) => {

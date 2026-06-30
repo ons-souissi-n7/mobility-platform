@@ -13,52 +13,52 @@ import {
 
 export const adminNavigation = [
   {
-    href: "/",
+    href: "/admin",
     label: "Tableau de bord",
     icon: LayoutDashboard,
   },
   {
-    href: "/etudiants",
+    href: "/admin/etudiants",
     label: "Etudiants",
     icon: Users,
   },
   {
-    href: "/sortantes",
+    href: "/admin/sortantes",
     label: "Mobilites sortantes",
     icon: PlaneTakeoff,
   },
   {
-    href: "/entrantes",
+    href: "/admin/entrantes",
     label: "Mobilites entrantes",
     icon: PlaneLanding,
   },
   {
-    href: "/mobility",
+    href: "/admin/mobility",
     label: "Accords et quotas",
     icon: FileText,
   },
   {
-    href: "/statistiques",
+    href: "/admin/statistiques",
     label: "Statistiques CTI",
     icon: BarChart3,
   },
   {
-    href: "/references",
+    href: "/admin/references",
     label: "Referentiels",
     icon: Settings,
   },
   {
-    href: "/academic-years",
+    href: "/admin/academic-years",
     label: "Annees universitaires",
     icon: CalendarRange,
   },
   {
-    href: "/rapports-import",
+    href: "/admin/rapports-import",
     label: "Rapports d'import",
     icon: FileBarChart,
   },
   {
-    href: "/audit",
+    href: "/admin/audit",
     label: "Journal d'audit",
     icon: ScrollText,
   },
