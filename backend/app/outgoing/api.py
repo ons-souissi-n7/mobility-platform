@@ -61,7 +61,9 @@ from .tasks import enqueue_import_excel_wishes, enqueue_sync_moveon_wishes
 router = Router()
 
 
-def _derive_override_rank(annual_enrollment_id: int, agreement_year_id: int | None) -> int | None:
+def _derive_override_rank(
+    annual_enrollment_id: int, agreement_year_id: int | None
+) -> int | None:
     """Retourne le rang du vœu étudiant correspondant à l'accord de correction, ou None si hors vœux."""
     if agreement_year_id is None:
         return None
@@ -76,13 +78,17 @@ def _derive_slot_type(agreement_year_id: int | None, department_id: int) -> Slot
     """Calcule le SlotType effectif pour un accord donné et un département étudiant."""
     if agreement_year_id is None:
         return SlotType.UNASSIGNED
-    has_dept_quota = AgreementYearDepartment.objects.filter(
-        agreement_year_id=agreement_year_id,
-        agreement_department__department_id=department_id,
-    ).filter(
-        Q(adjusted_places__gt=0)
-        | Q(adjusted_places__isnull=True, estimated_places__gt=0)
-    ).exists()
+    has_dept_quota = (
+        AgreementYearDepartment.objects.filter(
+            agreement_year_id=agreement_year_id,
+            agreement_department__department_id=department_id,
+        )
+        .filter(
+            Q(adjusted_places__gt=0)
+            | Q(adjusted_places__isnull=True, estimated_places__gt=0)
+        )
+        .exists()
+    )
     return SlotType.DEPT if has_dept_quota else SlotType.ALTERNATIVE
 
 
@@ -372,7 +378,9 @@ def list_assignment_agreement_years(request, assignment_id: int):
         raise HttpError(404, "Affectation introuvable.") from exc
 
     ays = (
-        AgreementYear.objects.filter(academic_year=assignment.academic_year, is_active=True)
+        AgreementYear.objects.filter(
+            academic_year=assignment.academic_year, is_active=True
+        )
         .select_related("agreement__partner_university__country")
         .order_by("agreement__name")
     )
@@ -381,9 +389,12 @@ def list_assignment_agreement_years(request, assignment_id: int):
             id=ay.id,
             label=format_agreement_label(
                 ay.agreement.name,
-                ay.agreement.partner_university.name if ay.agreement.partner_university_id else "",
+                ay.agreement.partner_university.name
+                if ay.agreement.partner_university_id
+                else "",
                 ay.agreement.partner_university.country.name_fr
-                if ay.agreement.partner_university_id and ay.agreement.partner_university.country_id
+                if ay.agreement.partner_university_id
+                and ay.agreement.partner_university.country_id
                 else "",
             ),
         )
@@ -1106,9 +1117,13 @@ def override_assignment_result(
         if not (payload.override_reason or "").strip():
             raise HttpError(400, "Le motif de correction est obligatoire.")
         dept_id = result.annual_enrollment.department_id
-        result.override_slot_type = _derive_slot_type(payload.override_agreement_year_id, dept_id)
+        result.override_slot_type = _derive_slot_type(
+            payload.override_agreement_year_id, dept_id
+        )
         result.override_agreement_year_id = payload.override_agreement_year_id
-        result.override_rank = _derive_override_rank(result.annual_enrollment_id, payload.override_agreement_year_id)
+        result.override_rank = _derive_override_rank(
+            result.annual_enrollment_id, payload.override_agreement_year_id
+        )
         result.override_reason = payload.override_reason
         result.source = ResultSource.OVERRIDE
         result.save(

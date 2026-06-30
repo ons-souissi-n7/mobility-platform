@@ -121,7 +121,9 @@ class TestAutoCloseAcademicYear:
     def test_does_not_close_when_end_date_in_future(self):
         today = timezone.now().date()
         year = _make_year("TEST-FUTURE", "validation")
-        AcademicYear.objects.filter(pk=year.pk).update(end_date=today + timedelta(days=1))
+        AcademicYear.objects.filter(pk=year.pk).update(
+            end_date=today + timedelta(days=1)
+        )
 
         auto_close_academic_year()
 
@@ -186,8 +188,12 @@ class TestAutoCreateNextAcademicYear:
         new_year = AcademicYear.objects.get(label=expected_label)
         assert new_year.start_date == new_start
         assert new_year.end_date == new_end
-        assert new_year.wishes_open_date == wishes_open.replace(year=wishes_open.year + 1)
-        assert new_year.wishes_close_date == wishes_close.replace(year=wishes_close.year + 1)
+        assert new_year.wishes_open_date == wishes_open.replace(
+            year=wishes_open.year + 1
+        )
+        assert new_year.wishes_close_date == wishes_close.replace(
+            year=wishes_close.year + 1
+        )
 
     def test_does_not_create_if_already_exists(self):
         today = timezone.now().date()

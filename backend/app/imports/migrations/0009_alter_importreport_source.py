@@ -4,15 +4,27 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('imports', '0008_alter_importreport_source'),
+        ("imports", "0008_alter_importreport_source"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='importreport',
-            name='source',
-            field=models.CharField(choices=[('moveon_accords', 'MoveON – Accords'), ('moveon_categories', 'MoveON – Catégories'), ('moveon_quotas', 'MoveON – Quotas'), ('moveon_wishes', 'MoveON – Vœux'), ('pegase', 'Pégase – Étudiants'), ('eudonet', 'Eudonet – Stages'), ('excel', 'Import Excel'), ('excel_overrides', 'Import Excel – Corrections affectation')], max_length=50, verbose_name='Source'),
+            model_name="importreport",
+            name="source",
+            field=models.CharField(
+                choices=[
+                    ("moveon_accords", "MoveON – Accords"),
+                    ("moveon_categories", "MoveON – Catégories"),
+                    ("moveon_quotas", "MoveON – Quotas"),
+                    ("moveon_wishes", "MoveON – Vœux"),
+                    ("pegase", "Pégase – Étudiants"),
+                    ("eudonet", "Eudonet – Stages"),
+                    ("excel", "Import Excel"),
+                    ("excel_overrides", "Import Excel – Corrections affectation"),
+                ],
+                max_length=50,
+                verbose_name="Source",
+            ),
         ),
     ]

@@ -47,8 +47,12 @@ def auto_create_next_academic_year() -> None:
             label=new_label,
             start_date=new_start,
             end_date=new_end,
-            wishes_open_date=_add_one_year(year.wishes_open_date) if year.wishes_open_date else None,
-            wishes_close_date=_add_one_year(year.wishes_close_date) if year.wishes_close_date else None,
+            wishes_open_date=_add_one_year(year.wishes_open_date)
+            if year.wishes_open_date
+            else None,
+            wishes_close_date=_add_one_year(year.wishes_close_date)
+            if year.wishes_close_date
+            else None,
         )
         new_year.full_clean()
         new_year.save()

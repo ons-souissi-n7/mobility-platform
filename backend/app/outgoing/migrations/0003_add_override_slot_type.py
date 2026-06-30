@@ -4,15 +4,25 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('outgoing', '0002_assignmentresult_override'),
+        ("outgoing", "0002_assignmentresult_override"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='assignmentresult',
-            name='override_slot_type',
-            field=models.CharField(blank=True, choices=[('dept', 'Slot département'), ('surplus', 'Slot surplus'), ('alternative', 'Destination alternative'), ('unassigned', 'Non affecté')], max_length=20, null=True, verbose_name='Type de slot (correction manuelle)'),
+            model_name="assignmentresult",
+            name="override_slot_type",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("dept", "Slot département"),
+                    ("surplus", "Slot surplus"),
+                    ("alternative", "Destination alternative"),
+                    ("unassigned", "Non affecté"),
+                ],
+                max_length=20,
+                null=True,
+                verbose_name="Type de slot (correction manuelle)",
+            ),
         ),
     ]

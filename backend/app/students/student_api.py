@@ -19,7 +19,11 @@ from .schemas import (
 router = Router()
 
 
-@router.get("/{ine}/profile/", response=StudentProfileOut, summary="Profil étudiant et années d'inscription")
+@router.get(
+    "/{ine}/profile/",
+    response=StudentProfileOut,
+    summary="Profil étudiant et années d'inscription",
+)
 def get_student_profile(request, ine: str):
     # TODO: auth — restrict to authenticated student matching this INE
     try:
@@ -49,7 +53,11 @@ def get_student_profile(request, ine: str):
     )
 
 
-@router.get("/{ine}/agreements/", response=list[StudentAgreementOut], summary="Accords éligibles au profil de l'étudiant")
+@router.get(
+    "/{ine}/agreements/",
+    response=list[StudentAgreementOut],
+    summary="Accords éligibles au profil de l'étudiant",
+)
 def get_student_agreements(request, ine: str, year_id: int | None = None):
     # TODO: auth — restrict to authenticated student matching this INE
     try:
@@ -80,7 +88,9 @@ def get_student_agreements(request, ine: str, year_id: int | None = None):
     )
 
     ays = (
-        AgreementYear.objects.filter(academic_year_id=year_id, is_active=True, n7_places__gt=0)
+        AgreementYear.objects.filter(
+            academic_year_id=year_id, is_active=True, n7_places__gt=0
+        )
         .select_related("agreement__partner_university__country")
         .prefetch_related(
             "department_quotas__agreement_department__department",
@@ -96,7 +106,9 @@ def get_student_agreements(request, ine: str, year_id: int | None = None):
             level_ids = list(a.levels.values_list("id", flat=True))
             if level_ids and enrollment.level_id not in level_ids:
                 continue
-            dept_ids = list(a.agreement_departments.values_list("department_id", flat=True))
+            dept_ids = list(
+                a.agreement_departments.values_list("department_id", flat=True)
+            )
             if dept_ids and enrollment.department_id not in dept_ids:
                 continue
 
@@ -116,7 +128,9 @@ def get_student_agreements(request, ine: str, year_id: int | None = None):
                 agreement_year_id=ay.id,
                 agreement_id=a.id,
                 agreement_name=a.name,
-                university_name=format_university_label(univ.name, univ.short_name or "", country_name),
+                university_name=format_university_label(
+                    univ.name, univ.short_name or "", country_name
+                ),
                 country_name=country_name,
                 country_iso2=country_iso2,
                 n7_places=ay.n7_places,
@@ -129,7 +143,11 @@ def get_student_agreements(request, ine: str, year_id: int | None = None):
     return result
 
 
-@router.get("/{ine}/wishes/", response=list[StudentWishItemOut], summary="Vœux de l'étudiant pour une année")
+@router.get(
+    "/{ine}/wishes/",
+    response=list[StudentWishItemOut],
+    summary="Vœux de l'étudiant pour une année",
+)
 def get_student_wishes(request, ine: str, year_id: int | None = None):
     # TODO: auth — restrict to authenticated student matching this INE
     try:
@@ -175,7 +193,11 @@ def get_student_wishes(request, ine: str, year_id: int | None = None):
     ]
 
 
-@router.get("/{ine}/assignment/", response=StudentAssignmentOut, summary="Résultat d'affectation d'un étudiant")
+@router.get(
+    "/{ine}/assignment/",
+    response=StudentAssignmentOut,
+    summary="Résultat d'affectation d'un étudiant",
+)
 def get_student_assignment(request, ine: str, year_id: int | None = None):
     # TODO: auth — restrict to authenticated student matching this INE
     filters: dict = {

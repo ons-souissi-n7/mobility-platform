@@ -683,14 +683,19 @@ def _make_published_assignment(ine: str) -> AssignmentResult:
         student=student, academic_year=year, department=dept, level=level
     )
     assignment = Assignment.objects.create(academic_year=year)
-    Assignment.objects.filter(pk=assignment.pk).update(status=AssignmentStatus.PUBLISHED)
+    Assignment.objects.filter(pk=assignment.pk).update(
+        status=AssignmentStatus.PUBLISHED
+    )
     assignment = Assignment.objects.get(pk=assignment.pk)
     return enrollment, assignment, year
 
 
 def _make_agreement_year(year: AcademicYear) -> AgreementYear:
     country = Country.objects.create(
-        iso2="IT", name_fr="Italie", name_en="Italy", cti_region=CTIRegion.EUROPE_HORS_FRANCE
+        iso2="IT",
+        name_fr="Italie",
+        name_en="Italy",
+        cti_region=CTIRegion.EUROPE_HORS_FRANCE,
     )
     univ = PartnerUniversity.objects.create(
         name="Politecnico di Milano", short_name="PoliMi", country=country
@@ -756,7 +761,10 @@ class TestGetStudentAssignment:
         enrollment, assignment, year = _make_published_assignment("20SN003")
         ay_auto = _make_agreement_year(year)
         country2 = Country.objects.create(
-            iso2="ES", name_fr="Espagne", name_en="Spain", cti_region=CTIRegion.EUROPE_HORS_FRANCE
+            iso2="ES",
+            name_fr="Espagne",
+            name_en="Spain",
+            cti_region=CTIRegion.EUROPE_HORS_FRANCE,
         )
         univ2 = PartnerUniversity.objects.create(
             name="UPM Madrid", short_name="UPM", country=country2

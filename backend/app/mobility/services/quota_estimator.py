@@ -162,7 +162,9 @@ def _create_from_history(
 
     # Largest-remainder method: floor each share, then give the remaining
     # places one by one to the departments with the highest fractional parts.
-    exact = [n7 * prev_places.get(ad.department_id, 0) / history_total for ad in constrained]
+    exact = [
+        n7 * prev_places.get(ad.department_id, 0) / history_total for ad in constrained
+    ]
     floors = [int(e) for e in exact]
     remainder = n7 - sum(floors)
     fractions = [(exact[i] - floors[i], i) for i in range(n)]
