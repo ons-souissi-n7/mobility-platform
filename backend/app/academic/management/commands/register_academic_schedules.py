@@ -7,6 +7,12 @@ class Command(BaseCommand):
 
     SCHEDULES = [
         {
+            "name": "academic_create_next_year",
+            "func": "app.academic.tasks.auto_create_next_academic_year",
+            "cron": "0 0 * * *",
+            "note": "création automatique de l'année suivante à minuit après clôture",
+        },
+        {
             "name": "academic_recommendation_to_consolidation",
             "func": "app.academic.tasks.auto_advance_recommendation_to_consolidation",
             "cron": "0 0 * * *",
@@ -17,6 +23,12 @@ class Command(BaseCommand):
             "func": "app.academic.tasks.auto_advance_consolidation_to_pre_assignment",
             "cron": "59 23 * * *",
             "note": "consolidation → pre_assignment à 23h59 (clôture des vœux) + Gale-Shapley",
+        },
+        {
+            "name": "academic_close_at_end_date",
+            "func": "app.academic.tasks.auto_close_academic_year",
+            "cron": "59 23 * * *",
+            "note": "validation → closed à 23h59 le jour de end_date",
         },
     ]
 

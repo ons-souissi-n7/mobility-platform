@@ -4,6 +4,7 @@ from ninja import Router
 from ninja.errors import HttpError
 
 from app.mobility.models import AgreementYear
+from app.audit.logger import log_action
 from app.mobility.services.quota_estimator import initialize_new_year_mobility
 from app.outgoing.tasks import enqueue_gale_shapley
 from app.shared.api_helpers import SelectOption, save_validated
@@ -154,6 +155,11 @@ def launch_pre_assignment(request, year_id: int):
         ) from exc
     triggered_by = getattr(request.user, "username", "")
     enqueue_gale_shapley(year_id, triggered_by=triggered_by)
+    log_action(
+        request,
+        action="launch_pre_assignment",
+        detail=f"Année {academic_year.label} — Gale-Shapley lancé par {triggered_by or 'système'}",
+    )
     return 202, academic_year
 
 

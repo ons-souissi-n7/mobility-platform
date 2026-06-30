@@ -154,19 +154,29 @@ def _create_from_history(
     constrained_dept_ids = {ad.department_id for ad in constrained}
     history_total = sum(v for k, v in prev_places.items() if k in constrained_dept_ids)
     n7 = instance.n7_places
+    n = len(constrained)
 
-    for agreement_department in constrained:
-        hist = prev_places.get(agreement_department.department_id, 0)
-        if history_total > 0:
-            places = round(n7 * hist / history_total)
-        else:
-            places = n7 // len(constrained)
+    if history_total == 0 or n == 0:
+        # Fall back to equal split when no usable history.
+        return _create_equal_split(instance, constrained)
+
+    # Largest-remainder method: floor each share, then give the remaining
+    # places one by one to the departments with the highest fractional parts.
+    exact = [n7 * prev_places.get(ad.department_id, 0) / history_total for ad in constrained]
+    floors = [int(e) for e in exact]
+    remainder = n7 - sum(floors)
+    fractions = [(exact[i] - floors[i], i) for i in range(n)]
+    fractions.sort(key=lambda x: x[0], reverse=True)
+    for _, idx in fractions[:remainder]:
+        floors[idx] += 1
+
+    for agreement_department, places in zip(constrained, floors):
         AgreementYearDepartment.objects.create(
             agreement_year=instance,
             agreement_department=agreement_department,
             estimated_places=max(0, places),
         )
-    return len(constrained)
+    return n
 
 
 def _create_equal_split(

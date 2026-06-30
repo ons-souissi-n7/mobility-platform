@@ -50,3 +50,14 @@ class AuditConfig(AppConfig):
 
         auditlog.register(Student)
         auditlog.register(AnnualEnrollment)
+
+        # -- Accords — contraintes départements --------------------------------
+        from app.mobility.models import AgreementDepartment
+
+        auditlog.register(AgreementDepartment)
+
+        # -- Affectations (Gale-Shapley) ----------------------------------------
+        from app.outgoing.models import Assignment, AssignmentResult
+
+        auditlog.register(Assignment)
+        auditlog.register(AssignmentResult)

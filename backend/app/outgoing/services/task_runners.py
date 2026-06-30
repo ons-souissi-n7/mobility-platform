@@ -1,6 +1,7 @@
 from django.db import transaction
 
 from app.academic.models import AcademicYear
+from app.audit.logger import log_action
 from app.mobility.models import AgreementYear
 
 from .gale_shapley import AgreementInput, StudentInput, gale_shapley
@@ -100,3 +101,12 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
                 for output in outputs
             ]
         )
+
+    log_action(
+        action="gale_shapley_completed",
+        detail=(
+            f"Année {academic_year.label} — {assigned}/{len(outputs)} affecté(s)"
+            f" — Assignment ID {assignment.id}"
+            + (f" — par {triggered_by}" if triggered_by else "")
+        ),
+    )
