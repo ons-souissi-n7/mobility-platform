@@ -124,8 +124,6 @@ def list_assignment_results(
     search: str | None = None,
     pagination: PaginationQuery = Query(),
 ):
-    from django.db.models import Q
-
     if not Assignment.objects.filter(pk=assignment_id).exists():
         raise HttpError(404, "Affectation introuvable.")
 

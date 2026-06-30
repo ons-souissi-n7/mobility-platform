@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { fetchStudentAgreements, fetchStudentProfile } from "@/lib/api/student";
 import type { StudentAgreement, StudentProfile } from "@/lib/api/types";
@@ -28,15 +28,19 @@ export default function AccordsPage() {
       .catch(() => setError("Impossible de charger le profil."));
   }, [ine]);
 
-  useEffect(() => {
-    if (selectedYearId === undefined) return;
+  const loadAgreements = useCallback((yearId: number) => {
     setLoading(true);
     setError("");
-    fetchStudentAgreements(ine, selectedYearId)
+    fetchStudentAgreements(ine, yearId)
       .then(setAgreements)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [ine, selectedYearId]);
+  }, [ine]);
+
+  useEffect(() => {
+    if (selectedYearId === undefined) return;
+    loadAgreements(selectedYearId);
+  }, [selectedYearId, loadAgreements]);
 
   return (
     <div className="space-y-6">

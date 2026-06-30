@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { fetchStudentAssignment, fetchStudentProfile, fetchStudentWishes } from "@/lib/api/student";
 import type { StudentAssignment, StudentProfile, StudentWishItem } from "@/lib/api/types";
@@ -27,19 +27,23 @@ export default function MobilitePage() {
       .catch(() => setError("Impossible de charger le profil."));
   }, [ine]);
 
-  useEffect(() => {
-    if (selectedYearId === undefined) return;
+  const loadMobilite = useCallback((yearId: number) => {
     setLoading(true);
     setError("");
     setResult(undefined);
     Promise.all([
-      fetchStudentWishes(ine, selectedYearId),
-      fetchStudentAssignment(ine, selectedYearId),
+      fetchStudentWishes(ine, yearId),
+      fetchStudentAssignment(ine, yearId),
     ])
       .then(([w, r]) => { setWishes(w); setResult(r); })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [ine, selectedYearId]);
+  }, [ine]);
+
+  useEffect(() => {
+    if (selectedYearId === undefined) return;
+    loadMobilite(selectedYearId);
+  }, [selectedYearId, loadMobilite]);
 
   return (
     <div className="space-y-8">

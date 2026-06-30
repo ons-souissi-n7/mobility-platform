@@ -1196,10 +1196,10 @@ function DecisionCell({
   }
 
   const isOverride     = result.source === "override";
-  const isForceUnassign = isOverride && result.override_slot_type === "unassigned";
+  const _isForceUnassign = isOverride && result.override_slot_type === "unassigned";
 
   // Slot type effectif affiché dans le badge final
-  const effectiveSlotType = isOverride
+  const _effectiveSlotType = isOverride
     ? (result.override_slot_type ?? result.slot_type)
     : result.slot_type;
 
@@ -1210,8 +1210,8 @@ function DecisionCell({
   // Données auto originales — toujours conservées pour traçabilité
   const autoUniversity = isOverride ? result.university_name : null;
   const autoAgreement  = isOverride ? result.agreement_name  : null;
-  const autoSlotType   = isOverride ? result.slot_type : null;
-  const autoRank       = isOverride ? result.assigned_rank : null;
+  const _autoSlotType  = isOverride ? result.slot_type : null;
+  const _autoRank      = isOverride ? result.assigned_rank : null;
 
   async function submitOverride() {
     if (!onOverride || !motif.trim() || !selectedAyId) return;

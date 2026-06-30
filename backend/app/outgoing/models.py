@@ -120,7 +120,7 @@ class AssignmentResult(TimeStampedModel):
         blank=True,
         related_name="override_results",
     )
-    override_slot_type = models.CharField(
+    override_slot_type = models.CharField(  # noqa: DJ001
         max_length=20,
         choices=SlotType.choices,
         null=True,

@@ -8,11 +8,11 @@ from django.test import Client
 
 from app.academic.models import AcademicYear
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
+from app.institutions.models import PartnerUniversity
 from app.mobility.models import Agreement, AgreementYear
 from app.outgoing.models import Assignment, AssignmentResult, AssignmentStatus, SlotType
 from app.reference.models import Country, CTIRegion, Department, Level
 from app.students.models import AnnualEnrollment, Student
-from app.institutions.models import PartnerUniversity
 
 # ---------------------------------------------------------------------------
 # Helpers
