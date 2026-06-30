@@ -28,6 +28,8 @@ class AssignmentResultOut(Schema):
     override_agreement_id: int | None
     override_agreement_name: str | None
     override_university_name: str | None
+    override_slot_type: str | None
+    override_rank: int | None
     source: str
 
     @staticmethod
@@ -78,6 +80,7 @@ class AssignmentResultOut(Schema):
 class AssignmentResultOverrideIn(Schema):
     override_agreement_year_id: int | None
     override_reason: str
+    force_unassigned: bool = False
 
 
 class OverrideImportReportOut(Schema):
@@ -169,3 +172,8 @@ class WishSyncReportOut(Schema):
 class WishImportRetryIn(Schema):
     student_id: int | None = None
     agreement_id: int | None = None
+
+
+class AgreementYearOptionOut(Schema):
+    id: int
+    label: str

@@ -84,6 +84,7 @@ class ImportSource(models.TextChoices):
     PEGASE = "pegase", "Pégase – Étudiants"
     EUDONET = "eudonet", "Eudonet – Stages"
     EXCEL = "excel", "Import Excel"
+    EXCEL_OVERRIDES = "excel_overrides", "Import Excel – Corrections affectation"
 
 
 class ImportReport(TimeStampedModel):

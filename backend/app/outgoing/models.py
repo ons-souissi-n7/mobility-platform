@@ -120,6 +120,18 @@ class AssignmentResult(TimeStampedModel):
         blank=True,
         related_name="override_results",
     )
+    override_slot_type = models.CharField(
+        max_length=20,
+        choices=SlotType.choices,
+        null=True,
+        blank=True,
+        verbose_name="Type de slot (correction manuelle)",
+    )
+    override_rank = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Rang du vœu retenu (correction manuelle)",
+    )
     source = models.CharField(
         max_length=20,
         choices=ResultSource.choices,
