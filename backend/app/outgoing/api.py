@@ -12,7 +12,13 @@ from openpyxl.utils import get_column_letter
 from app.academic.api import get_academic_year
 from app.academic.models import AcademicYear
 from app.audit.logger import log_action
-from app.imports.models import ImportReport, ImportSource, RawImport, RawImportEntity, RawImportStatus
+from app.imports.models import (
+    ImportReport,
+    ImportSource,
+    RawImport,
+    RawImportEntity,
+    RawImportStatus,
+)
 from app.mobility.models import Agreement, AgreementYear, AgreementYearDepartment
 from app.shared.api_helpers import PagedResponse, PaginationQuery, paginate
 from app.shared.excel_utils import (

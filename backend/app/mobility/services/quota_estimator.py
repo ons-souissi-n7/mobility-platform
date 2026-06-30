@@ -170,7 +170,7 @@ def _create_from_history(
     for _, idx in fractions[:remainder]:
         floors[idx] += 1
 
-    for agreement_department, places in zip(constrained, floors):
+    for agreement_department, places in zip(constrained, floors, strict=True):
         AgreementYearDepartment.objects.create(
             agreement_year=instance,
             agreement_department=agreement_department,
