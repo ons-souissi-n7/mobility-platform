@@ -196,7 +196,9 @@ class StudentWish(TimeStampedModel):
             raise ValidationError({"rank": "Le rang doit être supérieur ou égal à 1."})
         if self.rank > MAX_WISHES_PER_STUDENT:
             raise ValidationError(
-                {"rank": f"Le rang ne peut pas dépasser {MAX_WISHES_PER_STUDENT} (maximum {MAX_WISHES_PER_STUDENT} vœux par étudiant)."}
+                {
+                    "rank": f"Le rang ne peut pas dépasser {MAX_WISHES_PER_STUDENT} (maximum {MAX_WISHES_PER_STUDENT} vœux par étudiant)."
+                }
             )
         existing = StudentWish.objects.filter(annual_enrollment=self.annual_enrollment)
         if self.pk:

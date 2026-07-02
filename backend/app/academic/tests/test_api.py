@@ -109,9 +109,7 @@ class TestAcademicYearAPI:
     def test_launch_assignment_advances_year_and_returns_202(self):
         from unittest.mock import patch
 
-        AcademicYear.objects.filter(pk=self.academic_year.pk).update(
-            status="import"
-        )
+        AcademicYear.objects.filter(pk=self.academic_year.pk).update(status="import")
         with patch("app.academic.api.enqueue_gale_shapley"):
             response = self.client.post(
                 f"/api/v1/academic/years/{self.academic_year.id}/launch-assignment/"

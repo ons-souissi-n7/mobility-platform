@@ -56,7 +56,9 @@ class AcademicYear(TimeStampedModel):
 
     def clean(self) -> None:
         if self.start_date and self.end_date and self.start_date > self.end_date:
-            raise ValidationError({"end_date": "La date de fin doit être postérieure à la date de début."})
+            raise ValidationError(
+                {"end_date": "La date de fin doit être postérieure à la date de début."}
+            )
 
         if (
             self.wishes_open_date
@@ -64,17 +66,31 @@ class AcademicYear(TimeStampedModel):
             and self.wishes_open_date >= self.wishes_close_date
         ):
             raise ValidationError(
-                {"wishes_close_date": "La date de clôture des vœux doit être postérieure à la date d'ouverture."}
+                {
+                    "wishes_close_date": "La date de clôture des vœux doit être postérieure à la date d'ouverture."
+                }
             )
 
-        if self.wishes_open_date and self.start_date and self.wishes_open_date < self.start_date:
+        if (
+            self.wishes_open_date
+            and self.start_date
+            and self.wishes_open_date < self.start_date
+        ):
             raise ValidationError(
-                {"wishes_open_date": "La date d'ouverture des vœux ne peut pas être antérieure au début de l'année universitaire."}
+                {
+                    "wishes_open_date": "La date d'ouverture des vœux ne peut pas être antérieure au début de l'année universitaire."
+                }
             )
 
-        if self.wishes_close_date and self.end_date and self.wishes_close_date > self.end_date:
+        if (
+            self.wishes_close_date
+            and self.end_date
+            and self.wishes_close_date > self.end_date
+        ):
             raise ValidationError(
-                {"wishes_close_date": "La date de clôture des vœux ne peut pas dépasser la fin de l'année universitaire."}
+                {
+                    "wishes_close_date": "La date de clôture des vœux ne peut pas dépasser la fin de l'année universitaire."
+                }
             )
 
     def _has_campaign_dates(self) -> bool:

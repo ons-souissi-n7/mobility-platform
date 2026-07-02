@@ -27,6 +27,7 @@ class PaginationQuery(Schema):
 
 class LargePaginationQuery(Schema):
     """Pagination pour les endpoints qui peuvent retourner de grands volumes (ex: résultats d'affectation)."""
+
     page: int = Query(1, ge=1)
     page_size: int = Query(500, ge=1, le=5000)
 

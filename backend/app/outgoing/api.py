@@ -1,4 +1,5 @@
 import logging
+
 import openpyxl
 import openpyxl.worksheet.datavalidation
 from django.db import transaction
@@ -9,8 +10,6 @@ from django_fsm import TransitionNotAllowed
 from ninja import File, Query, Router, UploadedFile
 from ninja.errors import HttpError
 from openpyxl.utils import get_column_letter
-
-logger = logging.getLogger(__name__)
 
 from app.academic.api import get_academic_year
 from app.academic.models import AcademicYear
@@ -23,7 +22,12 @@ from app.imports.models import (
     RawImportStatus,
 )
 from app.mobility.models import Agreement, AgreementYear, AgreementYearDepartment
-from app.shared.api_helpers import LargePaginationQuery, PagedResponse, PaginationQuery, paginate
+from app.shared.api_helpers import (
+    LargePaginationQuery,
+    PagedResponse,
+    PaginationQuery,
+    paginate,
+)
 from app.shared.excel_utils import (
     build_filename,
     format_agreement_label,
@@ -60,6 +64,8 @@ from .schemas import (
     WishImportRetryIn,
 )
 from .tasks import enqueue_import_excel_wishes, enqueue_sync_moveon_wishes
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -256,6 +262,7 @@ def get_assignment_stats(request, assignment_id: int):
 
     # Comptage affectés par eff_ay_id
     from collections import Counter
+
     ay_assigned_count = Counter(r["eff_ay_id"] for r in effective_rows)
 
     # Quotas réservés par accord × département (AgreementYearDepartment)
@@ -344,6 +351,7 @@ def get_assignment_stats(request, assignment_id: int):
 
     # Total inscrits pour l'année (tous les étudiants avec affectation, assignés ou non)
     from app.students.models import AnnualEnrollment
+
     total_enrolled = AnnualEnrollment.objects.filter(
         academic_year=assignment.academic_year
     ).count()

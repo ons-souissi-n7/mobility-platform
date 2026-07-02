@@ -95,11 +95,17 @@ ALL_AGREEMENT_QUOTAS_2526 = EXISTING_AGREEMENT_QUOTAS_2526 + [
 
 # ── Étudiants boursiers ───────────────────────────────────────────────────────
 SCHOLARSHIP_INES: set[str] = {
-    "20SN002FISE", "20SN007FISE", "20SN013FISE",
-    "203EA04FISE", "203EA09FISE",
-    "20MF203FISE", "20MF208FISE",
-    "20SN003FISA", "203EA06FISA",
-    "20MF204FISA", "20MF205FISA",
+    "20SN002FISE",
+    "20SN007FISE",
+    "20SN013FISE",
+    "203EA04FISE",
+    "203EA09FISE",
+    "20MF203FISE",
+    "20MF208FISE",
+    "20SN003FISA",
+    "203EA06FISA",
+    "20MF204FISA",
+    "20MF205FISA",
 }
 
 # ── Vœux imposés pour certains étudiants MF2E ─────────────────────────────────
@@ -715,7 +721,12 @@ class Command(BaseCommand):
             self._ensure_new_agreements(dept_map, country_map, current_year)
             self._ensure_agreement_year_departments(dept_map, current_year)
             enrollments = self._create_students_and_enrollments(
-                dept_map, level_2ing, level_3ing, country_map, current_year, parcours_map
+                dept_map,
+                level_2ing,
+                level_3ing,
+                country_map,
+                current_year,
+                parcours_map,
             )
             self._create_wishes(enrollments, current_year)
             self._create_historical_assignments(
@@ -827,7 +838,8 @@ class Command(BaseCommand):
         for p in Parcours.objects.select_related("department").all():
             dept_to_parcours.setdefault(p.department.code, []).append(p)
         self.stdout.write(
-            "  Parcours : " + ", ".join(f"{c}={len(ps)}" for c, ps in dept_to_parcours.items())
+            "  Parcours : "
+            + ", ".join(f"{c}={len(ps)}" for c, ps in dept_to_parcours.items())
         )
         return dept_to_parcours
 

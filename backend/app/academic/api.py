@@ -6,7 +6,10 @@ from ninja.errors import HttpError
 
 from app.audit.logger import log_action
 from app.mobility.models import AgreementYear, AgreementYearDepartment
-from app.mobility.services.quota_estimator import initialize_new_year_mobility, redistribute_department_quotas
+from app.mobility.services.quota_estimator import (
+    initialize_new_year_mobility,
+    redistribute_department_quotas,
+)
 from app.outgoing.tasks import enqueue_gale_shapley
 from app.shared.api_helpers import SelectOption, save_validated
 from app.students.models import AnnualEnrollment
@@ -69,9 +72,17 @@ def update_academic_year(request, year_id: int, payload: AcademicYearIn):
     # Champs structurels immuables dès que la campagne est lancée
     if academic_year.status != AcademicYear.CampaignStatus.INITIALIZATION:
         if payload.label != academic_year.label:
-            raise HttpError(400, "Le libellé ne peut plus être modifié une fois la campagne lancée.")
-        if payload.start_date != academic_year.start_date or payload.end_date != academic_year.end_date:
-            raise HttpError(400, "Les dates de début et de fin ne peuvent plus être modifiées une fois la campagne lancée.")
+            raise HttpError(
+                400, "Le libellé ne peut plus être modifié une fois la campagne lancée."
+            )
+        if (
+            payload.start_date != academic_year.start_date
+            or payload.end_date != academic_year.end_date
+        ):
+            raise HttpError(
+                400,
+                "Les dates de début et de fin ne peuvent plus être modifiées une fois la campagne lancée.",
+            )
 
     # Dates de vœux immuables dès l'ouverture de la période de candidature
     locked_statuses = {
@@ -197,6 +208,7 @@ def close_year(request, year_id: int):
 )
 def launch_assignment(request, year_id: int):
     from app.students.models import StudentWish
+
     academic_year = get_academic_year(year_id)
     try:
         academic_year.launch_assignment()
@@ -213,6 +225,7 @@ def launch_assignment(request, year_id: int):
     ).count()
     if wish_count == 0:
         from app.alerts.models import SystemAlert
+
         SystemAlert.objects.create(
             level="warning",
             title=f"Affectation lancée sans vœux — {academic_year.label}",
@@ -240,6 +253,7 @@ def launch_assignment(request, year_id: int):
 )
 def publish_results(request, year_id: int):
     from app.outgoing.models import Assignment, AssignmentStatus
+
     academic_year = get_academic_year(year_id)
     try:
         academic_year.publish_results()
@@ -284,7 +298,9 @@ def _auto_validate_agreement_years(academic_year: AcademicYear) -> None:
         ay.is_validated = True
         ay.validated_by = "Système"
         ay.validated_at = now
-        ay.save(update_fields=["is_validated", "validated_by", "validated_at", "updated_at"])
+        ay.save(
+            update_fields=["is_validated", "validated_by", "validated_at", "updated_at"]
+        )
 
 
 @router.post(

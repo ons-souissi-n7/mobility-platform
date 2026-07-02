@@ -555,7 +555,9 @@ def create_agreement_year_department(request, payload: AgreementYearDepartmentIn
             department_id=payload.department_id,
         )
     except AgreementDepartment.DoesNotExist as exc:
-        raise HttpError(400, f"Département {payload.department_id} non associé à cet accord.") from exc
+        raise HttpError(
+            400, f"Département {payload.department_id} non associé à cet accord."
+        ) from exc
     dept = AgreementYearDepartment(
         agreement_year=year_instance,
         agreement_department=agreement_dept,

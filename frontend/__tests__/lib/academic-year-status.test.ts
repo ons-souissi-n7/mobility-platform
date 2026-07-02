@@ -51,16 +51,16 @@ describe("nextTransitions", () => {
     expect(nextTransitions.validation?.transition).toBe("publish-results");
   });
 
-  it("does not define a transition for candidature (automatic via scheduler)", () => {
-    expect(nextTransitions.candidature).toBeUndefined();
+  it("defines a transition for candidature (manual close-wishes button)", () => {
+    expect(nextTransitions.candidature?.transition).toBe("close-wishes");
   });
 
   it("does not define a transition for pre_assignment (automatic after algo)", () => {
     expect(nextTransitions.pre_assignment).toBeUndefined();
   });
 
-  it("does not define a transition for published (automatic via scheduler)", () => {
-    expect(nextTransitions.published).toBeUndefined();
+  it("defines a transition for published (manual close button)", () => {
+    expect(nextTransitions.published?.transition).toBe("close");
   });
 
   it("does not define a transition for closed (terminal state)", () => {

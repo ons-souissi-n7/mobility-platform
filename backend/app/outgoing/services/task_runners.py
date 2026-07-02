@@ -24,9 +24,11 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
 
     # Guard : avorter si un Assignment non annulé existe déjà pour cette année.
     # Cas typique : retry Django-Q après timeout alors que la première exécution a abouti.
-    if Assignment.objects.filter(
-        academic_year=academic_year
-    ).exclude(status=AssignmentStatus.CANCELLED).exists():
+    if (
+        Assignment.objects.filter(academic_year=academic_year)
+        .exclude(status=AssignmentStatus.CANCELLED)
+        .exists()
+    ):
         logger.warning(
             "Un Assignment non annulé existe déjà pour l'année %s — "
             "arrêt pour éviter les doublons (retry Django-Q ?)",
@@ -35,13 +37,17 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
         return
 
     # ── Charger les accords actifs pour cette année ───────────────────────
-    agreement_years = AgreementYear.objects.filter(
-        academic_year=academic_year,
-        is_active=True,
-        n7_places__gt=0,
-    ).select_related("agreement").prefetch_related(
-        "department_quotas__agreement_department__department",
-        "agreement__levels",
+    agreement_years = (
+        AgreementYear.objects.filter(
+            academic_year=academic_year,
+            is_active=True,
+            n7_places__gt=0,
+        )
+        .select_related("agreement")
+        .prefetch_related(
+            "department_quotas__agreement_department__department",
+            "agreement__levels",
+        )
     )
 
     agreement_inputs: list[AgreementInput] = []
@@ -86,7 +92,11 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
         # Filtre de niveau : exclure les vœux incompatibles avec le niveau de l'étudiant
         allowed_levels = ay_level_ids.get(ay_id, [])
         student_level = enrollment_level.get(eid)
-        if allowed_levels and student_level is not None and student_level not in allowed_levels:
+        if (
+            allowed_levels
+            and student_level is not None
+            and student_level not in allowed_levels
+        ):
             continue
         wishes_by_enrollment.setdefault(eid, []).append(ay_id)
 
@@ -170,7 +180,8 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
         except TransitionNotAllowed:
             logger.error(
                 "complete_assignment refused for year %s (status=%s) — possible race condition",
-                academic_year.label, academic_year.status,
+                academic_year.label,
+                academic_year.status,
             )
             SystemAlert.objects.create(
                 level="error",
@@ -185,7 +196,8 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
             )
         except Exception:
             logger.exception(
-                "Unexpected error during complete_assignment for year %s", academic_year.label
+                "Unexpected error during complete_assignment for year %s",
+                academic_year.label,
             )
             SystemAlert.objects.create(
                 level="error",

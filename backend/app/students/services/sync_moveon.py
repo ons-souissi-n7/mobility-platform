@@ -111,10 +111,9 @@ def import_wish_rows(
 
     # Pré-charger les rangs de vœux existants par inscription (évite N+1 en boucle)
     existing_ranks: dict[int, set[int]] = {}
-    for eid, rank in (
-        StudentWish.objects.filter(annual_enrollment__academic_year=academic_year)
-        .values_list("annual_enrollment_id", "rank")
-    ):
+    for eid, rank in StudentWish.objects.filter(
+        annual_enrollment__academic_year=academic_year
+    ).values_list("annual_enrollment_id", "rank"):
         existing_ranks.setdefault(eid, set()).add(rank)
 
     for row in rows:
@@ -184,17 +183,13 @@ def import_wish_rows(
             continue
 
         if row.rank > MAX_WISHES_PER_STUDENT:
-            reason = (
-                f"Rang {row.rank} refusé : maximum {MAX_WISHES_PER_STUDENT} vœux par étudiant."
-            )
+            reason = f"Rang {row.rank} refusé : maximum {MAX_WISHES_PER_STUDENT} vœux par étudiant."
             _mark_wish_unresolved(raw, report, db_report, row, identifier, reason)
             continue
 
         current_count = len(existing_ranks.get(enrollment.id, set()) - {row.rank})
         if current_count >= MAX_WISHES_PER_STUDENT:
-            reason = (
-                f"Vœu refusé : l'étudiant {identifier!r} a déjà {MAX_WISHES_PER_STUDENT} vœux enregistrés."
-            )
+            reason = f"Vœu refusé : l'étudiant {identifier!r} a déjà {MAX_WISHES_PER_STUDENT} vœux enregistrés."
             _mark_wish_unresolved(raw, report, db_report, row, identifier, reason)
             continue
 
@@ -318,7 +313,8 @@ def _resolve_student(
                     logger.warning(
                         "Homonyme détecté : %d étudiants correspondent à '%s' — "
                         "le premier résultat sera utilisé (résolution ambiguë)",
-                        count, individu,
+                        count,
+                        individu,
                     )
                 student = matches.first()
             else:

@@ -8,7 +8,11 @@ from .schemas import SystemAlertOut
 router = Router()
 
 
-@router.get("/", response=list[SystemAlertOut], summary="Lister les alertes non acquittées pour l'utilisateur courant")
+@router.get(
+    "/",
+    response=list[SystemAlertOut],
+    summary="Lister les alertes non acquittées pour l'utilisateur courant",
+)
 def list_alerts(request):
     username = getattr(request.user, "username", None)
     alerts = list(SystemAlert.objects.filter(is_read=False).order_by("-created_at"))
@@ -25,11 +29,13 @@ def list_alerts(request):
 def acknowledge_alert(request, alert_id: int):
     try:
         alert = SystemAlert.objects.get(pk=alert_id, is_read=False)
-    except SystemAlert.DoesNotExist:
-        raise HttpError(404, "Alerte introuvable.")
+    except SystemAlert.DoesNotExist as exc:
+        raise HttpError(404, "Alerte introuvable.") from exc
     username = getattr(request.user, "username", None) or "unknown"
     if username not in (alert.acknowledged_usernames or []):
-        alert.acknowledged_usernames = list(alert.acknowledged_usernames or []) + [username]
+        alert.acknowledged_usernames = list(alert.acknowledged_usernames or []) + [
+            username
+        ]
         alert.save(update_fields=["acknowledged_usernames", "updated_at"])
     return 204, None
 

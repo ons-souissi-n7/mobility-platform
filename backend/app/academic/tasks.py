@@ -74,18 +74,31 @@ def auto_create_next_academic_year() -> None:
         defaults = {
             "start_date": new_start,
             "end_date": new_end,
-            "wishes_open_date": _add_one_year(year.wishes_open_date) if year.wishes_open_date else None,
-            "wishes_close_date": _add_one_year(year.wishes_close_date) if year.wishes_close_date else None,
+            "wishes_open_date": _add_one_year(year.wishes_open_date)
+            if year.wishes_open_date
+            else None,
+            "wishes_close_date": _add_one_year(year.wishes_close_date)
+            if year.wishes_close_date
+            else None,
         }
-        new_year, created = AcademicYear.objects.get_or_create(label=new_label, defaults=defaults)
+        new_year, created = AcademicYear.objects.get_or_create(
+            label=new_label, defaults=defaults
+        )
         if not created:
-            logger.info("AcademicYear %s already exists, skipping auto-creation", new_label)
+            logger.info(
+                "AcademicYear %s already exists, skipping auto-creation", new_label
+            )
             continue
         new_year.full_clean()
-        logger.info("AcademicYear %s created automatically (next year after %s)", new_label, year.label)
+        logger.info(
+            "AcademicYear %s created automatically (next year after %s)",
+            new_label,
+            year.label,
+        )
 
         # Initialiser les accords de mobilité pour la nouvelle année
         from app.mobility.services.quota_estimator import initialize_new_year_mobility
+
         mob_detail = ""
         try:
             mob_result = initialize_new_year_mobility(new_year)
@@ -99,7 +112,8 @@ def auto_create_next_academic_year() -> None:
         except Exception:
             logger.exception(
                 "Erreur lors de l'initialisation de la mobilité pour %s — "
-                "initialisation manuelle requise", new_label
+                "initialisation manuelle requise",
+                new_label,
             )
             SystemAlert.objects.create(
                 level="error",
@@ -135,12 +149,16 @@ def auto_advance_recommendation_to_candidature() -> None:
         AcademicYear.CampaignStatus.PUBLISHED,
         AcademicYear.CampaignStatus.CLOSED,
     ]
-    qs = AcademicYear.objects.filter(wishes_open_date__lte=today).exclude(status__in=already_past)
+    qs = AcademicYear.objects.filter(wishes_open_date__lte=today).exclude(
+        status__in=already_past
+    )
     for year in qs:
         if year.status != AcademicYear.CampaignStatus.RECOMMENDATION:
             logger.warning(
                 "AcademicYear %s (%s) état inattendu '%s' — transition recommendation → candidature annulée",
-                year.pk, year.label, year.status,
+                year.pk,
+                year.label,
+                year.status,
             )
             log_action(
                 action="auto_transition_failed",
@@ -151,9 +169,17 @@ def auto_advance_recommendation_to_candidature() -> None:
         try:
             year.start_candidature()
             year.save(update_fields=["status", "updated_at"])
-            logger.info("AcademicYear %s (%s) advanced: recommendation → candidature", year.pk, year.label)
+            logger.info(
+                "AcademicYear %s (%s) advanced: recommendation → candidature",
+                year.pk,
+                year.label,
+            )
         except TransitionNotAllowed:
-            logger.warning("AcademicYear %s (%s) transition recommendation → candidature refused", year.pk, year.label)
+            logger.warning(
+                "AcademicYear %s (%s) transition recommendation → candidature refused",
+                year.pk,
+                year.label,
+            )
             log_action(
                 action="auto_transition_failed",
                 detail=f"Année {year.label} ({year.pk}) — transition recommendation → candidature refusée.",
@@ -175,12 +201,16 @@ def auto_close_wishes() -> None:
         AcademicYear.CampaignStatus.PUBLISHED,
         AcademicYear.CampaignStatus.CLOSED,
     ]
-    qs = AcademicYear.objects.filter(wishes_close_date__lte=today).exclude(status__in=already_past)
+    qs = AcademicYear.objects.filter(wishes_close_date__lte=today).exclude(
+        status__in=already_past
+    )
     for year in qs:
         if year.status != AcademicYear.CampaignStatus.CANDIDATURE:
             logger.warning(
                 "AcademicYear %s (%s) état inattendu '%s' — transition candidature → import annulée",
-                year.pk, year.label, year.status,
+                year.pk,
+                year.label,
+                year.status,
             )
             log_action(
                 action="auto_transition_failed",
@@ -191,9 +221,17 @@ def auto_close_wishes() -> None:
         try:
             year.close_wishes()
             year.save(update_fields=["status", "updated_at"])
-            logger.info("AcademicYear %s (%s) advanced: candidature → import", year.pk, year.label)
+            logger.info(
+                "AcademicYear %s (%s) advanced: candidature → import",
+                year.pk,
+                year.label,
+            )
         except TransitionNotAllowed:
-            logger.warning("AcademicYear %s (%s) transition candidature → import refused", year.pk, year.label)
+            logger.warning(
+                "AcademicYear %s (%s) transition candidature → import refused",
+                year.pk,
+                year.label,
+            )
             log_action(
                 action="auto_transition_failed",
                 detail=f"Année {year.label} ({year.pk}) — transition candidature → import refusée.",
@@ -207,12 +245,16 @@ def auto_close_academic_year() -> None:
     Si l'année n'est pas en PUBLISHED, une alerte est créée sans tenter la transition.
     """
     today = date.today()
-    qs = AcademicYear.objects.exclude(status=AcademicYear.CampaignStatus.CLOSED).filter(end_date__lte=today)
+    qs = AcademicYear.objects.exclude(status=AcademicYear.CampaignStatus.CLOSED).filter(
+        end_date__lte=today
+    )
     for year in qs:
         if year.status != AcademicYear.CampaignStatus.PUBLISHED:
             logger.warning(
                 "AcademicYear %s (%s) état inattendu '%s' — transition published → closed annulée",
-                year.pk, year.label, year.status,
+                year.pk,
+                year.label,
+                year.status,
             )
             log_action(
                 action="auto_transition_failed",
@@ -223,9 +265,17 @@ def auto_close_academic_year() -> None:
         try:
             year.close()
             year.save(update_fields=["status", "closed_at", "updated_at"])
-            logger.info("AcademicYear %s (%s) closed automatically at end_date", year.pk, year.label)
+            logger.info(
+                "AcademicYear %s (%s) closed automatically at end_date",
+                year.pk,
+                year.label,
+            )
         except TransitionNotAllowed:
-            logger.warning("AcademicYear %s (%s) transition published → closed refused", year.pk, year.label)
+            logger.warning(
+                "AcademicYear %s (%s) transition published → closed refused",
+                year.pk,
+                year.label,
+            )
             log_action(
                 action="auto_transition_failed",
                 detail=f"Année {year.label} ({year.pk}) — transition published → closed refusée.",

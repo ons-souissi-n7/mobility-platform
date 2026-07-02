@@ -119,13 +119,16 @@ def _estimate_n7_from_inp(agreement: Agreement) -> int:
     inp = agreement.inp_total_places
     if inp <= 0:
         return 0
-    institutions = [i.strip() for i in agreement.inp_institutions.split(",") if i.strip()]
+    institutions = [
+        i.strip() for i in agreement.inp_institutions.split(",") if i.strip()
+    ]
     n_institutions = max(1, len(institutions))
     return max(1, round(inp / n_institutions))
 
 
 def _estimate_n7_places(
-    agreement: Agreement, previous_year: AcademicYear | None  # noqa: ARG001
+    agreement: Agreement,
+    previous_year: AcademicYear | None,  # noqa: ARG001
 ) -> int:
     return _estimate_n7_from_inp(agreement)
 
