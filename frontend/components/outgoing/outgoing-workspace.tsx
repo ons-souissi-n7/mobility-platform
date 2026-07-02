@@ -87,9 +87,10 @@ const SLOT_COLORS: Record<string, string> = {
   unassigned:  "bg-red-100 text-red-800",
 };
 
-const WISH_ERRORS_PAGE_SIZE = 25;
-const POLL_INTERVAL_MS      = 3_000;
-const POLL_TIMEOUT_MS       = 90_000;
+const WISH_ERRORS_PAGE_SIZE        = 25;
+const POLL_INTERVAL_MS             = 3_000;
+const POLL_TIMEOUT_MS              = 90_000;
+const ASSIGNMENT_RESULTS_PAGE_SIZE = 2_000;
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYear[] }) {
@@ -143,7 +144,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
       setAssignment(latest);
       if (latest) {
         const [resultsData, statsData, ayOptions] = await Promise.all([
-          getAssignmentResults(latest.id, { page_size: 500 }),
+          getAssignmentResults(latest.id, { page_size: ASSIGNMENT_RESULTS_PAGE_SIZE }),
           getAssignmentStats(latest.id),
           getAssignmentAgreementYears(latest.id),
         ]);
@@ -199,7 +200,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
         setAssignment(latest);
         if (latest) {
           const [resultsData, statsData, ayOptions] = await Promise.all([
-            getAssignmentResults(latest.id, { page_size: 500 }),
+            getAssignmentResults(latest.id, { page_size: ASSIGNMENT_RESULTS_PAGE_SIZE }),
             getAssignmentStats(latest.id),
             getAssignmentAgreementYears(latest.id),
           ]);
@@ -230,9 +231,21 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
       const startedAt = Date.now();
 
       const tick = async () => {
+        // Skip HTTP call when tab is hidden — task continues server-side
+        if (document.hidden) {
+          pollingRef.current = setTimeout(tick, POLL_INTERVAL_MS);
+          return;
+        }
+
         if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
           stopPolling();
-          setError("Le calcul dépasse 90 secondes. Veuillez rafraîchir la page.");
+          // Tentative de rechargement final avant d'afficher l'erreur
+          try {
+            await loadAssignment(yearId);
+          } catch { /* ignore */ }
+          setError(
+            "Le calcul dépasse 90 secondes. Si les résultats ne s'affichent pas, utilisez le bouton Récupérer la transition dans la gestion des années."
+          );
           return;
         }
         try {
@@ -255,11 +268,16 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   // ── Launch affectation ────────────────────────────────────────────────────
   async function handleLaunch() {
     if (!selectedYearId) return;
+    const ok = await confirm(
+      "Confirmez-vous que tous les vœux ont été importés (MoveOn, Excel) et que les données sont correctes ?",
+      "Lancer l'affectation"
+    );
+    if (!ok) return;
     setLaunching(true);
     setError("");
     const previousId = assignment?.id ?? null;
     try {
-      await applyAcademicYearTransition(selectedYearId, "launch-pre-assignment");
+      await applyAcademicYearTransition(selectedYearId, "launch-assignment");
       startPolling(selectedYearId, previousId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors du lancement.");
@@ -270,19 +288,29 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
 
   // ── Supervision actions ───────────────────────────────────────────────────
   async function handleValidate() {
-    if (!assignment || !selectedYearId) return;
+    if (!assignment) return;
+    setValidating(true);
+    setError("");
+    try {
+      const validated = await validateAssignment(assignment.id);
+      setAssignment(validated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la validation.");
+    } finally {
+      setValidating(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (!assignment) return;
     const ok = await confirm(
-      "Les résultats seront immédiatement visibles par les étudiants. Cette action est irréversible.",
-      "Valider et publier"
+      "Confirmez-vous que toutes les corrections sont validées et que les résultats peuvent être publiés aux étudiants ? Cette action est irréversible.",
+      "Publier les résultats"
     );
     if (!ok) return;
     setValidating(true);
     setError("");
     try {
-      if (assignment.status === "proposed") {
-        const validated = await validateAssignment(assignment.id);
-        setAssignment(validated);
-      }
       const published = await publishAssignment(assignment.id);
       setAssignment(published);
     } catch (err) {
@@ -334,22 +362,49 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
     catch (err) { setError(err instanceof Error ? err.message : "Impossible de télécharger le template."); }
   }
 
+  async function reloadWishes(yearId: number) {
+    const [w, errs] = await Promise.all([
+      getWishesByYear(yearId),
+      getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE }),
+    ]);
+    setWishes(w);
+    setWishImportErrors(errs.results);
+    setWishErrorsTotalCount(errs.count);
+    setWishErrorsPage(1);
+  }
+
   async function handleExcelImport(file: File) {
     if (!selectedYear) return;
+    const yearId = selectedYear.id;
     setError("");
     setExcelInProgress(true);
-    try { await importWishesFromExcel(selectedYear.id, file); }
-    catch (err) { setError(err instanceof Error ? err.message : "L'import Excel a échoué."); }
-    finally { setExcelInProgress(false); }
+    try {
+      await importWishesFromExcel(yearId, file);
+      // Tâche async — laisser le temps au worker puis recharger
+      await new Promise((r) => setTimeout(r, 2000));
+      await reloadWishes(yearId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "L'import Excel a échoué.");
+    } finally {
+      setExcelInProgress(false);
+    }
   }
 
   async function handleSync() {
     if (!selectedYear) return;
+    const yearId = selectedYear.id;
     setError("");
     setSyncInProgress(true);
-    try { await syncWishesFromMoveon(selectedYear.id); }
-    catch (err) { setError(err instanceof Error ? err.message : "La synchronisation MoveON a échoué."); }
-    finally { setSyncInProgress(false); }
+    try {
+      await syncWishesFromMoveon(yearId);
+      // Tâche async — laisser le temps au worker puis recharger
+      await new Promise((r) => setTimeout(r, 2000));
+      await reloadWishes(yearId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "La synchronisation MoveON a échoué.");
+    } finally {
+      setSyncInProgress(false);
+    }
   }
 
   async function handleExport() {
@@ -367,7 +422,9 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
       setWishImportErrors(errs.results);
       setWishErrorsTotalCount(errs.count);
       setWishErrorsPage(page);
-    } catch { /* silently ignore */ }
+    } catch {
+      setError("Impossible de charger les erreurs d'import vœux.");
+    }
   }
 
   // ── Computed values ───────────────────────────────────────────────────────
@@ -401,30 +458,34 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
     return true;
   });
 
+  // Utiliser les stats effectives (après overrides) pour les calculs de taux
+  const effectiveAssigned   = stats?.assigned_count   ?? assignment?.assigned_count   ?? 0;
+  const effectiveUnassigned = stats?.unassigned_count ?? assignment?.unassigned_count ?? 0;
+  const effectiveTotal      = stats?.total_students   ?? assignment?.total_students   ?? 0;
   const assignedPct =
-    assignment && assignment.total_students > 0
-      ? Math.round((assignment.assigned_count / assignment.total_students) * 100)
-      : 0;
+    effectiveTotal > 0 ? Math.round((effectiveAssigned / effectiveTotal) * 100) : 0;
 
-  // Année clôturée = lecture seule totale
-  const isReadOnly = selectedYear?.status === "closed";
-  // Verrouillé pendant le calcul ou pour une année clôturée
+  // Année clôturée ou publiée = lecture seule totale
+  const isReadOnly = !!selectedYear && ["closed", "published"].includes(selectedYear.status);
+  // Verrouillé pendant le calcul ou pour une année clôturée/publiée
   const isLocked = polling || isReadOnly;
-  // Phase vœux terminée dès que l'algo est lancé (pre_assignment, validation, closed)
+  // Phase vœux terminée (imports/sync désactivés)
   const isPastWishPhase =
     !!selectedYear &&
-    !["initialization", "recommendation", "consolidation"].includes(selectedYear.status);
+    !["initialization", "recommendation", "candidature", "import"].includes(selectedYear.status);
   // Des corrections manuelles ont été importées → relancer l'algo les écraserait
   const hasOverrides = [...resultsMap.values()].some((r) => r.source === "override");
+  // Bouton "Lancer l'affectation" : uniquement depuis l'état import, sans corrections existantes
+  const canLaunch = selectedYear?.status === "import" && !hasOverrides && !isLocked;
+  // Bouton "Valider corrections" : uniquement depuis validation avec assignment proposé
+  const canValidate = selectedYear?.status === "validation" && assignment?.status === "proposed" && !isLocked;
+  // Bouton "Publier" : uniquement depuis validation avec assignment validé
+  const canPublish = selectedYear?.status === "validation" && assignment?.status === "validated" && !isLocked;
 
-  // Fill-rate par département — total calculé depuis les résultats de l'affectation (même run que stats)
-  const totalByDept = [...resultsMap.values()].reduce<Record<string, number>>((acc, r) => {
-    if (r.department_code) acc[r.department_code] = (acc[r.department_code] ?? 0) + 1;
-    return acc;
-  }, {});
+  // Fill-rate par département — total issu du backend (tous étudiants, affectés ou non)
   const deptWithFillRate = stats
     ? stats.by_department.map((d) => {
-        const total = totalByDept[d.department_code] ?? d.count;
+        const total = stats.total_by_dept[d.department_code] ?? d.count;
         return { ...d, total, fill_rate: total > 0 ? Math.round((d.count / total) * 100) : 0 };
       })
     : [];
@@ -484,7 +545,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
             {polling
               ? "Algorithme Gale-Shapley en cours — les résultats s'afficheront automatiquement."
               : assignment
-                ? `Affectation — ${assignment.assigned_count} étudiants placés sur ${assignment.total_students} (${assignedPct}%)`
+                ? `Affectation — ${effectiveAssigned} étudiants placés sur ${effectiveTotal} (${assignedPct}%)`
                 : "Aucune affectation calculée pour cette année. Cliquez sur « Lancer l'affectation »."}
           </span>
           {!polling && assignment && (() => {
@@ -503,7 +564,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
         <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
           <CheckCircle2 className="h-5 w-5 text-emerald-600" />
           <span className="text-sm font-medium text-emerald-700">
-            {`Affectation — ${assignment.assigned_count} étudiants placés sur ${assignment.total_students} (${assignedPct}%)`}
+            {`Affectation — ${effectiveAssigned} étudiants placés sur ${effectiveTotal} (${assignedPct}%)`}
           </span>
           {(() => {
             const s = ASSIGNMENT_STATUS_LABELS[assignment.status];
@@ -522,7 +583,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
           <StatCard
             label="Étudiants avec vœux"
             value={studentsWithWishes}
-            helper={`sur ${wishes.length} inscrits`}
+            helper={stats ? `sur ${stats.total_enrolled} inscrits` : `${studentsWithWishes} ayant exprimé des souhaits`}
             icon={Users}
             tone="blue"
           />
@@ -549,13 +610,13 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
           <StatCard
             label="Taux d'affectation"
             value={`${assignedPct}%`}
-            helper={`${assignment.assigned_count} étudiants partent en mobilité`}
+            helper={`${effectiveAssigned} étudiants partent en mobilité`}
             icon={CheckCircle2}
             tone="emerald"
           />
           <StatCard
             label="Sans affectation"
-            value={assignment.unassigned_count}
+            value={effectiveUnassigned}
             helper="Tous les quotas étaient pleins"
             icon={XCircle}
             tone="amber"
@@ -585,7 +646,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
             : "border-emerald-200 bg-emerald-50"
         }`}>
           <p className={`font-medium ${overrideReport.errors.length > 0 ? "text-amber-800" : "text-emerald-800"}`}>
-            Import corrections : {overrideReport.updated} appliquée(s), {overrideReport.unchanged} inchangée(s)
+            Import corrections : {overrideReport.updated} appliquée(s), {overrideReport.skipped} sans correction
             {overrideReport.errors.length > 0 ? `, ${overrideReport.errors.length} erreur(s)` : ""}
           </p>
           {overrideReport.errors.map((e, i) => (
@@ -623,23 +684,30 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
             </Btn>
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
             <FileBtn
-              disabled={!assignment || assignment.status !== "proposed" || isLocked || importingOverrides}
+              disabled={!canValidate || importingOverrides}
               onFile={(file) => { void handleImportOverrides(file); }}
             >
               {importingOverrides ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               {importingOverrides ? "Import..." : "Importer corrections"}
             </FileBtn>
             <Btn
-              disabled={!assignment || !["proposed", "validated"].includes(assignment.status) || isLocked || validating}
+              disabled={!canValidate || validating}
               onClick={() => { void handleValidate(); }}
             >
               {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              {validating ? "Publication..." : "Valider"}
+              {validating ? "Validation..." : "Valider corrections"}
+            </Btn>
+            <Btn
+              disabled={!canPublish || validating}
+              onClick={() => { void handlePublish(); }}
+            >
+              {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              {validating ? "Publication..." : "Publier les résultats"}
             </Btn>
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
             <Btn
               variant="primary"
-              disabled={launching || isLocked || !selectedYear || isPastWishPhase || hasOverrides}
+              disabled={!canLaunch || launching}
               onClick={() => { void handleLaunch(); }}
             >
               {launching || polling
@@ -800,7 +868,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                             <td className="px-6 py-1.5 text-right font-mono text-gray-600">{dept.assigned}</td>
                             <td className="px-6 py-1.5 text-right">
                               {dept.quota > 0 ? (
-                                <FillRateCell rate={Math.round(dept.assigned / dept.quota * 100)} />
+                                <FillRateCell rate={Math.min(100, Math.round((dept.assigned / dept.quota) * 100))} />
                               ) : (
                                 <span className="text-xs text-gray-400">—</span>
                               )}
@@ -867,7 +935,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                     <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
                       <th className="px-6 py-3">Pays</th>
                       <th className="px-6 py-3 text-right">Étudiants placés</th>
-                      <th className="px-6 py-3 text-right">Part (%)</th>
+                      <th className="px-6 py-3 text-right">% des affectés</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -1195,23 +1263,16 @@ function DecisionCell({
     return <span className="text-xs italic text-gray-300">—</span>;
   }
 
-  const isOverride     = result.source === "override";
-  const _isForceUnassign = isOverride && result.override_slot_type === "unassigned";
+  const isOverride = result.source === "override";
 
-  // Slot type effectif affiché dans le badge final
-  const _effectiveSlotType = isOverride
+  // Slot type effectif (override_slot_type si correction manuelle, sinon auto)
+  const effectiveSlotType = isOverride
     ? (result.override_slot_type ?? result.slot_type)
     : result.slot_type;
 
-  // Final (effective) assignment data
+  // Données finales affichées en tête de cellule
   const finalUniversity = isOverride ? result.override_university_name : result.university_name;
   const finalAgreement  = isOverride ? result.override_agreement_name  : result.agreement_name;
-
-  // Données auto originales — toujours conservées pour traçabilité
-  const autoUniversity = isOverride ? result.university_name : null;
-  const autoAgreement  = isOverride ? result.agreement_name  : null;
-  const _autoSlotType  = isOverride ? result.slot_type : null;
-  const _autoRank      = isOverride ? result.assigned_rank : null;
 
   async function submitOverride() {
     if (!onOverride || !motif.trim() || !selectedAyId) return;
@@ -1241,10 +1302,10 @@ function DecisionCell({
         <p className="text-xs text-gray-500 leading-snug break-words">{finalAgreement}</p>
       )}
 
-      {/* Slot type + badge Modifié */}
+      {/* Slot type effectif + badge Modifié */}
       <div className="flex flex-wrap items-center gap-1 mt-0.5">
-        <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium ${SLOT_COLORS[result.slot_type] ?? "bg-gray-100 text-gray-700"}`}>
-          {SLOT_LABELS[result.slot_type] ?? result.slot_type}
+        <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium ${SLOT_COLORS[effectiveSlotType] ?? "bg-gray-100 text-gray-700"}`}>
+          {SLOT_LABELS[effectiveSlotType] ?? effectiveSlotType}
         </span>
         {isOverride && (
           <span className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
@@ -1253,16 +1314,18 @@ function DecisionCell({
         )}
       </div>
 
-      {/* Contexte auto — affiché pour tous les overrides */}
-      {(autoUniversity || autoAgreement) && (
+      {/* Contexte auto — séparé par une ligne, toujours affiché quand override */}
+      {isOverride && (
         <div className="mt-1 border-t border-gray-100 pt-1 space-y-0.5">
-          {autoUniversity ? (
-            <p className="text-xs text-gray-400 leading-snug break-words">Auto : {autoUniversity}</p>
+          {result.university_name ? (
+            <p className="text-xs text-gray-400 leading-snug break-words">
+              Auto : {result.university_name}
+            </p>
           ) : (
             <p className="text-xs text-gray-400 leading-snug">Auto : Non affecté</p>
           )}
-          {autoAgreement && (
-            <p className="text-xs text-gray-300 leading-snug break-words">{autoAgreement}</p>
+          {result.agreement_name && (
+            <p className="text-xs text-gray-300 leading-snug break-words">{result.agreement_name}</p>
           )}
         </div>
       )}

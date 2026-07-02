@@ -3,9 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     staleTimes: {
-      // Pages visited once are served from router cache for 30s without a network round-trip.
-      // Covers the most common back-navigation pattern (e.g. list → detail → back).
-      dynamic: 30,
+      // 0 = pas de router cache côté client pour les pages dynamiques.
+      // Les statuts FSM doivent toujours être frais après une transition.
+      dynamic: 0,
     },
   },
 };

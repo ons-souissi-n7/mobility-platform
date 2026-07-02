@@ -1,3 +1,12 @@
+export type SystemAlert = {
+  id: number;
+  level: "warning" | "error";
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+};
+
 export type PagedResponse<T> = {
   count: number;
   page: number;
@@ -38,6 +47,8 @@ export type PartnerUniversity = {
   url: string;
   email: string;
   country_id: number;
+  country_iso2: string;
+  country_name_fr: string;
   last_sync_moveon: string | null;
   created_at: string;
   updated_at: string;
@@ -125,9 +136,11 @@ export type Level = {
 export type AcademicYearStatus =
   | "initialization"
   | "recommendation"
-  | "consolidation"
+  | "candidature"
+  | "import"
   | "pre_assignment"
   | "validation"
+  | "published"
   | "closed";
 
 export type Parcours = {
@@ -362,7 +375,7 @@ export type AssignmentResult = {
 
 export type OverrideImportReport = {
   updated: number;
-  unchanged: number;
+  skipped: number;
   errors: Array<{ ine: string; ligne: number; erreur: string }>;
 };
 
@@ -413,8 +426,10 @@ export type AssignmentStats = {
   total_students: number;
   assigned_count: number;
   unassigned_count: number;
+  total_enrolled: number;
   by_slot_type: Record<string, number>;
   by_department: AssignmentDeptStat[];
+  total_by_dept: Record<string, number>;
   by_agreement: AssignmentAgreementStat[];
   by_country: AssignmentCountryStat[];
   by_dept_country: AssignmentDeptCountryStat[];

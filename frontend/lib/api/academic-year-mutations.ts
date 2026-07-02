@@ -8,9 +8,10 @@ export type AcademicYearPayload = Omit<
 
 export type AcademicYearTransition =
   | "open-recommendation"
-  | "start-consolidation"
-  | "launch-pre-assignment"
-  | "submit-for-validation"
+  | "start-candidature"
+  | "close-wishes"
+  | "launch-assignment"
+  | "publish-results"
   | "close";
 
 export function createAcademicYear(payload: AcademicYearPayload) {

@@ -9,10 +9,12 @@ describe("statusLabels", () => {
   it("maps every status to a French label", () => {
     expect(statusLabels.initialization).toBe("Initialisation");
     expect(statusLabels.recommendation).toBe("Recommandation");
-    expect(statusLabels.consolidation).toBe("Consolidation");
-    expect(statusLabels.pre_assignment).toBe("Pre-affectation");
+    expect(statusLabels.candidature).toBe("Candidature");
+    expect(statusLabels.import).toBe("Import");
+    expect(statusLabels.pre_assignment).toBe("Affectation en cours");
     expect(statusLabels.validation).toBe("Validation");
-    expect(statusLabels.closed).toBe("Cloturee");
+    expect(statusLabels.published).toBe("Publiée");
+    expect(statusLabels.closed).toBe("Clôturée");
   });
 });
 
@@ -37,10 +39,28 @@ describe("nextTransitions", () => {
     expect(nextTransitions.initialization?.transition).toBe("open-recommendation");
   });
 
-  it("defines a transition for pre_assignment", () => {
-    expect(nextTransitions.pre_assignment?.transition).toBe(
-      "submit-for-validation",
-    );
+  it("defines a transition for recommendation", () => {
+    expect(nextTransitions.recommendation?.transition).toBe("start-candidature");
+  });
+
+  it("defines a transition for import", () => {
+    expect(nextTransitions.import?.transition).toBe("launch-assignment");
+  });
+
+  it("defines a transition for validation", () => {
+    expect(nextTransitions.validation?.transition).toBe("publish-results");
+  });
+
+  it("does not define a transition for candidature (automatic via scheduler)", () => {
+    expect(nextTransitions.candidature).toBeUndefined();
+  });
+
+  it("does not define a transition for pre_assignment (automatic after algo)", () => {
+    expect(nextTransitions.pre_assignment).toBeUndefined();
+  });
+
+  it("does not define a transition for published (automatic via scheduler)", () => {
+    expect(nextTransitions.published).toBeUndefined();
   });
 
   it("does not define a transition for closed (terminal state)", () => {
