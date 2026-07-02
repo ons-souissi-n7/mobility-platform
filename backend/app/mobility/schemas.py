@@ -103,7 +103,7 @@ class AgreementYearValidateIn(Schema):
 
 class AgreementYearDepartmentIn(Schema):
     agreement_year_id: int
-    agreement_department_id: int
+    department_id: int
     estimated_places: int = 0
 
 
@@ -113,12 +113,18 @@ class AgreementYearDepartmentOut(Schema):
     agreement_department_id: int
     department_id: int
     estimated_places: int
+    adjusted_places: int | None
+    effective_places: int
     created_at: datetime
     updated_at: datetime
 
     @staticmethod
     def resolve_department_id(obj) -> int:
         return obj.agreement_department.department_id
+
+    @staticmethod
+    def resolve_effective_places(obj) -> int:
+        return obj.get_effective_quota()
 
 
 class MobilityCategoryIn(Schema):

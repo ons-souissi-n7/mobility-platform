@@ -9,7 +9,7 @@
       "updated_by": "",
       "student": 1,
       "academic_year": 1,
-      "department": 13,
+      "department": 1,
       "level": 2,
       "parcours": 1,
       "gpa": "2.90"
@@ -25,7 +25,7 @@
       "updated_by": "",
       "student": 1,
       "academic_year": 2,
-      "department": 13,
+      "department": 1,
       "level": 5,
       "parcours": 1,
       "gpa": "3.04"
@@ -41,7 +41,7 @@
       "updated_by": "",
       "student": 1,
       "academic_year": 3,
-      "department": 13,
+      "department": 1,
       "level": 7,
       "parcours": 1,
       "gpa": "3.16"
@@ -57,7 +57,7 @@
       "updated_by": "",
       "student": 2,
       "academic_year": 1,
-      "department": 14,
+      "department": 2,
       "level": 2,
       "parcours": 3,
       "gpa": "3.22"
@@ -73,7 +73,7 @@
       "updated_by": "",
       "student": 2,
       "academic_year": 2,
-      "department": 14,
+      "department": 2,
       "level": 5,
       "parcours": 3,
       "gpa": "3.34"
@@ -89,7 +89,7 @@
       "updated_by": "",
       "student": 2,
       "academic_year": 3,
-      "department": 14,
+      "department": 2,
       "level": 7,
       "parcours": 3,
       "gpa": "3.44"
@@ -105,7 +105,7 @@
       "updated_by": "",
       "student": 3,
       "academic_year": 1,
-      "department": 15,
+      "department": 3,
       "level": 2,
       "parcours": 5,
       "gpa": "2.76"
@@ -121,7 +121,7 @@
       "updated_by": "",
       "student": 3,
       "academic_year": 2,
-      "department": 15,
+      "department": 3,
       "level": 5,
       "parcours": 5,
       "gpa": "2.86"
@@ -137,7 +137,7 @@
       "updated_by": "",
       "student": 3,
       "academic_year": 3,
-      "department": 15,
+      "department": 3,
       "level": 7,
       "parcours": 5,
       "gpa": "2.98"
@@ -153,7 +153,7 @@
       "updated_by": "",
       "student": 4,
       "academic_year": 1,
-      "department": 13,
+      "department": 1,
       "level": 2,
       "parcours": 2,
       "gpa": "3.50"
@@ -169,7 +169,7 @@
       "updated_by": "",
       "student": 4,
       "academic_year": 2,
-      "department": 13,
+      "department": 1,
       "level": 5,
       "parcours": 2,
       "gpa": "3.58"
@@ -185,7 +185,7 @@
       "updated_by": "",
       "student": 4,
       "academic_year": 3,
-      "department": 13,
+      "department": 1,
       "level": 7,
       "parcours": 2,
       "gpa": "3.64"
@@ -201,7 +201,7 @@
       "updated_by": "",
       "student": 5,
       "academic_year": 1,
-      "department": 14,
+      "department": 2,
       "level": 2,
       "parcours": 4,
       "gpa": "2.58"
@@ -217,7 +217,7 @@
       "updated_by": "",
       "student": 5,
       "academic_year": 2,
-      "department": 14,
+      "department": 2,
       "level": 5,
       "parcours": 4,
       "gpa": "2.70"
@@ -233,7 +233,7 @@
       "updated_by": "",
       "student": 5,
       "academic_year": 3,
-      "department": 14,
+      "department": 2,
       "level": 7,
       "parcours": 4,
       "gpa": "2.82"
@@ -249,7 +249,7 @@
       "updated_by": "",
       "student": 6,
       "academic_year": 1,
-      "department": 13,
+      "department": 1,
       "level": 5,
       "parcours": 1,
       "gpa": "3.12"
@@ -265,7 +265,7 @@
       "updated_by": "",
       "student": 6,
       "academic_year": 2,
-      "department": 13,
+      "department": 1,
       "level": 7,
       "parcours": 1,
       "gpa": "3.26"
@@ -281,7 +281,7 @@
       "updated_by": "",
       "student": 7,
       "academic_year": 1,
-      "department": 14,
+      "department": 2,
       "level": 5,
       "parcours": 3,
       "gpa": "2.94"
@@ -297,7 +297,7 @@
       "updated_by": "",
       "student": 7,
       "academic_year": 2,
-      "department": 14,
+      "department": 2,
       "level": 7,
       "parcours": 3,
       "gpa": "3.02"
@@ -313,7 +313,7 @@
       "updated_by": "",
       "student": 8,
       "academic_year": 1,
-      "department": 13,
+      "department": 1,
       "level": 1,
       "parcours": 1,
       "gpa": "3.36"
@@ -329,7 +329,7 @@
       "updated_by": "",
       "student": 8,
       "academic_year": 2,
-      "department": 13,
+      "department": 1,
       "level": 4,
       "parcours": 1,
       "gpa": "3.48"
@@ -345,7 +345,7 @@
       "updated_by": "",
       "student": 9,
       "academic_year": 1,
-      "department": 14,
+      "department": 2,
       "level": 1,
       "parcours": 3,
       "gpa": "3.06"
@@ -361,7 +361,7 @@
       "updated_by": "",
       "student": 9,
       "academic_year": 2,
-      "department": 14,
+      "department": 2,
       "level": 4,
       "parcours": 3,
       "gpa": "3.16"
@@ -377,7 +377,7 @@
       "updated_by": "",
       "student": 10,
       "academic_year": 2,
-      "department": 13,
+      "department": 1,
       "level": 2,
       "parcours": 1,
       "gpa": "3.18"
@@ -393,7 +393,7 @@
       "updated_by": "",
       "student": 10,
       "academic_year": 3,
-      "department": 13,
+      "department": 1,
       "level": 5,
       "parcours": 1,
       "gpa": "3.28"
@@ -409,7 +409,7 @@
       "updated_by": "",
       "student": 11,
       "academic_year": 2,
-      "department": 14,
+      "department": 2,
       "level": 2,
       "parcours": 4,
       "gpa": "2.64"
@@ -425,7 +425,7 @@
       "updated_by": "",
       "student": 11,
       "academic_year": 3,
-      "department": 14,
+      "department": 2,
       "level": 5,
       "parcours": 4,
       "gpa": "2.80"
@@ -441,7 +441,7 @@
       "updated_by": "",
       "student": 12,
       "academic_year": 2,
-      "department": 15,
+      "department": 3,
       "level": 2,
       "parcours": 5,
       "gpa": "3.24"
@@ -457,7 +457,7 @@
       "updated_by": "",
       "student": 12,
       "academic_year": 3,
-      "department": 15,
+      "department": 3,
       "level": 5,
       "parcours": 5,
       "gpa": "3.38"
@@ -473,7 +473,7 @@
       "updated_by": "",
       "student": 13,
       "academic_year": 3,
-      "department": 13,
+      "department": 1,
       "level": 2,
       "parcours": 2,
       "gpa": "2.92"
@@ -489,7 +489,7 @@
       "updated_by": "",
       "student": 14,
       "academic_year": 3,
-      "department": 14,
+      "department": 2,
       "level": 2,
       "parcours": 3,
       "gpa": "3.08"
@@ -505,7 +505,7 @@
       "updated_by": "",
       "student": 15,
       "academic_year": 3,
-      "department": 13,
+      "department": 1,
       "level": 1,
       "parcours": 1,
       "gpa": "3.42"

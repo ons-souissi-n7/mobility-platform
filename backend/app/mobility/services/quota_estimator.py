@@ -68,16 +68,38 @@ def initialize_new_year_mobility(new_year: AcademicYear) -> InitResult:
 
 
 def redistribute_department_quotas(instance: AgreementYear) -> None:
-    """Redistribue équitablement n7_places sur les départements contraints."""
+    """Redistribue n7_places sur les départements en conservant les proportions actuelles."""
+    current_quotas: dict[int, int] = {
+        dq.agreement_department.department_id: dq.get_effective_quota()
+        for dq in AgreementYearDepartment.objects.filter(
+            agreement_year=instance
+        ).select_related("agreement_department")
+    }
     AgreementYearDepartment.objects.filter(agreement_year=instance).delete()
+
+    if current_quotas:
+        constrained = list(
+            AgreementDepartment.objects.filter(
+                agreement=instance.agreement
+            ).select_related("department")
+        )
+        if constrained and sum(current_quotas.values()) > 0:
+            _create_from_history(instance, constrained, current_quotas)
+            return
+
     _create_department_quotas(instance, previous_year=None)
 
 
 def ensure_dept_quotas_on_activation(instance: AgreementYear) -> None:
     if AgreementYearDepartment.objects.filter(agreement_year=instance).exists():
         return
+
     if instance.n7_places <= 0:
-        return
+        calculated = _estimate_n7_from_inp(instance.agreement)
+        if calculated <= 0:
+            return
+        instance.n7_places = calculated
+        instance.save(update_fields=["n7_places", "updated_at"])
 
     previous_year = (
         AcademicYear.objects.filter(
@@ -93,25 +115,22 @@ def ensure_dept_quotas_on_activation(instance: AgreementYear) -> None:
 # ── private helpers ────────────────────────────────────────────────────────────
 
 
-def _estimate_n7_places(
-    agreement: Agreement, previous_year: AcademicYear | None
-) -> int:
-    if previous_year is not None:
-        prev = AgreementYear.objects.filter(
-            agreement=agreement, academic_year=previous_year
-        ).first()
-        if prev is not None:
-            return prev.n7_places
-
+def _estimate_n7_from_inp(agreement: Agreement) -> int:
     inp = agreement.inp_total_places
     if inp <= 0:
         return 0
-
     institutions = [
         i.strip() for i in agreement.inp_institutions.split(",") if i.strip()
     ]
     n_institutions = max(1, len(institutions))
     return max(1, round(inp / n_institutions))
+
+
+def _estimate_n7_places(
+    agreement: Agreement,
+    previous_year: AcademicYear | None,  # noqa: ARG001
+) -> int:
+    return _estimate_n7_from_inp(agreement)
 
 
 @transaction.atomic
@@ -154,19 +173,31 @@ def _create_from_history(
     constrained_dept_ids = {ad.department_id for ad in constrained}
     history_total = sum(v for k, v in prev_places.items() if k in constrained_dept_ids)
     n7 = instance.n7_places
+    n = len(constrained)
 
-    for agreement_department in constrained:
-        hist = prev_places.get(agreement_department.department_id, 0)
-        if history_total > 0:
-            places = round(n7 * hist / history_total)
-        else:
-            places = n7 // len(constrained)
+    if history_total == 0 or n == 0:
+        # Fall back to equal split when no usable history.
+        return _create_equal_split(instance, constrained)
+
+    # Largest-remainder method: floor each share, then give the remaining
+    # places one by one to the departments with the highest fractional parts.
+    exact = [
+        n7 * prev_places.get(ad.department_id, 0) / history_total for ad in constrained
+    ]
+    floors = [int(e) for e in exact]
+    remainder = n7 - sum(floors)
+    fractions = [(exact[i] - floors[i], i) for i in range(n)]
+    fractions.sort(key=lambda x: x[0], reverse=True)
+    for _, idx in fractions[:remainder]:
+        floors[idx] += 1
+
+    for agreement_department, places in zip(constrained, floors, strict=True):
         AgreementYearDepartment.objects.create(
             agreement_year=instance,
             agreement_department=agreement_department,
             estimated_places=max(0, places),
         )
-    return len(constrained)
+    return n
 
 
 def _create_equal_split(

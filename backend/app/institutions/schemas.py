@@ -28,9 +28,19 @@ class PartnerUniversityOut(Schema):
     url: str
     email: str
     country_id: int
+    country_iso2: str
+    country_name_fr: str
     last_sync_moveon: datetime | None
     created_at: datetime
     updated_at: datetime
+
+    @staticmethod
+    def resolve_country_iso2(obj) -> str:
+        return obj.country.iso2 if obj.country_id else ""
+
+    @staticmethod
+    def resolve_country_name_fr(obj) -> str:
+        return obj.country.name_fr if obj.country_id else ""
 
 
 class PartnerUniversityImportRetryIn(Schema):

@@ -1,5 +1,7 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
+
 import { nextTransitions, statusLabels, statusTone } from "@/components/academic-years/status";
 import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -33,13 +35,19 @@ function getColumns({
     {
       key: "status",
       header: "Statut",
-      render: (year) => (
-        <span
-          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusTone[year.status]}`}
-        >
-          {statusLabels[year.status]}
-        </span>
-      ),
+      render: (year) =>
+        year.status === "pre_assignment" ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-800">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {statusLabels[year.status]}
+          </span>
+        ) : (
+          <span
+            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusTone[year.status]}`}
+          >
+            {statusLabels[year.status]}
+          </span>
+        ),
     },
     {
       key: "wishes",
@@ -48,22 +56,22 @@ function getColumns({
         `${formatDate(year.wishes_open_date)} - ${formatDate(year.wishes_close_date)}`,
     },
     {
-      key: "milestones",
-      header: "Jalons",
-      render: (year) => (
-        <div className="text-xs text-gray-600">
-          <p>Voeux: {formatDate(year.wishes_open_date)} → {formatDate(year.wishes_close_date)}</p>
-        </div>
-      ),
-    },
-    {
       key: "transition",
       header: "Transition",
       render: (year) => {
         const next = nextTransitions[year.status];
 
+        if (year.status === "pre_assignment") {
+          return (
+            <span className="inline-flex items-center gap-1.5 text-sm text-purple-600">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Calcul en cours…
+            </span>
+          );
+        }
+
         if (!next) {
-          return <span className="text-sm text-gray-400">Aucune</span>;
+          return <span className="text-sm text-gray-400">—</span>;
         }
 
         return (

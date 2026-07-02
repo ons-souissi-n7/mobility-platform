@@ -5,10 +5,9 @@ Prérequis (fixtures déjà chargées dans la DB) :
   - Départements  : SN pk=13, 3EA pk=14, MF2E pk=15
   - Niveaux       : 2ING pk=5 (FISE), 3ING pk=7 (FISA)
   - Accords       : 7 accords pk=1-7 (chargés via loaddata agreements)
-  - Année 2025-2026 : pk=4, statut initialization → passé en consolidation
+  - Année 2025-2026 : pk=4, statut quelconque
 
 Ce que le script crée :
-  - Statut 2025-2026 → consolidation
   - 5 nouveaux accords de mobilité (EPFL, TU Berlin, Politecnico Torino, Imperial, Lund)
   - AgreementYears 2025-2026 pour tous les accords (12 au total)
   - AgreementYearDepartments (quotas par département)
@@ -29,13 +28,13 @@ from django.db import transaction
 # ── Quotas pour les accords existants (AgreementYears 2025-2026) ──────────────
 # (agreement_name, {dept_code: estimated_places}, n7_places)
 EXISTING_AGREEMENT_QUOTAS_2526 = [
-    ("Erasmus+ TU Munchen", {"SN": 3, "3EA": 2}, 6),
-    ("Erasmus+ UPM Madrid", {"SN": 2, "MF2E": 2}, 5),
-    ("Convention ETH Zurich", {"3EA": 2, "MF2E": 2}, 5),
-    ("Convention McGill", {"SN": 2, "3EA": 1}, 4),
-    ("Erasmus+ Politecnico di Milano", {"SN": 2, "3EA": 2, "MF2E": 2}, 7),
-    ("Erasmus+ TU Delft", {"3EA": 2, "MF2E": 2}, 5),
-    ("Erasmus+ KTH Stockholm", {"SN": 2, "3EA": 2}, 5),
+    ("Erasmus+ TU Munchen", {"SN": 3, "3EA": 2}, 5),
+    ("Erasmus+ UPM Madrid", {"SN": 2, "MF2E": 2}, 4),
+    ("Convention ETH Zurich", {"3EA": 2, "MF2E": 2}, 4),
+    ("Convention McGill", {"SN": 2, "3EA": 1}, 3),
+    ("Erasmus+ Politecnico di Milano", {"SN": 2, "3EA": 2, "MF2E": 2}, 6),
+    ("Erasmus+ TU Delft", {"3EA": 2, "MF2E": 2}, 4),
+    ("Erasmus+ KTH Stockholm", {"SN": 2, "3EA": 2}, 4),
 ]
 
 # ── Nouveaux accords à créer si absents ──────────────────────────────────────
@@ -48,7 +47,7 @@ NEW_AGREEMENTS_DATA = [
         "CH",
         "Exchange",
         {"SN": 2, "MF2E": 2},
-        5,
+        4,
     ),
     (
         "Erasmus+ TU Berlin",
@@ -56,7 +55,7 @@ NEW_AGREEMENTS_DATA = [
         "DE",
         "Erasmus",
         {"SN": 2, "3EA": 2},
-        5,
+        4,
     ),
     (
         "Erasmus+ Politecnico Torino",
@@ -64,7 +63,7 @@ NEW_AGREEMENTS_DATA = [
         "IT",
         "Erasmus",
         {"3EA": 2, "MF2E": 2},
-        5,
+        4,
     ),
     (
         "Convention Imperial College",
@@ -72,7 +71,7 @@ NEW_AGREEMENTS_DATA = [
         "GB",
         "DD",
         {"SN": 1, "3EA": 1},
-        3,
+        2,
     ),
     (
         "Convention Lund University",
@@ -80,13 +79,34 @@ NEW_AGREEMENTS_DATA = [
         "SE",
         "Exchange",
         {"SN": 1, "3EA": 1, "MF2E": 1},
-        4,
+        3,
     ),
 ]
 
 ALL_AGREEMENT_NAMES = [a[0] for a in EXISTING_AGREEMENT_QUOTAS_2526] + [
     a[0] for a in NEW_AGREEMENTS_DATA
 ]
+
+# Quotas combinés : accords existants + nouveaux (pour _ensure_agreement_year_departments)
+ALL_AGREEMENT_QUOTAS_2526 = EXISTING_AGREEMENT_QUOTAS_2526 + [
+    (name, dept_quotas, n7_places)
+    for name, _univ, _country, _cat, dept_quotas, n7_places in NEW_AGREEMENTS_DATA
+]
+
+# ── Étudiants boursiers ───────────────────────────────────────────────────────
+SCHOLARSHIP_INES: set[str] = {
+    "20SN002FISE",
+    "20SN007FISE",
+    "20SN013FISE",
+    "203EA04FISE",
+    "203EA09FISE",
+    "20MF203FISE",
+    "20MF208FISE",
+    "20SN003FISA",
+    "203EA06FISA",
+    "20MF204FISA",
+    "20MF205FISA",
+}
 
 # ── Vœux imposés pour certains étudiants MF2E ─────────────────────────────────
 # Ces 3 étudiants MF2E souhaitent des accords qui N'ONT PAS de quota MF2E.
@@ -697,19 +717,25 @@ class Command(BaseCommand):
             level_2ing = self._load_level("2ING")
             level_3ing = self._load_level("3ING")
             country_map = self._load_countries()
+            parcours_map = self._load_parcours()
             self._ensure_new_agreements(dept_map, country_map, current_year)
             self._ensure_agreement_year_departments(dept_map, current_year)
             enrollments = self._create_students_and_enrollments(
-                dept_map, level_2ing, level_3ing, country_map, current_year
+                dept_map,
+                level_2ing,
+                level_3ing,
+                country_map,
+                current_year,
+                parcours_map,
             )
             self._create_wishes(enrollments, current_year)
             self._create_historical_assignments(
-                dept_map, level_2ing, level_3ing, country_map
+                dept_map, level_2ing, level_3ing, country_map, parcours_map
             )
 
         self.stdout.write(self.style.SUCCESS("\n✓ Seed terminé."))
         self.stdout.write(
-            "  → Lance maintenant POST /api/years/4/launch-pre-assignment/ "
+            "  → Passe l'année en état 'import' puis lance POST /api/v1/academic/years/4/launch-assignment/ "
             "pour déclencher l'algorithme Gale-Shapley.\n"
             "  → 12 accords · ~59 places · 55 étudiants : résultat attendu ~85 % affectés."
         )
@@ -805,6 +831,18 @@ class Command(BaseCommand):
         self.stdout.write(f"  Niveau {code} : pk={lvl.pk}")
         return lvl
 
+    def _load_parcours(self):
+        from app.reference.models import Parcours
+
+        dept_to_parcours: dict[str, list] = {}
+        for p in Parcours.objects.select_related("department").all():
+            dept_to_parcours.setdefault(p.department.code, []).append(p)
+        self.stdout.write(
+            "  Parcours : "
+            + ", ".join(f"{c}={len(ps)}" for c, ps in dept_to_parcours.items())
+        )
+        return dept_to_parcours
+
     def _load_countries(self):
         from app.reference.models import Country
 
@@ -864,8 +902,15 @@ class Command(BaseCommand):
             dept_quotas,
             n7_places,
         ) in NEW_AGREEMENTS_DATA:
+            category, _ = MobilityCategory.objects.get_or_create(name=cat_name)
+
             if Agreement.objects.filter(name=agr_name).exists():
-                self.stdout.write(f"  Accord déjà présent : {agr_name}")
+                agr = Agreement.objects.get(name=agr_name)
+                if agr.category_id is None:
+                    Agreement.objects.filter(pk=agr.pk).update(category=category)
+                    self.stdout.write(f"  Catégorie ajoutée : {agr_name} → {cat_name}")
+                else:
+                    self.stdout.write(f"  Accord déjà présent : {agr_name}")
                 continue
 
             country = country_map.get(country_iso2)
@@ -873,10 +918,10 @@ class Command(BaseCommand):
                 name=univ_name,
                 defaults={"country": country, "short_name": univ_name[:50]},
             )
-            category, _ = MobilityCategory.objects.get_or_create(name=cat_name)
             agr = Agreement.objects.create(
                 name=agr_name,
                 partner_university=univ,
+                category=category,
                 direction="outgoing",
                 inp_total_places=n7_places * 3,
             )
@@ -913,7 +958,7 @@ class Command(BaseCommand):
         )
 
         created_count = 0
-        for agr_name, dept_quotas, n7_places in EXISTING_AGREEMENT_QUOTAS_2526:
+        for agr_name, dept_quotas, n7_places in ALL_AGREEMENT_QUOTAS_2526:
             agr = Agreement.objects.get(name=agr_name)
 
             ay, ay_created = AgreementYear.objects.get_or_create(
@@ -954,7 +999,7 @@ class Command(BaseCommand):
     # ────────────────────────────────────────────────────────────────────────
 
     def _create_students_and_enrollments(
-        self, dept_map, level_2ing, level_3ing, country_map, current_year
+        self, dept_map, level_2ing, level_3ing, country_map, current_year, parcours_map
     ):
         from app.students.models import AnnualEnrollment, Student
 
@@ -978,6 +1023,8 @@ class Command(BaseCommand):
                     },
                 )
                 dept = dept_map[dept_code]
+                parcours_list = parcours_map.get(dept_code, [])
+                parcours = random.choice(parcours_list) if parcours_list else None
                 enrollment, e_created = AnnualEnrollment.objects.get_or_create(
                     student=student,
                     academic_year=current_year,
@@ -986,6 +1033,8 @@ class Command(BaseCommand):
                         "level": level,
                         "gpa": gpa,
                         "is_alternant": is_alternant,
+                        "parcours": parcours,
+                        "is_scholarship": ine in SCHOLARSHIP_INES,
                     },
                 )
                 if s_created or e_created:
@@ -1073,7 +1122,7 @@ class Command(BaseCommand):
     # ────────────────────────────────────────────────────────────────────────
 
     def _create_historical_assignments(
-        self, dept_map, level_2ing, level_3ing, country_map
+        self, dept_map, level_2ing, level_3ing, country_map, parcours_map
     ):
         from app.academic.models import AcademicYear
         from app.mobility.models import AgreementYear
@@ -1083,7 +1132,7 @@ class Command(BaseCommand):
             AssignmentStatus,
             SlotType,
         )
-        from app.students.models import AnnualEnrollment, Student
+        from app.students.models import AnnualEnrollment, Student, StudentWish
 
         for label in ("2022-2023", "2023-2024", "2024-2025"):
             try:
@@ -1143,6 +1192,9 @@ class Command(BaseCommand):
                 if not dept:
                     continue
 
+                parcours_list = parcours_map.get(dept_code, [])
+                parcours = random.choice(parcours_list) if parcours_list else None
+
                 enrollment, _ = AnnualEnrollment.objects.get_or_create(
                     student=student,
                     academic_year=year,
@@ -1151,20 +1203,35 @@ class Command(BaseCommand):
                         "level": level_2ing,
                         "gpa": gpa,
                         "is_alternant": False,
+                        "parcours": parcours,
+                        "is_scholarship": ine in SCHOLARSHIP_INES,
                     },
                 )
                 total += 1
 
                 eligible = dept_to_ays.get(dept_code, [])
-                if eligible and random.random() > 0.15:
-                    chosen_ay = random.choice(eligible)
+
+                # Vœux : créés avant l'affectation (cohérence stats)
+                wish_ays: list = []
+                if eligible and not enrollment.wishes.exists():
+                    n_wish = min(len(eligible), random.randint(2, 3))
+                    wish_ays = random.sample(eligible, n_wish)
+                    for rank, ay in enumerate(wish_ays, start=1):
+                        StudentWish.objects.create(
+                            annual_enrollment=enrollment,
+                            agreement_year=ay,
+                            rank=rank,
+                        )
+
+                # Affectation : 85 % des étudiants avec vœux → affecté au vœu 1
+                if wish_ays and random.random() > 0.15:
                     results.append(
                         AssignmentResult(
                             assignment=assignment,
                             annual_enrollment=enrollment,
-                            agreement_year=chosen_ay,
+                            agreement_year=wish_ays[0],
                             slot_type=random.choice([SlotType.DEPT, SlotType.SURPLUS]),
-                            assigned_rank=random.randint(1, 3),
+                            assigned_rank=1,
                         )
                     )
                     assigned += 1

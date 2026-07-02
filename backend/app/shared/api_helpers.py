@@ -22,7 +22,14 @@ class PagedResponse(Schema, Generic[T]):  # noqa: UP046
 
 class PaginationQuery(Schema):
     page: int = Query(1, ge=1)
-    page_size: int = Query(50, ge=1, le=1000)
+    page_size: int = Query(50, ge=1, le=500)
+
+
+class LargePaginationQuery(Schema):
+    """Pagination pour les endpoints qui peuvent retourner de grands volumes (ex: résultats d'affectation)."""
+
+    page: int = Query(1, ge=1)
+    page_size: int = Query(500, ge=1, le=5000)
 
 
 def paginate(qs, page: int, page_size: int):

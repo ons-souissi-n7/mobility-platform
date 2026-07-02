@@ -106,12 +106,15 @@ export function MobilityWorkspace({
   const [syncError, setSyncError] = useState("");
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [categorySyncInProgress, setCategorySyncInProgress] = useState(false);
-  const [yearFilter, setYearFilter] = useState<string>(currentYear?.label ?? "");
+  const latestYear = [...academicYears].sort((a, b) => b.start_date.localeCompare(a.start_date))[0];
+  const [yearFilter, setYearFilter] = useState<string>(currentYear?.label ?? latestYear?.label ?? "");
 
-  const isYearClosed = useMemo(() => {
-    if (!yearFilter) return false;
-    return academicYears.find((y) => y.label === yearFilter)?.status === "closed";
-  }, [academicYears, yearFilter]);
+  const selectedYearStatus = useMemo(
+    () => academicYears.find((y) => y.label === yearFilter)?.status,
+    [academicYears, yearFilter],
+  );
+  const isYearClosed = selectedYearStatus === "closed";
+  const isYearLocked = !!yearFilter && selectedYearStatus !== undefined && selectedYearStatus !== "initialization";
 
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -239,45 +242,33 @@ export function MobilityWorkspace({
 
   async function handleEditYear(yi: AgreementYear, n7Places: number) {
     setSyncError("");
-    try {
-      const updated = await updateAgreementYear(yi.id, {
-        agreement_id: yi.agreement_id,
-        academic_year_id: yi.academic_year_id,
-        is_active: yi.is_active,
-        n7_places: n7Places,
-      });
-      setAgreementYears((items) => items.map((y) => (y.id === updated.id ? updated : y)));
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : "Impossible de modifier le quota N7.");
-    }
+    const updated = await updateAgreementYear(yi.id, {
+      agreement_id: yi.agreement_id,
+      academic_year_id: yi.academic_year_id,
+      is_active: yi.is_active,
+      n7_places: n7Places,
+    });
+    setAgreementYears((items) => items.map((y) => (y.id === updated.id ? updated : y)));
   }
 
   async function handleValidateYear(yi: AgreementYear) {
     setSyncError("");
-    try {
-      const validated = await validateAgreementYear(yi.id);
-      setAgreementYears((items) => items.map((y) => (y.id === validated.id ? validated : y)));
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : "Impossible de valider l'instance.");
-    }
+    const validated = await validateAgreementYear(yi.id);
+    setAgreementYears((items) => items.map((y) => (y.id === validated.id ? validated : y)));
   }
 
   // ── DepartmentQuotas — édition inline ────────────────────────────────────
 
   async function handleSaveDeptQuota(dq: AgreementYearDepartment, places: number) {
     setSyncError("");
-    try {
-      const updated = await updateAgreementYearDepartment(dq.id, {
-        agreement_year_id: dq.agreement_year_id,
-        department_id: dq.department_id,
-        estimated_places: places,
-      });
-      setAgreementYearDepartments((items) =>
-        items.map((d) => (d.id === updated.id ? updated : d)),
-      );
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : "Impossible de modifier le quota département.");
-    }
+    const updated = await updateAgreementYearDepartment(dq.id, {
+      agreement_year_id: dq.agreement_year_id,
+      department_id: dq.department_id,
+      estimated_places: places,
+    });
+    setAgreementYearDepartments((items) =>
+      items.map((d) => (d.id === updated.id ? updated : d)),
+    );
   }
 
   // ── Categories ─────────────────────────────────────────────────────────────
@@ -472,6 +463,11 @@ export function MobilityWorkspace({
           <span className="font-semibold">Année clôturée</span> — consultation seule, toutes les modifications sont désactivées.
         </div>
       )}
+      {isYearLocked && !isYearClosed && (
+        <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+          <span className="font-semibold">Campagne en cours</span> — les quotas et accords sont verrouillés. Export disponible en lecture seule.
+        </div>
+      )}
 
       {/* ── Section Accords ─────────────────────────────────────────────── */}
       <MobilitySection
@@ -480,15 +476,15 @@ export function MobilityWorkspace({
         title="Accords de mobilité"
         toolbar={
           <div className="flex flex-wrap gap-2">
-            <Btn disabled={syncInProgress || isYearClosed} onClick={handleSync}>
+            <Btn disabled={syncInProgress || isYearClosed || isYearLocked} onClick={handleSync}>
               <RefreshCw className={`h-4 w-4 ${syncInProgress ? "animate-spin" : ""}`} />
               {syncInProgress ? "Synchronisation..." : "Sync MoveON"}
             </Btn>
-            <Btn disabled={isYearClosed} onClick={downloadExcelTemplate}>
+            <Btn onClick={downloadExcelTemplate}>
               <Download className="h-4 w-4" />
               Template
             </Btn>
-            <FileBtn disabled={excelImportInProgress || isYearClosed} onFile={handleExcelImport}>
+            <FileBtn disabled={excelImportInProgress || isYearClosed || isYearLocked} onFile={handleExcelImport}>
               {excelImportInProgress ? <Upload className="h-4 w-4 animate-bounce" /> : <FileSpreadsheet className="h-4 w-4" />}
               {excelImportInProgress ? "Import..." : "Importer Excel"}
             </FileBtn>
@@ -496,7 +492,7 @@ export function MobilityWorkspace({
               <FileDown className="h-4 w-4" />
               {exportInProgress ? "Export..." : "Exporter"}
             </Btn>
-            <Btn variant="primary" disabled={isYearClosed} onClick={() => setModal({ kind: "agreement" })}>
+            <Btn variant="primary" disabled={isYearClosed || isYearLocked} onClick={() => setModal({ kind: "agreement" })}>
               <Plus className="h-4 w-4" /> Nouvel accord
             </Btn>
           </div>
@@ -558,6 +554,7 @@ export function MobilityWorkspace({
           universities={universities}
           yearFilter={yearFilter}
           isYearClosed={isYearClosed}
+          isYearLocked={isYearLocked}
           onToggleYearActive={handleToggleYearActive}
           onEditYear={handleEditYear}
           onValidateYear={handleValidateYear}
@@ -569,7 +566,7 @@ export function MobilityWorkspace({
       {agreementErrors.length > 0 && (
         <MobilityImportErrorsPanel
           errors={agreementErrors}
-          isBusy={syncInProgress || excelImportInProgress}
+          isBusy={syncInProgress || excelImportInProgress || isYearLocked || isYearClosed}
           onIgnore={handleIgnoreImportError}
           onRetry={handleRetryImportError}
           onForce={handleForceImportError}
@@ -588,11 +585,11 @@ export function MobilityWorkspace({
         title="Cadres de mobilité"
         toolbar={
           <div className="flex flex-wrap gap-2">
-            <Btn disabled={categorySyncInProgress || isYearClosed} onClick={handleCategorySync}>
+            <Btn disabled={categorySyncInProgress || isYearClosed || isYearLocked} onClick={handleCategorySync}>
               <RefreshCw className={`h-4 w-4 ${categorySyncInProgress ? "animate-spin" : ""}`} />
               {categorySyncInProgress ? "Synchronisation..." : "Sync MoveON"}
             </Btn>
-            <Btn variant="primary" disabled={isYearClosed} onClick={() => setModal({ kind: "framework" })}>
+            <Btn variant="primary" disabled={isYearClosed || isYearLocked} onClick={() => setModal({ kind: "framework" })}>
               <Plus className="h-4 w-4" /> Nouveau cadre
             </Btn>
           </div>
@@ -600,7 +597,7 @@ export function MobilityWorkspace({
       >
         <MobilityCategorysTable
           agreementFrameworks={mobilityCategories}
-          isYearClosed={isYearClosed}
+          isYearClosed={isYearClosed || isYearLocked}
           onDelete={removeFramework}
           onEdit={(c) => setModal({ kind: "framework", item: c })}
         />

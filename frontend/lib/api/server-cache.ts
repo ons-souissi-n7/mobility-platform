@@ -11,15 +11,11 @@ import type {
 } from "@/lib/api/types";
 
 // TTL constants (seconds)
-const TTL_LONG = 3600;  // 1h  — pays (quasi-immuable)
-const TTL_MED  = 300;   // 5min — données synchro Pégase / MoveON
-const TTL_SHORT = 60;   // 1min — données modifiables par l'UI
+const TTL_MED  = 60;    // 1min — données synchro Pégase / MoveON
+const TTL_SHORT = 30;   // 30s  — données modifiables par l'UI
 
-export const getCachedCountries = unstable_cache(
-  () => getApi<Country[]>("/reference/countries/"),
-  ["ref-countries"],
-  { revalidate: TTL_LONG, tags: ["ref-countries"] },
-);
+// Pays : pas de cache — données légères (< 300 entrées), modifiables via fixtures
+export const getCachedCountries = () => getApi<Country[]>("/reference/countries/");
 
 export const getCachedDepartments = unstable_cache(
   () => getApi<Department[]>("/reference/departments/"),
@@ -39,17 +35,9 @@ export const getCachedParcours = unstable_cache(
   { revalidate: TTL_SHORT, tags: ["ref-parcours"] },
 );
 
-export const getCachedAcademicYears = unstable_cache(
-  () => getApi<AcademicYear[]>("/academic/years/"),
-  ["ref-academic-years"],
-  { revalidate: TTL_MED, tags: ["ref-academic-years"] },
-);
-
-export const getCachedCurrentYear = unstable_cache(
-  () => getApi<AcademicYear | null>("/academic/years/current/"),
-  ["ref-current-year"],
-  { revalidate: TTL_MED, tags: ["ref-academic-years"] },
-);
+// Pas de cache pour les années : le statut change via transitions et doit être immédiatement reflété.
+export const getCachedAcademicYears = () => getApi<AcademicYear[]>("/academic/years/");
+export const getCachedCurrentYear = () => getApi<AcademicYear | null>("/academic/years/current/");
 
 export const getCachedMobilityCategories = unstable_cache(
   () => getApi<MobilityCategory[]>("/mobility/agreement-categories/"),

@@ -99,33 +99,32 @@ class TestAcademicYearAPI:
         assert "dates" in response.json()["detail"].lower()
 
     def test_transition_order_returns_400(self):
+        # start-candidature requires recommendation state; from initialization → 400
         response = self.client.post(
-            f"/api/v1/academic/years/{self.academic_year.id}/close/"
+            f"/api/v1/academic/years/{self.academic_year.id}/start-candidature/"
         )
 
         assert response.status_code == 400
 
-    def test_launch_pre_assignment_advances_year_and_returns_202(self):
+    def test_launch_assignment_advances_year_and_returns_202(self):
         from unittest.mock import patch
 
-        AcademicYear.objects.filter(pk=self.academic_year.pk).update(
-            status="consolidation"
-        )
+        AcademicYear.objects.filter(pk=self.academic_year.pk).update(status="import")
         with patch("app.academic.api.enqueue_gale_shapley"):
             response = self.client.post(
-                f"/api/v1/academic/years/{self.academic_year.id}/launch-pre-assignment/"
+                f"/api/v1/academic/years/{self.academic_year.id}/launch-assignment/"
             )
         assert response.status_code == 202
         self.academic_year = AcademicYear.objects.get(pk=self.academic_year.pk)
         assert self.academic_year.status == "pre_assignment"
 
-    def test_launch_pre_assignment_returns_409_from_wrong_state(self):
+    def test_launch_assignment_returns_409_from_wrong_state(self):
         from unittest.mock import patch
 
         # Année en 'initialization' — transition interdite
         with patch("app.academic.api.enqueue_gale_shapley"):
             response = self.client.post(
-                f"/api/v1/academic/years/{self.academic_year.id}/launch-pre-assignment/"
+                f"/api/v1/academic/years/{self.academic_year.id}/launch-assignment/"
             )
         assert response.status_code == 409
 

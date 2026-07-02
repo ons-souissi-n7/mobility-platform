@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -19,8 +20,10 @@ from app.shared.cleaning import normalize_ine, normalize_string
 from app.shared.sync import already_up_to_date
 from app.shared.validators import DomainValidationError
 
-from ..models import AnnualEnrollment, Student, StudentWish
+from ..models import MAX_WISHES_PER_STUDENT, AnnualEnrollment, Student, StudentWish
 from .student_validator import validate_wish
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -106,6 +109,13 @@ def import_wish_rows(
     agreement_cache: dict[str, Agreement | None] = {}
     agreement_year_cache: dict[int, AgreementYear | None] = {}
 
+    # Pré-charger les rangs de vœux existants par inscription (évite N+1 en boucle)
+    existing_ranks: dict[int, set[int]] = {}
+    for eid, rank in StudentWish.objects.filter(
+        annual_enrollment__academic_year=academic_year
+    ).values_list("annual_enrollment_id", "rank"):
+        existing_ranks.setdefault(eid, set()).add(rank)
+
     for row in rows:
         identifier = row.ine or row.individu
         raw = RawImport(
@@ -172,6 +182,17 @@ def import_wish_rows(
             _mark_wish_unresolved(raw, report, db_report, row, identifier, reason)
             continue
 
+        if row.rank > MAX_WISHES_PER_STUDENT:
+            reason = f"Rang {row.rank} refusé : maximum {MAX_WISHES_PER_STUDENT} vœux par étudiant."
+            _mark_wish_unresolved(raw, report, db_report, row, identifier, reason)
+            continue
+
+        current_count = len(existing_ranks.get(enrollment.id, set()) - {row.rank})
+        if current_count >= MAX_WISHES_PER_STUDENT:
+            reason = f"Vœu refusé : l'étudiant {identifier!r} a déjà {MAX_WISHES_PER_STUDENT} vœux enregistrés."
+            _mark_wish_unresolved(raw, report, db_report, row, identifier, reason)
+            continue
+
         existing_wish = StudentWish.objects.filter(
             annual_enrollment=enrollment, rank=row.rank
         ).first()
@@ -205,6 +226,8 @@ def import_wish_rows(
 
         wish.last_sync_moveon = wish.updated_at
         wish.save(update_fields=["last_sync_moveon"])
+
+        existing_ranks.setdefault(enrollment.id, set()).add(row.rank)
 
         raw.status = RawImportStatus.IMPORTED
         raw.save()
@@ -281,10 +304,19 @@ def _resolve_student(
         if student is None and individu:
             parts = individu.strip().split(" ", 1)
             if len(parts) == 2:
-                student = Student.objects.filter(
+                matches = Student.objects.filter(
                     last_name__iexact=parts[0],
                     first_name__iexact=parts[1],
-                ).first()
+                )
+                count = matches.count()
+                if count > 1:
+                    logger.warning(
+                        "Homonyme détecté : %d étudiants correspondent à '%s' — "
+                        "le premier résultat sera utilisé (résolution ambiguë)",
+                        count,
+                        individu,
+                    )
+                student = matches.first()
             else:
                 student = Student.objects.filter(last_name__iexact=individu).first()
         cache[cache_key] = student

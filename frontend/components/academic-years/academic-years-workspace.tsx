@@ -18,6 +18,7 @@ import {
   type AcademicYearTransition,
 } from "@/lib/api/academic-year-mutations";
 import type { AcademicYear } from "@/lib/api/types";
+import { nextTransitions } from "@/components/academic-years/status";
 
 type AcademicYearsWorkspaceProps = {
   years: AcademicYear[];
@@ -62,12 +63,18 @@ export function AcademicYearsWorkspace({
     year: AcademicYear,
     transition: AcademicYearTransition,
   ) {
+    const next = nextTransitions[year.status];
+    if (next?.confirmMessage) {
+      const ok = await confirm(next.confirmMessage, next.label);
+      if (!ok) return;
+    }
     setActionError(null);
     try {
       const updated = await applyAcademicYearTransition(year.id, transition);
       setYears((items) =>
         items.map((item) => (item.id === updated.id ? updated : item)),
       );
+
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Impossible d'appliquer la transition.",

@@ -31,7 +31,7 @@ export type LevelPayload = Omit<Level, "id" | "created_at" | "updated_at">;
 export type ParcoursPayload = Omit<Parcours, "id">;
 export type PartnerUniversityPayload = Omit<
   PartnerUniversity,
-  "id" | "created_at" | "updated_at"
+  "id" | "created_at" | "updated_at" | "country_iso2" | "country_name_fr"
 >;
 
 export function createCountry(payload: CountryPayload) {

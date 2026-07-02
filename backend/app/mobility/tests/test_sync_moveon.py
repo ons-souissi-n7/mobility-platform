@@ -236,6 +236,7 @@ class TestMoveOnMobilitySync:
 
     def test_initialize_new_year_creates_agreement_years(self):
         university = create_university()
+        # inp_total_places=6, no inp_institutions → formula: 6/1 = 6
         agreement = Agreement.objects.create(
             moveon_id="REL-001",
             name="Erasmus outgoing agreement",
@@ -251,6 +252,7 @@ class TestMoveOnMobilitySync:
             end_date=date(2026, 8, 31),
             status=AcademicYear.CampaignStatus.CLOSED,
         )
+        # N7 historique intentionnellement différent pour valider que la formule prime
         AgreementYear.objects.create(
             agreement=agreement,
             academic_year=past_year,
@@ -270,7 +272,8 @@ class TestMoveOnMobilitySync:
         year_instance = AgreementYear.objects.get(
             agreement=agreement, academic_year=new_year
         )
-        assert year_instance.n7_places == 3
+        # Formule INP / n_institutions = 6 / 1 = 6 (l'historique n'est plus utilisé)
+        assert year_instance.n7_places == 6
         assert AgreementYearDepartment.objects.filter(
             agreement_year=year_instance
         ).exists()

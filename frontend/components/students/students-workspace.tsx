@@ -281,6 +281,7 @@ export function StudentsWorkspace({
 
   const hasFilter = !!(filterLevel || filterDept || filterParcours);
   const isBusy = importInProgress || syncInProgress || isLoading;
+  const isLocked = !!selectedYear && selectedYear.status !== "initialization";
 
   const sortedLevels = useMemo(() => [...levels].sort((a, b) => a.code.localeCompare(b.code)), [levels]);
   const sortedDepts = useMemo(() => [...departments].sort((a, b) => a.code.localeCompare(b.code)), [departments]);
@@ -314,6 +315,11 @@ export function StudentsWorkspace({
         )}
       </div>
 
+      {isLocked && selectedYear?.status !== "closed" && (
+        <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+          <span className="font-semibold">Campagne en cours</span> — consultation seule, imports et synchronisation désactivés.
+        </div>
+      )}
       {selectedYear?.status === "closed" && (
         <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           <span className="font-semibold">Année clôturée</span> — consultation seule, imports et synchronisation désactivés.
@@ -355,9 +361,9 @@ export function StudentsWorkspace({
         search={{ value: query, onChange: handleQueryChange, placeholder: "Rechercher par INE, nom, prénom..." }}
         actions={
           <>
-            <TemplateButton isLoading={templateLoading} disabled={selectedYear?.status === "closed"} onClick={handleTemplateDownload} />
-            <ExcelImportButton isLoading={importInProgress} disabled={selectedYear?.status === "closed"} onImport={handleExcelImport} />
-            <SyncButton isLoading={syncInProgress} disabled={selectedYear?.status === "closed"} onClick={handleSync} />
+            <TemplateButton isLoading={templateLoading} onClick={handleTemplateDownload} />
+            <ExcelImportButton isLoading={importInProgress} disabled={selectedYear?.status === "closed" || isLocked} onImport={handleExcelImport} />
+            <SyncButton isLoading={syncInProgress} disabled={selectedYear?.status === "closed" || isLocked} onClick={handleSync} />
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
             <Btn disabled={!selectedYear || exportInProgress || isLoading} onClick={handleExport}>
               <FileDown className="h-4 w-4" />
@@ -446,7 +452,7 @@ export function StudentsWorkspace({
         <StudentImportErrorsPanel
           departments={departments}
           errors={importErrors}
-          isBusy={isBusy}
+          isBusy={isBusy || isLocked}
           levels={levels}
           onIgnore={handleIgnoreImportError}
           onRetry={handleRetryImportError}

@@ -68,7 +68,7 @@ describe("AcademicYearsTable", () => {
         onTransition={vi.fn()}
       />,
     );
-    expect(screen.getByText("Cloturee")).toBeInTheDocument();
+    expect(screen.getByText("Clôturée")).toBeInTheDocument();
   });
 
   it("calls onEdit when edit button is clicked", async () => {

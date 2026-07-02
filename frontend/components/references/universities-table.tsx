@@ -2,8 +2,7 @@ import { ExternalLink } from "lucide-react";
 
 import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn, type ServerSidePagination } from "@/components/ui/data-table";
-import type { Country, PartnerUniversity } from "@/lib/api/types";
-import { createIdMap } from "@/lib/utils";
+import type { PartnerUniversity } from "@/lib/api/types";
 
 type UniversityRow = PartnerUniversity & {
   countryName: string;
@@ -82,7 +81,6 @@ function getColumns(
 }
 
 type UniversitiesTableProps = {
-  countries: Country[];
   onDelete: (university: PartnerUniversity) => void;
   onEdit: (university: PartnerUniversity) => void;
   universities: PartnerUniversity[];
@@ -90,16 +88,14 @@ type UniversitiesTableProps = {
 };
 
 export function UniversitiesTable({
-  countries,
   onDelete,
   onEdit,
   universities,
   serverSidePagination,
 }: UniversitiesTableProps) {
-  const countriesById = createIdMap(countries);
   const rows = universities.map((university) => ({
     ...university,
-    countryName: countriesById.get(university.country_id)?.name_fr ?? "-",
+    countryName: university.country_name_fr || "-",
   }));
 
   return (

@@ -1,7 +1,9 @@
+import logging
+
 import openpyxl
 import openpyxl.worksheet.datavalidation
 from django.db import transaction
-from django.db.models import Count, F, Max
+from django.db.models import Case, CharField, Count, F, IntegerField, Max, Q, When
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django_fsm import TransitionNotAllowed
@@ -12,9 +14,20 @@ from openpyxl.utils import get_column_letter
 from app.academic.api import get_academic_year
 from app.academic.models import AcademicYear
 from app.audit.logger import log_action
-from app.imports.models import RawImport, RawImportEntity, RawImportStatus
-from app.mobility.models import Agreement, AgreementYear
-from app.shared.api_helpers import PagedResponse, PaginationQuery, paginate
+from app.imports.models import (
+    ImportReport,
+    ImportSource,
+    RawImport,
+    RawImportEntity,
+    RawImportStatus,
+)
+from app.mobility.models import Agreement, AgreementYear, AgreementYearDepartment
+from app.shared.api_helpers import (
+    LargePaginationQuery,
+    PagedResponse,
+    PaginationQuery,
+    paginate,
+)
 from app.shared.excel_utils import (
     build_filename,
     format_agreement_label,
@@ -39,6 +52,7 @@ from .models import (
 )
 from .schemas import (
     AgreementWishOut,
+    AgreementYearOptionOut,
     AssignmentAgreementDeptStat,
     AssignmentAgreementStat,
     AssignmentOut,
@@ -51,7 +65,40 @@ from .schemas import (
 )
 from .tasks import enqueue_import_excel_wishes, enqueue_sync_moveon_wishes
 
+logger = logging.getLogger(__name__)
+
 router = Router()
+
+
+def _derive_override_rank(
+    annual_enrollment_id: int, agreement_year_id: int | None
+) -> int | None:
+    """Retourne le rang du vœu étudiant correspondant à l'accord de correction, ou None si hors vœux."""
+    if agreement_year_id is None:
+        return None
+    wish = StudentWish.objects.filter(
+        annual_enrollment_id=annual_enrollment_id,
+        agreement_year_id=agreement_year_id,
+    ).first()
+    return wish.rank if wish else None
+
+
+def _derive_slot_type(agreement_year_id: int | None, department_id: int) -> SlotType:
+    """Calcule le SlotType effectif pour un accord donné et un département étudiant."""
+    if agreement_year_id is None:
+        return SlotType.UNASSIGNED
+    has_dept_quota = (
+        AgreementYearDepartment.objects.filter(
+            agreement_year_id=agreement_year_id,
+            agreement_department__department_id=department_id,
+        )
+        .filter(
+            Q(adjusted_places__gt=0)
+            | Q(adjusted_places__isnull=True, estimated_places__gt=0)
+        )
+        .exists()
+    )
+    return SlotType.DEPT if has_dept_quota else SlotType.ALTERNATIVE
 
 
 @router.get(
@@ -96,10 +143,8 @@ def list_assignment_results(
     slot_type: str | None = None,
     department_id: int | None = None,
     search: str | None = None,
-    pagination: PaginationQuery = Query(),
+    pagination: LargePaginationQuery = Query(),
 ):
-    from django.db.models import Q
-
     if not Assignment.objects.filter(pk=assignment_id).exists():
         raise HttpError(404, "Affectation introuvable.")
 
@@ -143,16 +188,34 @@ def get_assignment_stats(request, assignment_id: int):
     except Assignment.DoesNotExist as exc:
         raise HttpError(404, "Affectation introuvable.") from exc
 
-    slot_counts = dict(
-        AssignmentResult.objects.filter(assignment=assignment)
-        .values("slot_type")
-        .annotate(n=Count("id"))
-        .values_list("slot_type", "n")
+    # Annotations pour les valeurs effectives (après overrides manuels)
+    # eff_slot : slot type final (override_slot_type si correction, sinon slot_type auto)
+    # eff_ay_id : agreement_year_id final (override_agreement_year_id si correction, sinon auto)
+    qs = AssignmentResult.objects.filter(assignment=assignment).annotate(
+        eff_slot=Case(
+            When(
+                source=ResultSource.OVERRIDE,
+                then=Coalesce(F("override_slot_type"), F("slot_type")),
+            ),
+            default=F("slot_type"),
+            output_field=CharField(max_length=20),
+        ),
+        eff_ay_id=Case(
+            When(source=ResultSource.OVERRIDE, then=F("override_agreement_year_id")),
+            default=F("agreement_year_id"),
+            output_field=IntegerField(),
+        ),
     )
 
+    slot_counts = dict(
+        qs.values("eff_slot").annotate(n=Count("id")).values_list("eff_slot", "n")
+    )
+
+    eff_assigned_count = qs.exclude(eff_slot=SlotType.UNASSIGNED).count()
+    eff_unassigned_count = qs.filter(eff_slot=SlotType.UNASSIGNED).count()
+
     dept_counts = list(
-        AssignmentResult.objects.filter(assignment=assignment)
-        .exclude(slot_type=SlotType.UNASSIGNED)
+        qs.exclude(eff_slot=SlotType.UNASSIGNED)
         .values(
             "annual_enrollment__department_id",
             "annual_enrollment__department__code",
@@ -162,46 +225,47 @@ def get_assignment_stats(request, assignment_id: int):
         .order_by("annual_enrollment__department__code")
     )
 
-    agreement_data = list(
-        AssignmentResult.objects.filter(assignment=assignment)
-        .exclude(slot_type=SlotType.UNASSIGNED)
-        .exclude(agreement_year__isnull=True)
+    # Lignes effectivement affectées avec leur ay effectif
+    effective_rows = list(
+        qs.exclude(eff_slot=SlotType.UNASSIGNED)
+        .exclude(eff_ay_id__isnull=True)
         .values(
-            "agreement_year_id",
-            "agreement_year__agreement__name",
-            "agreement_year__agreement__partner_university__name",
-            "agreement_year__n7_places",
-        )
-        .annotate(assigned=Count("id"))
-        .order_by("agreement_year__agreement__name")
-    )
-
-    ay_ids = [r["agreement_year_id"] for r in agreement_data]
-
-    # Nombre d'affectés par accord × département
-    assigned_by_ay_dept: dict[int, dict[str, dict]] = {}
-    for row in (
-        AssignmentResult.objects.filter(
-            assignment=assignment, agreement_year_id__in=ay_ids
-        )
-        .exclude(slot_type=SlotType.UNASSIGNED)
-        .values(
-            "agreement_year_id",
+            "eff_ay_id",
             "annual_enrollment__department__code",
             "annual_enrollment__department__name",
         )
-        .annotate(n=Count("id"))
-    ):
-        ay_id = row["agreement_year_id"]
+    )
+
+    ay_ids = list({r["eff_ay_id"] for r in effective_rows})
+
+    # Détails des accord-années effectives (noms, université, pays)
+    ay_detail_map = {
+        ay.id: ay
+        for ay in AgreementYear.objects.filter(pk__in=ay_ids).select_related(
+            "agreement__partner_university__country"
+        )
+    }
+
+    # Comptage affectés par (eff_ay_id × dept)
+    assigned_by_ay_dept: dict[int, dict[str, dict]] = {}
+    for row in effective_rows:
+        ay_id = row["eff_ay_id"]
         code = row["annual_enrollment__department__code"]
-        assigned_by_ay_dept.setdefault(ay_id, {})[code] = {
-            "assigned": row["n"],
-            "dept_name": row["annual_enrollment__department__name"],
-        }
+        bucket = assigned_by_ay_dept.setdefault(ay_id, {})
+        if code in bucket:
+            bucket[code]["assigned"] += 1
+        else:
+            bucket[code] = {
+                "assigned": 1,
+                "dept_name": row["annual_enrollment__department__name"],
+            }
+
+    # Comptage affectés par eff_ay_id
+    from collections import Counter
+
+    ay_assigned_count = Counter(r["eff_ay_id"] for r in effective_rows)
 
     # Quotas réservés par accord × département (AgreementYearDepartment)
-    from app.mobility.models import AgreementYearDepartment
-
     quotas_by_ay_dept: dict[int, dict[str, dict]] = {}
     for row in (
         AgreementYearDepartment.objects.filter(agreement_year_id__in=ay_ids)
@@ -219,10 +283,11 @@ def get_assignment_stats(request, assignment_id: int):
         }
 
     by_agreement = []
-    for r in agreement_data:
-        ay_id = r["agreement_year_id"]
+    for ay_id, n_assigned in sorted(ay_assigned_count.items()):
+        ay = ay_detail_map.get(ay_id)
+        if not ay:
+            continue
 
-        # Merge quota + assigned par département
         dept_map: dict[str, AssignmentAgreementDeptStat] = {}
         for code, q in quotas_by_ay_dept.get(ay_id, {}).items():
             a = assigned_by_ay_dept.get(ay_id, {}).get(code, {})
@@ -232,7 +297,6 @@ def get_assignment_stats(request, assignment_id: int):
                 quota=q["quota"],
                 assigned=a.get("assigned", 0),
             )
-        # Depts affectés mais sans quota explicite (surplus inter-depts)
         for code, a in assigned_by_ay_dept.get(ay_id, {}).items():
             if code not in dept_map:
                 dept_map[code] = AssignmentAgreementDeptStat(
@@ -245,50 +309,67 @@ def get_assignment_stats(request, assignment_id: int):
         by_agreement.append(
             AssignmentAgreementStat(
                 agreement_year_id=ay_id,
-                agreement_name=r["agreement_year__agreement__name"],
-                university_name=r[
-                    "agreement_year__agreement__partner_university__name"
-                ],
-                total_places=r["agreement_year__n7_places"],
-                assigned=r["assigned"],
-                fill_rate=round(
-                    r["assigned"] / max(r["agreement_year__n7_places"], 1) * 100, 1
-                ),
+                agreement_name=ay.agreement.name,
+                university_name=ay.agreement.partner_university.name,
+                total_places=ay.n7_places,
+                assigned=n_assigned,
+                fill_rate=round(n_assigned / max(ay.n7_places, 1) * 100, 1),
                 by_department=sorted(dept_map.values(), key=lambda x: x.dept_code),
             )
         )
 
-    country_counts = list(
-        AssignmentResult.objects.filter(assignment=assignment)
-        .exclude(slot_type=SlotType.UNASSIGNED)
-        .exclude(agreement_year__isnull=True)
-        .values(
-            "agreement_year__agreement__partner_university__country__name_fr",
-            "agreement_year__agreement__partner_university__country__iso2",
-        )
-        .annotate(count=Count("id"))
-        .order_by("-count")
-    )
+    by_agreement.sort(key=lambda x: x.agreement_name)
 
-    dept_country_counts = list(
-        AssignmentResult.objects.filter(assignment=assignment)
-        .exclude(slot_type=SlotType.UNASSIGNED)
-        .exclude(agreement_year__isnull=True)
-        .values(
-            "annual_enrollment__department__code",
-            "annual_enrollment__department__name",
-            "agreement_year__agreement__partner_university__country__name_fr",
-            "agreement_year__agreement__partner_university__country__iso2",
+    # Comptage par pays — depuis les ay effectives
+    country_counter: dict[tuple[str, str], int] = {}
+    for ay_id, n in ay_assigned_count.items():
+        ay = ay_detail_map.get(ay_id)
+        if not ay:
+            continue
+        country = ay.agreement.partner_university.country
+        key = (
+            country.name_fr if country else "Inconnu",
+            country.iso2 if country else "",
         )
-        .annotate(count=Count("id"))
-        .order_by("annual_enrollment__department__code", "-count")
+        country_counter[key] = country_counter.get(key, 0) + n
+
+    # Comptage par (dept × pays)
+    dept_country_counter: dict[tuple[str, str, str, str], int] = {}
+    for row in effective_rows:
+        ay_id = row["eff_ay_id"]
+        ay = ay_detail_map.get(ay_id)
+        if not ay:
+            continue
+        country = ay.agreement.partner_university.country
+        key = (
+            row["annual_enrollment__department__code"],
+            row["annual_enrollment__department__name"],
+            country.name_fr if country else "Inconnu",
+            country.iso2 if country else "",
+        )
+        dept_country_counter[key] = dept_country_counter.get(key, 0) + 1
+
+    # Total inscrits pour l'année (tous les étudiants avec affectation, assignés ou non)
+    from app.students.models import AnnualEnrollment
+
+    total_enrolled = AnnualEnrollment.objects.filter(
+        academic_year=assignment.academic_year
+    ).count()
+
+    # Total par département (tous étudiants, affectés ou non) depuis les résultats d'affectation
+    total_by_dept = dict(
+        qs.values("annual_enrollment__department__code")
+        .annotate(n=Count("id"))
+        .values_list("annual_enrollment__department__code", "n")
     )
 
     return AssignmentStatsOut(
         total_students=assignment.total_students,
-        assigned_count=assignment.assigned_count,
-        unassigned_count=assignment.unassigned_count,
+        assigned_count=eff_assigned_count,
+        unassigned_count=eff_unassigned_count,
+        total_enrolled=total_enrolled,
         by_slot_type=slot_counts,
+        total_by_dept=total_by_dept,
         by_department=[
             {
                 "department_id": r["annual_enrollment__department_id"],
@@ -299,37 +380,62 @@ def get_assignment_stats(request, assignment_id: int):
             for r in dept_counts
         ],
         by_agreement=by_agreement,
-        by_country=[
-            {
-                "country_name_fr": r[
-                    "agreement_year__agreement__partner_university__country__name_fr"
-                ]
-                or "Inconnu",
-                "country_iso2": r[
-                    "agreement_year__agreement__partner_university__country__iso2"
-                ]
-                or "",
-                "count": r["count"],
-            }
-            for r in country_counts
-        ],
+        by_country=sorted(
+            [
+                {"country_name_fr": name_fr, "country_iso2": iso2, "count": cnt}
+                for (name_fr, iso2), cnt in country_counter.items()
+            ],
+            key=lambda x: -x["count"],
+        ),
         by_dept_country=[
             {
-                "department_code": r["annual_enrollment__department__code"],
-                "department_name": r["annual_enrollment__department__name"],
-                "country_name_fr": r[
-                    "agreement_year__agreement__partner_university__country__name_fr"
-                ]
-                or "Inconnu",
-                "country_iso2": r[
-                    "agreement_year__agreement__partner_university__country__iso2"
-                ]
-                or "",
-                "count": r["count"],
+                "department_code": dept_code,
+                "department_name": dept_name,
+                "country_name_fr": name_fr,
+                "country_iso2": iso2,
+                "count": cnt,
             }
-            for r in dept_country_counts
+            for (dept_code, dept_name, name_fr, iso2), cnt in sorted(
+                dept_country_counter.items(), key=lambda x: (x[0][0], -x[1])
+            )
         ],
     )
+
+
+@router.get(
+    "/assignments/{assignment_id}/agreement-years/",
+    response=list[AgreementYearOptionOut],
+    summary="Accords disponibles pour la sélection manuelle d'affectation",
+)
+def list_assignment_agreement_years(request, assignment_id: int):
+    try:
+        assignment = Assignment.objects.get(pk=assignment_id)
+    except Assignment.DoesNotExist as exc:
+        raise HttpError(404, "Affectation introuvable.") from exc
+
+    ays = (
+        AgreementYear.objects.filter(
+            academic_year=assignment.academic_year, is_active=True
+        )
+        .select_related("agreement__partner_university__country")
+        .order_by("agreement__name")
+    )
+    return [
+        AgreementYearOptionOut(
+            id=ay.id,
+            label=format_agreement_label(
+                ay.agreement.name,
+                ay.agreement.partner_university.name
+                if ay.agreement.partner_university_id
+                else "",
+                ay.agreement.partner_university.country.name_fr
+                if ay.agreement.partner_university_id
+                and ay.agreement.partner_university.country_id
+                else "",
+            ),
+        )
+        for ay in ays
+    ]
 
 
 # ── Vœux sortants ─────────────────────────────────────────────────────────────
@@ -430,6 +536,11 @@ def retry_wish_import_error(request, raw_import_id: int, payload: WishImportRetr
             "imported_at",
             "updated_at",
         ]
+    )
+    log_action(
+        request,
+        action="retry_wish_import_error",
+        detail=f"RawImport {raw_import_id} relancé avec succès.",
     )
     return raw_import
 
@@ -692,16 +803,19 @@ def export_wishes_excel(
         # Feuille cachée pour la validation de données
         if accord_names:
             acc_ws = wb.create_sheet("_Accords")
-            for i, label in enumerate(accord_names, start=1):
+            # Première option : désaffectation manuelle
+            acc_ws.cell(row=1, column=1, value="Aucune affectation")
+            for i, label in enumerate(accord_names, start=2):
                 acc_ws.cell(row=i, column=1, value=label)
             acc_ws.sheet_state = "hidden"
 
+            total_rows = len(accord_names) + 1
             corr_col_letter = get_column_letter(
                 headers.index("Correction (accord)") + 1
             )
             dv = openpyxl.worksheet.datavalidation.DataValidation(
                 type="list",
-                formula1=f"_Accords!$A$1:$A${len(accord_names)}",
+                formula1=f"_Accords!$A$1:$A${total_rows}",
                 allow_blank=True,
             )
             dv.sqref = f"{corr_col_letter}2:{corr_col_letter}10000"
@@ -749,18 +863,10 @@ def validate_assignment(request, assignment_id: int):
 
     assignment.save(update_fields=["status", "updated_at"])
 
-    year = assignment.academic_year
-    if year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT:
-        try:
-            year.submit_for_validation()
-            year.save(update_fields=["status", "updated_at"])
-        except TransitionNotAllowed:
-            pass
-
     log_action(
         request,
         action="validate_assignment",
-        detail=f"Affectation {assignment_id} ({year.label}) validée.",
+        detail=f"Affectation {assignment_id} ({assignment.academic_year.label}) validée.",
     )
     return assignment
 
@@ -787,18 +893,23 @@ def publish_assignment(request, assignment_id: int):
 
     assignment.save(update_fields=["status", "updated_at"])
 
-    year = assignment.academic_year
-    if year.status == AcademicYear.CampaignStatus.VALIDATION:
+    # Transition année : validation → published
+    academic_year = assignment.academic_year
+    if academic_year.status == AcademicYear.CampaignStatus.VALIDATION:
         try:
-            year.close()
-            year.save(update_fields=["status", "closed_at", "updated_at"])
+            academic_year.publish_results()
+            academic_year.save(update_fields=["status", "updated_at"])
         except TransitionNotAllowed:
-            pass
+            logger.warning(
+                "publish_results transition refused for year %s (status=%s)",
+                academic_year.label,
+                academic_year.status,
+            )
 
     log_action(
         request,
         action="publish_assignment",
-        detail=f"Affectation {assignment_id} ({year.label}) publiée.",
+        detail=f"Affectation {assignment_id} ({academic_year.label}) publiée.",
     )
     return assignment
 
@@ -818,15 +929,20 @@ def import_assignment_overrides(
     except Assignment.DoesNotExist as exc:
         raise HttpError(404, "Affectation introuvable.") from exc
 
-    if assignment.status in (AssignmentStatus.VALIDATED, AssignmentStatus.PUBLISHED):
+    if assignment.status in (
+        AssignmentStatus.VALIDATED,
+        AssignmentStatus.PUBLISHED,
+        AssignmentStatus.CANCELLED,
+    ):
         raise HttpError(
-            403, "Modifications interdites — affectation déjà validée ou publiée."
+            403,
+            f"Modifications interdites — affectation en état '{assignment.status}'.",
         )
 
     try:
         wb = openpyxl.load_workbook(file, read_only=True, data_only=True)
     except Exception as exc:
-        raise HttpError(400, f"Fichier Excel invalide : {exc}") from exc
+        raise HttpError(400, "Fichier Excel invalide ou corrompu.") from exc
 
     ws = wb.active
     rows_iter = ws.iter_rows(values_only=True)
@@ -835,12 +951,16 @@ def import_assignment_overrides(
         raise HttpError(400, "Fichier Excel vide.")
     headers = [str(h or "").strip() for h in header_row]
 
-    try:
-        ine_col = headers.index("INE")
-        correction_col = headers.index("Correction (accord)")
-        motif_col = headers.index("Motif de correction")
-    except ValueError as exc:
-        raise HttpError(400, f"Colonnes requises manquantes : {exc}") from exc
+    required_cols = ["INE", "Correction (accord)", "Motif de correction"]
+    missing_cols = [col for col in required_cols if col not in headers]
+    if missing_cols:
+        raise HttpError(
+            400,
+            f"Colonnes requises manquantes : {', '.join(missing_cols)}",
+        )
+    ine_col = headers.index("INE")
+    correction_col = headers.index("Correction (accord)")
+    motif_col = headers.index("Motif de correction")
 
     ay_by_name: dict[str, int] = {}
     for _ay in AgreementYear.objects.filter(
@@ -864,7 +984,7 @@ def import_assignment_overrides(
     }
 
     updated = 0
-    unchanged = 0
+    skipped = 0
     errors: list[dict] = []
 
     with transaction.atomic():
@@ -877,7 +997,7 @@ def import_assignment_overrides(
             motif = str(row[motif_col] or "").strip()
 
             if not correction:
-                unchanged += 1
+                skipped += 1
                 continue
 
             if not motif:
@@ -886,17 +1006,6 @@ def import_assignment_overrides(
                         "ine": ine,
                         "ligne": row_idx,
                         "erreur": "Motif de correction obligatoire.",
-                    }
-                )
-                continue
-
-            ay_id = ay_by_name.get(correction.strip().lower())
-            if ay_id is None:
-                errors.append(
-                    {
-                        "ine": ine,
-                        "ligne": row_idx,
-                        "erreur": f"Accord '{correction}' introuvable pour cette année.",
                     }
                 )
                 continue
@@ -912,12 +1021,48 @@ def import_assignment_overrides(
                 )
                 continue
 
+            # Mot-clé spécial : retrait d'affectation → non affecté
+            if correction.strip().lower() in ("non affecté", "aucune affectation"):
+                res.override_slot_type = SlotType.UNASSIGNED
+                res.override_agreement_year_id = None
+                res.override_rank = None
+                res.override_reason = motif
+                res.source = ResultSource.OVERRIDE
+                res.save(
+                    update_fields=[
+                        "override_slot_type",
+                        "override_agreement_year_id",
+                        "override_rank",
+                        "override_reason",
+                        "source",
+                        "updated_at",
+                    ]
+                )
+                updated += 1
+                continue
+
+            ay_id = ay_by_name.get(correction.strip().lower())
+            if ay_id is None:
+                errors.append(
+                    {
+                        "ine": ine,
+                        "ligne": row_idx,
+                        "erreur": f"Accord '{correction}' introuvable pour cette année.",
+                    }
+                )
+                continue
+
+            dept_id = res.annual_enrollment.department_id
+            res.override_slot_type = _derive_slot_type(ay_id, dept_id)
             res.override_agreement_year_id = ay_id
+            res.override_rank = _derive_override_rank(res.annual_enrollment_id, ay_id)
             res.override_reason = motif
             res.source = ResultSource.OVERRIDE
             res.save(
                 update_fields=[
+                    "override_slot_type",
                     "override_agreement_year_id",
+                    "override_rank",
                     "override_reason",
                     "source",
                     "updated_at",
@@ -925,12 +1070,26 @@ def import_assignment_overrides(
             )
             updated += 1
 
+    triggered_by = getattr(request.user, "username", "") if request else ""
+    ImportReport.objects.create(
+        source=ImportSource.EXCEL_OVERRIDES,
+        academic_year=assignment.academic_year,
+        triggered_by=triggered_by,
+        total=updated + skipped + len(errors),
+        success_count=updated,
+        error_count=len(errors),
+        errors=[
+            {"external_id": e["ine"], "reason": f"Ligne {e['ligne']}: {e['erreur']}"}
+            for e in errors
+        ],
+    )
+
     log_action(
         request,
         action="import_assignment_overrides",
-        detail=f"Affectation {assignment_id} — {updated} correction(s) importée(s), {len(errors)} erreur(s).",
+        detail=f"Affectation {assignment_id} — {updated} correction(s) importée(s), {skipped} ignorée(s), {len(errors)} erreur(s).",
     )
-    return OverrideImportReportOut(updated=updated, unchanged=unchanged, errors=errors)
+    return OverrideImportReportOut(updated=updated, skipped=skipped, errors=errors)
 
 
 @router.patch(
@@ -949,9 +1108,14 @@ def override_assignment_result(
     except Assignment.DoesNotExist as exc:
         raise HttpError(404, "Affectation introuvable.") from exc
 
-    if assignment.status in (AssignmentStatus.VALIDATED, AssignmentStatus.PUBLISHED):
+    if assignment.status in (
+        AssignmentStatus.VALIDATED,
+        AssignmentStatus.PUBLISHED,
+        AssignmentStatus.CANCELLED,
+    ):
         raise HttpError(
-            403, "Modifications interdites — affectation déjà validée ou publiée."
+            403,
+            f"Modifications interdites — affectation en état '{assignment.status}'.",
         )
 
     try:
@@ -964,27 +1128,63 @@ def override_assignment_result(
     except AssignmentResult.DoesNotExist as exc:
         raise HttpError(404, "Résultat d'affectation introuvable.") from exc
 
-    if (
-        payload.override_agreement_year_id is not None
-        and not (payload.override_reason or "").strip()
-    ):
-        raise HttpError(400, "Le motif de correction est obligatoire.")
-
-    result.override_agreement_year_id = payload.override_agreement_year_id
-    result.override_reason = payload.override_reason
-    result.source = (
-        ResultSource.OVERRIDE
-        if payload.override_agreement_year_id is not None
-        else ResultSource.AUTO
-    )
-    result.save(
-        update_fields=[
-            "override_agreement_year_id",
-            "override_reason",
-            "source",
-            "updated_at",
-        ]
-    )
+    if payload.force_unassigned:
+        if not (payload.override_reason or "").strip():
+            raise HttpError(400, "Le motif de désaffectation est obligatoire.")
+        result.override_slot_type = SlotType.UNASSIGNED
+        result.override_agreement_year_id = None
+        result.override_rank = None
+        result.override_reason = payload.override_reason
+        result.source = ResultSource.OVERRIDE
+        result.save(
+            update_fields=[
+                "override_slot_type",
+                "override_agreement_year_id",
+                "override_rank",
+                "override_reason",
+                "source",
+                "updated_at",
+            ]
+        )
+    elif payload.override_agreement_year_id is not None:
+        if not (payload.override_reason or "").strip():
+            raise HttpError(400, "Le motif de correction est obligatoire.")
+        dept_id = result.annual_enrollment.department_id
+        result.override_slot_type = _derive_slot_type(
+            payload.override_agreement_year_id, dept_id
+        )
+        result.override_agreement_year_id = payload.override_agreement_year_id
+        result.override_rank = _derive_override_rank(
+            result.annual_enrollment_id, payload.override_agreement_year_id
+        )
+        result.override_reason = payload.override_reason
+        result.source = ResultSource.OVERRIDE
+        result.save(
+            update_fields=[
+                "override_slot_type",
+                "override_agreement_year_id",
+                "override_rank",
+                "override_reason",
+                "source",
+                "updated_at",
+            ]
+        )
+    else:
+        result.override_slot_type = None
+        result.override_agreement_year_id = None
+        result.override_rank = None
+        result.override_reason = payload.override_reason
+        result.source = ResultSource.AUTO
+        result.save(
+            update_fields=[
+                "override_slot_type",
+                "override_agreement_year_id",
+                "override_rank",
+                "override_reason",
+                "source",
+                "updated_at",
+            ]
+        )
 
     log_action(
         request,

@@ -3,7 +3,7 @@ const publicApiBaseUrl =
   "http://localhost:8000/api/v1";
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
 };
 

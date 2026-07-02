@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from ninja import Schema  # noqa: I001
@@ -165,3 +165,59 @@ class StudentImportRetryIn(Schema):
     department_id: int | None = None
     level_id: int | None = None
     parcours_id: int | None = None
+
+
+class StudentAssignmentOut(Schema):
+    is_assigned: bool
+    slot_type: str
+    university_name: str | None
+    country_name: str | None
+    agreement_name: str | None
+    effective_rank: int | None
+    override_reason: str | None
+
+
+# -- Portail étudiant -------------------------------------------------------
+
+
+class EnrolledYearOut(Schema):
+    academic_year_id: int
+    academic_year_label: str
+    academic_year_status: str
+
+
+class StudentProfileOut(Schema):
+    ine: str
+    first_name: str
+    last_name: str
+    email: str
+    enrolled_years: list[EnrolledYearOut]
+
+
+class StudentAgreementDeptQuotaOut(Schema):
+    department_id: int
+    department_code: str
+    effective_places: int
+
+
+class StudentAgreementOut(Schema):
+    agreement_year_id: int
+    agreement_id: int
+    agreement_name: str
+    university_name: str
+    country_name: str
+    country_iso2: str
+    n7_places: int
+    dept_quotas: list[StudentAgreementDeptQuotaOut]
+    valid_from: date | None
+    valid_until: date | None
+    direction: str
+
+
+class StudentWishItemOut(Schema):
+    rank: int
+    agreement_year_id: int
+    agreement_name: str
+    university_name: str
+    country_name: str
+    country_iso2: str

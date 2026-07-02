@@ -11,7 +11,6 @@ import {
   Loader2,
   Play,
   RefreshCw,
-  Send,
   ShieldCheck,
   TrendingUp,
   Upload,
@@ -22,6 +21,7 @@ import {
 
 import { ErrorBanner } from "@/components/ui/alert";
 import { Btn, FileBtn } from "@/components/ui/btn";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Pagination } from "@/components/ui/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import { Toolbar } from "@/components/ui/toolbar";
@@ -31,6 +31,7 @@ import { getValidAgreements } from "@/lib/api/mobility-mutations";
 import {
   downloadWishTemplate,
   exportWishesExcel,
+  getAssignmentAgreementYears,
   getAssignmentResults,
   getAssignmentStats,
   getAssignmentsForYear,
@@ -38,10 +39,12 @@ import {
   getWishesByYear,
   importOverridesFromExcel,
   importWishesFromExcel,
+  patchAssignmentResult,
   publishAssignment,
   retryWishImportError,
   syncWishesFromMoveon,
   validateAssignment,
+  type ResultOverridePatch,
   type WishImportCorrection,
 } from "@/lib/api/outgoing-mutations";
 import {
@@ -52,6 +55,7 @@ import type {
   AcademicYear,
   Agreement,
   AgreementWish,
+  AgreementYearOption,
   Assignment,
   AssignmentResult,
   AssignmentStats,
@@ -83,9 +87,10 @@ const SLOT_COLORS: Record<string, string> = {
   unassigned:  "bg-red-100 text-red-800",
 };
 
-const WISH_ERRORS_PAGE_SIZE = 25;
-const POLL_INTERVAL_MS      = 3_000;
-const POLL_TIMEOUT_MS       = 90_000;
+const WISH_ERRORS_PAGE_SIZE        = 25;
+const POLL_INTERVAL_MS             = 3_000;
+const POLL_TIMEOUT_MS              = 90_000;
+const ASSIGNMENT_RESULTS_PAGE_SIZE = 2_000;
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYear[] }) {
@@ -112,11 +117,12 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   const [assignment, setAssignment]   = useState<Assignment | null>(null);
   const [stats, setStats]             = useState<AssignmentStats | null>(null);
   const [resultsMap, setResultsMap]   = useState<Map<string, AssignmentResult>>(new Map());
+  const [agreementYearOptions, setAgreementYearOptions] = useState<AgreementYearOption[]>([]);
   const [launching, setLaunching]     = useState(false);
   const [polling, setPolling]         = useState(false);
   const [validating, setValidating]           = useState(false);
-  const [publishing, setPublishing]           = useState(false);
   const [importingOverrides, setImportingOverrides] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const [overrideReport, setOverrideReport]   = useState<OverrideImportReport | null>(null);
 
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -137,17 +143,20 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
       const latest = data.results[0] ?? null;
       setAssignment(latest);
       if (latest) {
-        const [resultsData, statsData] = await Promise.all([
-          getAssignmentResults(latest.id, { page_size: 500 }),
+        const [resultsData, statsData, ayOptions] = await Promise.all([
+          getAssignmentResults(latest.id, { page_size: ASSIGNMENT_RESULTS_PAGE_SIZE }),
           getAssignmentStats(latest.id),
+          getAssignmentAgreementYears(latest.id),
         ]);
         const map = new Map<string, AssignmentResult>();
         for (const r of resultsData.results) map.set(r.student_ine, r);
         setResultsMap(map);
         setStats(statsData);
+        setAgreementYearOptions(ayOptions);
       } else {
         setResultsMap(new Map());
         setStats(null);
+        setAgreementYearOptions([]);
       }
     } catch {
       // silently ignore assignment load errors
@@ -190,15 +199,17 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
         const latest = assignmentsData.results[0] ?? null;
         setAssignment(latest);
         if (latest) {
-          const [resultsData, statsData] = await Promise.all([
-            getAssignmentResults(latest.id, { page_size: 500 }),
+          const [resultsData, statsData, ayOptions] = await Promise.all([
+            getAssignmentResults(latest.id, { page_size: ASSIGNMENT_RESULTS_PAGE_SIZE }),
             getAssignmentStats(latest.id),
+            getAssignmentAgreementYears(latest.id),
           ]);
           if (cancelled) return;
           const map = new Map<string, AssignmentResult>();
           for (const r of resultsData.results) map.set(r.student_ine, r);
           setResultsMap(map);
           setStats(statsData);
+          setAgreementYearOptions(ayOptions);
         }
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Erreur de chargement.");
@@ -220,9 +231,21 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
       const startedAt = Date.now();
 
       const tick = async () => {
+        // Skip HTTP call when tab is hidden — task continues server-side
+        if (document.hidden) {
+          pollingRef.current = setTimeout(tick, POLL_INTERVAL_MS);
+          return;
+        }
+
         if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
           stopPolling();
-          setError("Le calcul dépasse 90 secondes. Veuillez rafraîchir la page.");
+          // Tentative de rechargement final avant d'afficher l'erreur
+          try {
+            await loadAssignment(yearId);
+          } catch { /* ignore */ }
+          setError(
+            "Le calcul dépasse 90 secondes. Si les résultats ne s'affichent pas, utilisez le bouton Récupérer la transition dans la gestion des années."
+          );
           return;
         }
         try {
@@ -245,11 +268,16 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   // ── Launch affectation ────────────────────────────────────────────────────
   async function handleLaunch() {
     if (!selectedYearId) return;
+    const ok = await confirm(
+      "Confirmez-vous que tous les vœux ont été importés (MoveOn, Excel) et que les données sont correctes ?",
+      "Lancer l'affectation"
+    );
+    if (!ok) return;
     setLaunching(true);
     setError("");
     const previousId = assignment?.id ?? null;
     try {
-      await applyAcademicYearTransition(selectedYearId, "launch-pre-assignment");
+      await applyAcademicYearTransition(selectedYearId, "launch-assignment");
       startPolling(selectedYearId, previousId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors du lancement.");
@@ -260,13 +288,12 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
 
   // ── Supervision actions ───────────────────────────────────────────────────
   async function handleValidate() {
-    if (!assignment || !selectedYearId) return;
-    if (!window.confirm("Valider toutes les affectations ? Les modifications seront bloquées.")) return;
+    if (!assignment) return;
     setValidating(true);
     setError("");
     try {
-      const updated = await validateAssignment(assignment.id);
-      setAssignment(updated);
+      const validated = await validateAssignment(assignment.id);
+      setAssignment(validated);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la validation.");
     } finally {
@@ -275,17 +302,21 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   }
 
   async function handlePublish() {
-    if (!assignment || !selectedYearId) return;
-    if (!window.confirm("Publier les résultats ? L'année universitaire sera clôturée.")) return;
-    setPublishing(true);
+    if (!assignment) return;
+    const ok = await confirm(
+      "Confirmez-vous que toutes les corrections sont validées et que les résultats peuvent être publiés aux étudiants ? Cette action est irréversible.",
+      "Publier les résultats"
+    );
+    if (!ok) return;
+    setValidating(true);
     setError("");
     try {
-      const updated = await publishAssignment(assignment.id);
-      setAssignment(updated);
+      const published = await publishAssignment(assignment.id);
+      setAssignment(published);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la publication.");
     } finally {
-      setPublishing(false);
+      setValidating(false);
     }
   }
 
@@ -306,6 +337,23 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
     }
   }
 
+  async function handleUnassignResult(resultId: number, payload: ResultOverridePatch) {
+    if (!assignment || !selectedYearId) return;
+    const yearId = selectedYearId;
+    setError("");
+    try {
+      const updated = await patchAssignmentResult(assignment.id, resultId, payload);
+      setResultsMap((prev) => {
+        const next = new Map(prev);
+        next.set(updated.student_ine, updated);
+        return next;
+      });
+      await loadAssignment(yearId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la modification.");
+    }
+  }
+
   // ── Wishes actions ────────────────────────────────────────────────────────
   async function handleTemplateDownload() {
     if (!selectedYear) return;
@@ -314,22 +362,49 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
     catch (err) { setError(err instanceof Error ? err.message : "Impossible de télécharger le template."); }
   }
 
+  async function reloadWishes(yearId: number) {
+    const [w, errs] = await Promise.all([
+      getWishesByYear(yearId),
+      getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE }),
+    ]);
+    setWishes(w);
+    setWishImportErrors(errs.results);
+    setWishErrorsTotalCount(errs.count);
+    setWishErrorsPage(1);
+  }
+
   async function handleExcelImport(file: File) {
     if (!selectedYear) return;
+    const yearId = selectedYear.id;
     setError("");
     setExcelInProgress(true);
-    try { await importWishesFromExcel(selectedYear.id, file); }
-    catch (err) { setError(err instanceof Error ? err.message : "L'import Excel a échoué."); }
-    finally { setExcelInProgress(false); }
+    try {
+      await importWishesFromExcel(yearId, file);
+      // Tâche async — laisser le temps au worker puis recharger
+      await new Promise((r) => setTimeout(r, 2000));
+      await reloadWishes(yearId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "L'import Excel a échoué.");
+    } finally {
+      setExcelInProgress(false);
+    }
   }
 
   async function handleSync() {
     if (!selectedYear) return;
+    const yearId = selectedYear.id;
     setError("");
     setSyncInProgress(true);
-    try { await syncWishesFromMoveon(selectedYear.id); }
-    catch (err) { setError(err instanceof Error ? err.message : "La synchronisation MoveON a échoué."); }
-    finally { setSyncInProgress(false); }
+    try {
+      await syncWishesFromMoveon(yearId);
+      // Tâche async — laisser le temps au worker puis recharger
+      await new Promise((r) => setTimeout(r, 2000));
+      await reloadWishes(yearId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "La synchronisation MoveON a échoué.");
+    } finally {
+      setSyncInProgress(false);
+    }
   }
 
   async function handleExport() {
@@ -347,7 +422,9 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
       setWishImportErrors(errs.results);
       setWishErrorsTotalCount(errs.count);
       setWishErrorsPage(page);
-    } catch { /* silently ignore */ }
+    } catch {
+      setError("Impossible de charger les erreurs d'import vœux.");
+    }
   }
 
   // ── Computed values ───────────────────────────────────────────────────────
@@ -381,30 +458,34 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
     return true;
   });
 
+  // Utiliser les stats effectives (après overrides) pour les calculs de taux
+  const effectiveAssigned   = stats?.assigned_count   ?? assignment?.assigned_count   ?? 0;
+  const effectiveUnassigned = stats?.unassigned_count ?? assignment?.unassigned_count ?? 0;
+  const effectiveTotal      = stats?.total_students   ?? assignment?.total_students   ?? 0;
   const assignedPct =
-    assignment && assignment.total_students > 0
-      ? Math.round((assignment.assigned_count / assignment.total_students) * 100)
-      : 0;
+    effectiveTotal > 0 ? Math.round((effectiveAssigned / effectiveTotal) * 100) : 0;
 
-  // Année clôturée = lecture seule totale
-  const isReadOnly = selectedYear?.status === "closed";
-  // Verrouillé pendant le calcul ou pour une année clôturée
+  // Année clôturée ou publiée = lecture seule totale
+  const isReadOnly = !!selectedYear && ["closed", "published"].includes(selectedYear.status);
+  // Verrouillé pendant le calcul ou pour une année clôturée/publiée
   const isLocked = polling || isReadOnly;
-  // Phase vœux terminée dès que l'algo est lancé (pre_assignment, validation, closed)
+  // Phase vœux terminée (imports/sync désactivés)
   const isPastWishPhase =
     !!selectedYear &&
-    !["initialization", "recommendation", "consolidation"].includes(selectedYear.status);
+    !["initialization", "recommendation", "candidature", "import"].includes(selectedYear.status);
   // Des corrections manuelles ont été importées → relancer l'algo les écraserait
   const hasOverrides = [...resultsMap.values()].some((r) => r.source === "override");
+  // Bouton "Lancer l'affectation" : uniquement depuis l'état import, sans corrections existantes
+  const canLaunch = selectedYear?.status === "import" && !hasOverrides && !isLocked;
+  // Bouton "Valider corrections" : uniquement depuis validation avec assignment proposé
+  const canValidate = selectedYear?.status === "validation" && assignment?.status === "proposed" && !isLocked;
+  // Bouton "Publier" : uniquement depuis validation avec assignment validé
+  const canPublish = selectedYear?.status === "validation" && assignment?.status === "validated" && !isLocked;
 
-  // Fill-rate par département — total calculé depuis les résultats de l'affectation (même run que stats)
-  const totalByDept = [...resultsMap.values()].reduce<Record<string, number>>((acc, r) => {
-    if (r.department_code) acc[r.department_code] = (acc[r.department_code] ?? 0) + 1;
-    return acc;
-  }, {});
+  // Fill-rate par département — total issu du backend (tous étudiants, affectés ou non)
   const deptWithFillRate = stats
     ? stats.by_department.map((d) => {
-        const total = totalByDept[d.department_code] ?? d.count;
+        const total = stats.total_by_dept[d.department_code] ?? d.count;
         return { ...d, total, fill_rate: total > 0 ? Math.round((d.count / total) * 100) : 0 };
       })
     : [];
@@ -412,6 +493,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
+      {dialog}
       {/* Sélecteur d'année */}
       <div className="flex items-end gap-4">
         <label className="block">
@@ -463,7 +545,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
             {polling
               ? "Algorithme Gale-Shapley en cours — les résultats s'afficheront automatiquement."
               : assignment
-                ? `Affectation — ${assignment.assigned_count} étudiants placés sur ${assignment.total_students} (${assignedPct}%)`
+                ? `Affectation — ${effectiveAssigned} étudiants placés sur ${effectiveTotal} (${assignedPct}%)`
                 : "Aucune affectation calculée pour cette année. Cliquez sur « Lancer l'affectation »."}
           </span>
           {!polling && assignment && (() => {
@@ -482,7 +564,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
         <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
           <CheckCircle2 className="h-5 w-5 text-emerald-600" />
           <span className="text-sm font-medium text-emerald-700">
-            {`Affectation — ${assignment.assigned_count} étudiants placés sur ${assignment.total_students} (${assignedPct}%)`}
+            {`Affectation — ${effectiveAssigned} étudiants placés sur ${effectiveTotal} (${assignedPct}%)`}
           </span>
           {(() => {
             const s = ASSIGNMENT_STATUS_LABELS[assignment.status];
@@ -501,7 +583,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
           <StatCard
             label="Étudiants avec vœux"
             value={studentsWithWishes}
-            helper={`sur ${wishes.length} inscrits`}
+            helper={stats ? `sur ${stats.total_enrolled} inscrits` : `${studentsWithWishes} ayant exprimé des souhaits`}
             icon={Users}
             tone="blue"
           />
@@ -528,13 +610,13 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
           <StatCard
             label="Taux d'affectation"
             value={`${assignedPct}%`}
-            helper={`${assignment.assigned_count} étudiants partent en mobilité`}
+            helper={`${effectiveAssigned} étudiants partent en mobilité`}
             icon={CheckCircle2}
             tone="emerald"
           />
           <StatCard
             label="Sans affectation"
-            value={assignment.unassigned_count}
+            value={effectiveUnassigned}
             helper="Tous les quotas étaient pleins"
             icon={XCircle}
             tone="amber"
@@ -564,7 +646,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
             : "border-emerald-200 bg-emerald-50"
         }`}>
           <p className={`font-medium ${overrideReport.errors.length > 0 ? "text-amber-800" : "text-emerald-800"}`}>
-            Import corrections : {overrideReport.updated} appliquée(s), {overrideReport.unchanged} inchangée(s)
+            Import corrections : {overrideReport.updated} appliquée(s), {overrideReport.skipped} sans correction
             {overrideReport.errors.length > 0 ? `, ${overrideReport.errors.length} erreur(s)` : ""}
           </p>
           {overrideReport.errors.map((e, i) => (
@@ -586,7 +668,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
             </Btn>
             <FileBtn
               disabled={!selectedYear || excelInProgress || isLocked || isPastWishPhase}
-              onFile={(file) => { handleExcelImport(file).catch(() => null); }}
+              onFile={(file) => { void handleExcelImport(file); }}
             >
               {excelInProgress ? <Upload className="h-4 w-4 animate-bounce" /> : <FileSpreadsheet className="h-4 w-4" />}
               {excelInProgress ? "Import..." : "Importer Excel"}
@@ -602,31 +684,31 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
             </Btn>
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
             <FileBtn
-              disabled={!assignment || assignment.status !== "proposed" || isLocked || importingOverrides}
-              onFile={(file) => { handleImportOverrides(file).catch(() => null); }}
+              disabled={!canValidate || importingOverrides}
+              onFile={(file) => { void handleImportOverrides(file); }}
             >
               {importingOverrides ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               {importingOverrides ? "Import..." : "Importer corrections"}
             </FileBtn>
             <Btn
-              disabled={!assignment || assignment.status !== "proposed" || isLocked || validating}
-              onClick={() => { handleValidate().catch(() => null); }}
+              disabled={!canValidate || validating}
+              onClick={() => { void handleValidate(); }}
             >
               {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              {validating ? "Validation..." : "Valider"}
+              {validating ? "Validation..." : "Valider corrections"}
             </Btn>
             <Btn
-              disabled={!assignment || assignment.status !== "validated" || isLocked || publishing}
-              onClick={() => { handlePublish().catch(() => null); }}
+              disabled={!canPublish || validating}
+              onClick={() => { void handlePublish(); }}
             >
-              {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {publishing ? "Publication..." : "Publier"}
+              {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              {validating ? "Publication..." : "Publier les résultats"}
             </Btn>
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
             <Btn
               variant="primary"
-              disabled={launching || isLocked || !selectedYear || isPastWishPhase || hasOverrides}
-              onClick={() => { handleLaunch().catch(() => null); }}
+              disabled={!canLaunch || launching}
+              onClick={() => { void handleLaunch(); }}
             >
               {launching || polling
                 ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -708,6 +790,9 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
           isBusy={isLoading || syncInProgress}
           resultsMap={resultsMap}
           hasAssignment={!!assignment}
+          canEdit={assignment?.status === "proposed" && !isReadOnly}
+          agreementYears={agreementYearOptions}
+          onOverrideResult={handleUnassignResult}
         />
       ) : (
         <div className="rounded-md border border-dashed border-gray-300 px-4 py-12 text-center text-sm text-gray-400">
@@ -783,7 +868,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                             <td className="px-6 py-1.5 text-right font-mono text-gray-600">{dept.assigned}</td>
                             <td className="px-6 py-1.5 text-right">
                               {dept.quota > 0 ? (
-                                <FillRateCell rate={Math.round(dept.assigned / dept.quota * 100)} />
+                                <FillRateCell rate={Math.min(100, Math.round((dept.assigned / dept.quota) * 100))} />
                               ) : (
                                 <span className="text-xs text-gray-400">—</span>
                               )}
@@ -850,7 +935,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                     <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
                       <th className="px-6 py-3">Pays</th>
                       <th className="px-6 py-3 text-right">Étudiants placés</th>
-                      <th className="px-6 py-3 text-right">Part (%)</th>
+                      <th className="px-6 py-3 text-right">% des affectés</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -969,12 +1054,18 @@ function WishesAssignmentTable({
   isBusy,
   resultsMap,
   hasAssignment,
+  canEdit = false,
+  agreementYears = [],
+  onOverrideResult,
 }: {
   rows: StudentWishes[];
   maxRank: number;
   isBusy: boolean;
   resultsMap: Map<string, AssignmentResult>;
   hasAssignment: boolean;
+  canEdit?: boolean;
+  agreementYears?: AgreementYearOption[];
+  onOverrideResult?: (resultId: number, payload: ResultOverridePatch) => Promise<void>;
 }) {
   const [page, setPage]       = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -1018,7 +1109,7 @@ function WishesAssignmentTable({
           <tbody className="divide-y divide-gray-100 bg-white">
             {pageItems.map((row) => {
               const result = resultsMap.get(row.ine) ?? null;
-              const isAssigned = result && result.slot_type !== "unassigned";
+              const isAssigned = result && (result.slot_type !== "unassigned" || result.override_agreement_year_id !== null);
               return (
                 <tr key={row.student_id} className="hover:bg-gray-50/50">
                   <Td>
@@ -1100,7 +1191,12 @@ function WishesAssignmentTable({
                   })}
                   {hasAssignment && (
                     <Td>
-                      <DecisionCell result={result} />
+                      <DecisionCell
+                        result={result}
+                        canEdit={canEdit}
+                        agreementYears={agreementYears}
+                        onOverride={onOverrideResult && result ? (payload) => onOverrideResult(result.id, payload) : undefined}
+                      />
                     </Td>
                   )}
                 </tr>
@@ -1148,36 +1244,68 @@ function WishCell({ wish, highlighted }: { wish: AgreementWish; highlighted: boo
 }
 
 // ─── Cellule décision ─────────────────────────────────────────────────────────
-function DecisionCell({ result }: { result: AssignmentResult | null }) {
+function DecisionCell({
+  result,
+  canEdit = false,
+  agreementYears = [],
+  onOverride,
+}: {
+  result: AssignmentResult | null;
+  canEdit?: boolean;
+  agreementYears?: AgreementYearOption[];
+  onOverride?: (payload: ResultOverridePatch) => Promise<void>;
+}) {
+  const [selectedAyId, setSelectedAyId] = useState("");
+  const [motif, setMotif]               = useState("");
+  const [saving, setSaving]             = useState(false);
+
   if (!result) {
     return <span className="text-xs italic text-gray-300">—</span>;
   }
 
   const isOverride = result.source === "override";
 
-  // Final (effective) assignment data
+  // Slot type effectif (override_slot_type si correction manuelle, sinon auto)
+  const effectiveSlotType = isOverride
+    ? (result.override_slot_type ?? result.slot_type)
+    : result.slot_type;
+
+  // Données finales affichées en tête de cellule
   const finalUniversity = isOverride ? result.override_university_name : result.university_name;
   const finalAgreement  = isOverride ? result.override_agreement_name  : result.agreement_name;
 
-  // Original auto data — shown as context when overridden
-  const autoUniversity = isOverride ? result.university_name  : null;
-  const autoAgreement  = isOverride ? result.agreement_name   : null;
+  async function submitOverride() {
+    if (!onOverride || !motif.trim() || !selectedAyId) return;
+    setSaving(true);
+    try {
+      const payload: ResultOverridePatch =
+        selectedAyId === "__unassign__"
+          ? { override_agreement_year_id: null, override_reason: motif.trim(), force_unassigned: true }
+          : { override_agreement_year_id: parseInt(selectedAyId, 10), override_reason: motif.trim(), force_unassigned: false };
+      await onOverride(payload);
+      setSelectedAyId("");
+      setMotif("");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <div className="flex flex-col gap-1 w-44">
-      {/* Final university */}
-      {finalUniversity && (
+    <div className="flex flex-col gap-1 w-48">
+      {/* Résultat effectif */}
+      {finalUniversity ? (
         <p className="text-xs font-semibold text-gray-900 leading-snug break-words">{finalUniversity}</p>
-      )}
-      {/* Final agreement */}
+      ) : isOverride ? (
+        <p className="text-xs font-semibold text-red-700 leading-snug">Non affecté</p>
+      ) : null}
       {finalAgreement && (
         <p className="text-xs text-gray-500 leading-snug break-words">{finalAgreement}</p>
       )}
 
-      {/* Slot type + override badge */}
+      {/* Slot type effectif + badge Modifié */}
       <div className="flex flex-wrap items-center gap-1 mt-0.5">
-        <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium ${SLOT_COLORS[result.slot_type] ?? "bg-gray-100 text-gray-700"}`}>
-          {SLOT_LABELS[result.slot_type] ?? result.slot_type}
+        <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium ${SLOT_COLORS[effectiveSlotType] ?? "bg-gray-100 text-gray-700"}`}>
+          {SLOT_LABELS[effectiveSlotType] ?? effectiveSlotType}
         </span>
         {isOverride && (
           <span className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">
@@ -1186,14 +1314,63 @@ function DecisionCell({ result }: { result: AssignmentResult | null }) {
         )}
       </div>
 
-      {/* Original auto assignment context */}
-      {isOverride && (autoUniversity || autoAgreement) && (
+      {/* Contexte auto — séparé par une ligne, toujours affiché quand override */}
+      {isOverride && (
         <div className="mt-1 border-t border-gray-100 pt-1 space-y-0.5">
-          {autoUniversity && (
-            <p className="text-xs text-gray-400 leading-snug break-words">Auto : {autoUniversity}</p>
+          {result.university_name ? (
+            <p className="text-xs text-gray-400 leading-snug break-words">
+              Auto : {result.university_name}
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 leading-snug">Auto : Non affecté</p>
           )}
-          {autoAgreement && (
-            <p className="text-xs text-gray-300 leading-snug break-words">{autoAgreement}</p>
+          {result.agreement_name && (
+            <p className="text-xs text-gray-300 leading-snug break-words">{result.agreement_name}</p>
+          )}
+        </div>
+      )}
+
+      {/* Select de modification manuelle */}
+      {canEdit && onOverride && (
+        <div className="mt-1 space-y-1 border-t border-gray-100 pt-1">
+          <select
+            className="w-full rounded border border-gray-200 px-1.5 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+            value={selectedAyId}
+            onChange={(e) => { setSelectedAyId(e.target.value); setMotif(""); }}
+          >
+            <option value="">— Modifier l&apos;affectation —</option>
+            <option value="__unassign__">Aucune affectation</option>
+            {agreementYears.map((ay) => (
+              <option key={ay.id} value={String(ay.id)}>{ay.label}</option>
+            ))}
+          </select>
+          {selectedAyId && (
+            <>
+              <textarea
+                className="w-full rounded border border-gray-200 px-2 py-1 text-xs placeholder-gray-300 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                rows={2}
+                placeholder="Motif obligatoire…"
+                value={motif}
+                onChange={(e) => setMotif(e.target.value)}
+              />
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  disabled={saving || !motif.trim()}
+                  onClick={() => { void submitOverride(); }}
+                  className="rounded bg-indigo-600 px-2 py-0.5 text-xs font-medium text-white disabled:opacity-50 hover:bg-indigo-700"
+                >
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Confirmer"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedAyId(""); setMotif(""); }}
+                  className="rounded border border-gray-200 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}

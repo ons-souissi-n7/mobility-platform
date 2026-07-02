@@ -20,6 +20,9 @@ const eslintConfig = defineConfig([
         varsIgnorePattern: "^_",
         destructuredArrayIgnorePattern: "^_",
       }],
+      // react-hooks/set-state-in-effect (v7 compiler plugin) rejects the standard
+      // "set loading before fetch" pattern; disable until the project migrates to Suspense/use()
+      "react-hooks/set-state-in-effect": "off",
     },
   },
 ]);

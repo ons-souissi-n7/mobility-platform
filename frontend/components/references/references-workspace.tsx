@@ -623,7 +623,6 @@ export function ReferencesWorkspace({
             }
           >
             <UniversitiesTable
-              countries={countries}
               onDelete={removeUniversity}
               onEdit={(u) => setModal({ kind: "university", item: u })}
               universities={universities.results}

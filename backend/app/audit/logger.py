@@ -12,18 +12,21 @@ from django.contrib.contenttypes.models import ContentType
 
 
 def log_action(
-    request,
+    request=None,
     *,
     action: str,
     detail: str = "",
 ) -> None:
     """
     Crée une entrée de log pour une action non liée à un save() de modèle.
-    Utilisé pour : sync, import batch, upload, relance d'erreur, etc.
+    Utilisé pour : sync, import batch, upload, relance d'erreur, tâches de fond, etc.
+    request peut être None pour les tâches asynchrones sans contexte HTTP.
     """
-    actor = getattr(request, "user", None)
-    if actor is not None and not actor.is_authenticated:
-        actor = None
+    actor = None
+    if request is not None:
+        actor = getattr(request, "user", None)
+        if actor is not None and not actor.is_authenticated:
+            actor = None
 
     ct = ContentType.objects.get_for_model(LogEntry)
 

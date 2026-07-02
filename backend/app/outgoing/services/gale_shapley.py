@@ -29,6 +29,7 @@ class StudentInput:
     is_french: bool
     gpa: float | None
     preferences: list[int]  # agreement_year_ids ordonnés par rang croissant
+    level_id: int | None = None  # None = compatible avec tous les niveaux
 
 
 @dataclass
@@ -36,6 +37,7 @@ class AgreementInput:
     agreement_year_id: int
     n7_places: int
     quota_dept: dict[int, int]  # dept_id → nb_places réservées
+    level_ids: list[int] = field(default_factory=list)  # vide = tous niveaux acceptés
 
 
 @dataclass
@@ -282,6 +284,13 @@ def gale_shapley(
             dept_quota = state.agreement.quota_dept.get(student.dept_id, 0)
             if dept_quota == 0:
                 # Accord non prévu pour ce département
+                continue
+            # Contrainte de niveau : si l'accord restreint les niveaux, vérifier la compatibilité
+            if (
+                state.agreement.level_ids
+                and student.level_id is not None
+                and student.level_id not in state.agreement.level_ids
+            ):
                 continue
             if state.total_occupied() < state.agreement.n7_places:
                 state.slots_surplus.append(eid)

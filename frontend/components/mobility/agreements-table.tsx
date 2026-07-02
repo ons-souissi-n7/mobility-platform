@@ -32,6 +32,7 @@ export function AgreementsTable({
   universities,
   yearFilter,
   isYearClosed = false,
+  isYearLocked = false,
   onToggleYearActive,
   onEditYear,
   onValidateYear,
@@ -46,6 +47,7 @@ export function AgreementsTable({
   universities: PartnerUniversity[];
   yearFilter?: string;
   isYearClosed?: boolean;
+  isYearLocked?: boolean;
   onToggleYearActive: (yi: AgreementYear) => Promise<void>;
   onEditYear: (yi: AgreementYear, n7Places: number) => Promise<void>;
   onValidateYear: (yi: AgreementYear) => Promise<void>;
@@ -53,9 +55,12 @@ export function AgreementsTable({
 }) {
   const [editingN7ForId, setEditingN7ForId] = useState<number | null>(null);
   const [n7EditValue, setN7EditValue] = useState("");
+  const [n7Errors, setN7Errors] = useState<Record<number, string>>({});
   const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
   const [deptEditValue, setDeptEditValue] = useState("");
+  const [deptErrors, setDeptErrors] = useState<Record<number, string>>({});
   const [viewingRow, setViewingRow] = useState<AgreementRow | null>(null);
+  const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
 
   const universityById  = createIdMap(universities);
   const categoryById    = createIdMap(categories);
@@ -88,23 +93,49 @@ export function AgreementsTable({
   function startEditN7(yi: AgreementYear) {
     setEditingN7ForId(yi.id);
     setN7EditValue(String(yi.n7_places));
+    setN7Errors((prev) => ({ ...prev, [yi.id]: "" }));
   }
 
   async function saveN7(yi: AgreementYear) {
     const val = parseInt(n7EditValue, 10);
-    if (!isNaN(val) && val !== yi.n7_places) await onEditYear(yi, val);
-    setEditingN7ForId(null);
+    if (!isNaN(val) && val !== yi.n7_places) {
+      setN7Errors((prev) => ({ ...prev, [yi.id]: "" }));
+      try {
+        await onEditYear(yi, val);
+        setEditingN7ForId(null);
+      } catch (err) {
+        setN7Errors((prev) => ({
+          ...prev,
+          [yi.id]: err instanceof Error ? err.message : "Impossible de modifier.",
+        }));
+      }
+    } else {
+      setEditingN7ForId(null);
+    }
   }
 
   function startEditDept(dq: AgreementYearDepartment) {
     setEditingDeptId(dq.id);
     setDeptEditValue(String(dq.estimated_places));
+    setDeptErrors((prev) => ({ ...prev, [dq.id]: "" }));
   }
 
   async function saveDept(dq: AgreementYearDepartment) {
     const val = parseInt(deptEditValue, 10);
-    if (!isNaN(val) && val !== dq.estimated_places) await onSaveDeptQuota(dq, val);
-    setEditingDeptId(null);
+    if (!isNaN(val) && val !== dq.estimated_places) {
+      setDeptErrors((prev) => ({ ...prev, [dq.id]: "" }));
+      try {
+        await onSaveDeptQuota(dq, val);
+        setEditingDeptId(null);
+      } catch (err) {
+        setDeptErrors((prev) => ({
+          ...prev,
+          [dq.id]: err instanceof Error ? err.message : "Impossible de modifier.",
+        }));
+      }
+    } else {
+      setEditingDeptId(null);
+    }
   }
 
   const columns: DataTableColumn<AgreementRow>[] = [
@@ -147,10 +178,15 @@ export function AgreementsTable({
       header: "Partenaire",
       render: ({ agreement }) => {
         const u = universityById.get(agreement.partner_university_id);
+        if (!u) return <span className="text-xs text-gray-400">—</span>;
         return (
           <div>
-            <p className="text-sm text-gray-700">{u?.short_name ?? u?.name ?? "—"}</p>
-            {u?.city ? <p className="text-xs text-gray-400">{u.city}</p> : null}
+            <p className="text-sm font-medium text-gray-900">
+              {u.name} - {u.country_name_fr}
+            </p>
+            {u.short_name ? (
+              <p className="text-xs text-gray-500">({u.short_name})</p>
+            ) : null}
           </div>
         );
       },
@@ -202,7 +238,7 @@ export function AgreementsTable({
           return (
             <div className="flex flex-wrap items-center gap-2">
               <YearStatusBadge instance={yearInstance} />
-              {!isYearClosed && (
+              {!isYearClosed && !isYearLocked && (
                 <button
                   className="rounded border border-gray-200 bg-white px-2 py-0.5 text-[10px] text-gray-600 hover:bg-gray-50"
                   onClick={() => onToggleYearActive(yearInstance)}
@@ -217,8 +253,8 @@ export function AgreementsTable({
         }
 
         // ── Actif ou validé : affichage complet ───────────────────────────────
-        const locked = yearInstance.is_validated || isYearClosed;
-        const deptTotal = deptQuotas.reduce((s, dq) => s + dq.estimated_places, 0);
+        const locked = yearInstance.is_validated || isYearClosed || isYearLocked;
+        const deptTotal = deptQuotas.reduce((s, dq) => s + dq.effective_places, 0);
         const isInconsistent = deptQuotas.length > 0 && deptTotal !== yearInstance.n7_places;
 
         return (
@@ -229,19 +265,24 @@ export function AgreementsTable({
 
               {/* N7 inline-editable */}
               {!locked && editingN7ForId === yearInstance.id ? (
-                <input
-                  autoFocus
-                  className="w-14 rounded border border-blue-300 px-1 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
-                  min="0"
-                  onBlur={() => saveN7(yearInstance)}
-                  onChange={(e) => setN7EditValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter")  saveN7(yearInstance);
-                    if (e.key === "Escape") setEditingN7ForId(null);
-                  }}
-                  type="number"
-                  value={n7EditValue}
-                />
+                <div className="flex flex-col">
+                  <input
+                    autoFocus
+                    className={`w-14 rounded border px-1 py-0.5 text-xs text-center focus:outline-none focus:ring-1 ${n7Errors[yearInstance.id] ? "border-red-400 focus:ring-red-400" : "border-blue-300 focus:ring-blue-400"}`}
+                    min="0"
+                    onBlur={() => saveN7(yearInstance)}
+                    onChange={(e) => setN7EditValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter")  { void saveN7(yearInstance); }
+                      if (e.key === "Escape") { setEditingN7ForId(null); setN7Errors((p) => ({ ...p, [yearInstance.id]: "" })); }
+                    }}
+                    type="number"
+                    value={n7EditValue}
+                  />
+                  {n7Errors[yearInstance.id] && (
+                    <p className="mt-0.5 max-w-32 text-[10px] text-red-600">{n7Errors[yearInstance.id]}</p>
+                  )}
+                </div>
               ) : (
                 <button
                   className={`rounded px-1.5 py-0.5 text-xs font-semibold ${
@@ -269,30 +310,41 @@ export function AgreementsTable({
                     <span key={dq.id} className="inline-flex items-center gap-0.5">
                       <span className="text-[10px] font-medium text-gray-500">{code} :</span>
                       {isEditingThis ? (
-                        <input
-                          autoFocus
-                          className="w-10 rounded border border-blue-300 px-0.5 py-0.5 text-[10px] text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
-                          min="0"
-                          onBlur={() => saveDept(dq)}
-                          onChange={(e) => setDeptEditValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter")  saveDept(dq);
-                            if (e.key === "Escape") setEditingDeptId(null);
-                          }}
-                          type="number"
-                          value={deptEditValue}
-                        />
+                        <span className="inline-flex flex-col">
+                          <input
+                            autoFocus
+                            className={`w-10 rounded border px-0.5 py-0.5 text-[10px] text-center focus:outline-none focus:ring-1 ${deptErrors[dq.id] ? "border-red-400 focus:ring-red-400" : "border-blue-300 focus:ring-blue-400"}`}
+                            min="0"
+                            onBlur={() => saveDept(dq)}
+                            onChange={(e) => setDeptEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter")  { void saveDept(dq); }
+                              if (e.key === "Escape") { setEditingDeptId(null); setDeptErrors((p) => ({ ...p, [dq.id]: "" })); }
+                            }}
+                            type="number"
+                            value={deptEditValue}
+                          />
+                          {deptErrors[dq.id] && (
+                            <span className="text-[9px] text-red-600">{deptErrors[dq.id]}</span>
+                          )}
+                        </span>
                       ) : (
                         <button
                           className={`rounded px-1 py-0.5 text-[10px] font-semibold ${
                             locked ? "cursor-default text-gray-700" : "text-[#1E3A8A] hover:bg-blue-50 cursor-text"
-                          }`}
+                          } ${dq.adjusted_places !== null ? "underline decoration-dotted" : ""}`}
                           disabled={locked}
                           onClick={() => !locked && startEditDept(dq)}
-                          title={locked ? "Validé" : "Cliquer pour modifier"}
+                          title={
+                            locked
+                              ? "Validé"
+                              : dq.adjusted_places !== null
+                                ? `Ajusté manuellement (estimé : ${dq.estimated_places})`
+                                : "Cliquer pour modifier"
+                          }
                           type="button"
                         >
-                          {dq.estimated_places}
+                          {dq.effective_places}
                         </button>
                       )}
                     </span>
@@ -308,22 +360,39 @@ export function AgreementsTable({
 
             {/* Actions (uniquement si actif et non validé) */}
             {!locked && (
-              <div className="flex flex-wrap gap-1">
-                <button
-                  className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] text-gray-600 hover:bg-gray-50"
-                  onClick={() => onToggleYearActive(yearInstance)}
-                  type="button"
-                >
-                  <ToggleRight className="mr-0.5 inline text-green-500" size={10} />
-                  Désactiver
-                </button>
-                <button
-                  className="rounded border border-green-300 bg-green-50 px-1.5 py-0.5 text-[10px] text-green-700 hover:bg-green-100"
-                  onClick={() => onValidateYear(yearInstance)}
-                  type="button"
-                >
-                  <Check className="mr-0.5 inline" size={9} /> Valider
-                </button>
+              <div className="space-y-1">
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    className="rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] text-gray-600 hover:bg-gray-50"
+                    onClick={() => onToggleYearActive(yearInstance)}
+                    type="button"
+                  >
+                    <ToggleRight className="mr-0.5 inline text-green-500" size={10} />
+                    Désactiver
+                  </button>
+                  <button
+                    className="rounded border border-green-300 bg-green-50 px-1.5 py-0.5 text-[10px] text-green-700 hover:bg-green-100"
+                    onClick={async () => {
+                      setRowErrors((prev) => ({ ...prev, [yearInstance.id]: "" }));
+                      try {
+                        await onValidateYear(yearInstance);
+                      } catch (err) {
+                        setRowErrors((prev) => ({
+                          ...prev,
+                          [yearInstance.id]: err instanceof Error ? err.message : "Impossible de valider.",
+                        }));
+                      }
+                    }}
+                    type="button"
+                  >
+                    <Check className="mr-0.5 inline" size={9} /> Valider
+                  </button>
+                </div>
+                {rowErrors[yearInstance.id] && (
+                  <p className="max-w-52 text-[10px] text-red-600">
+                    {rowErrors[yearInstance.id]}
+                  </p>
+                )}
               </div>
             )}
           </div>
