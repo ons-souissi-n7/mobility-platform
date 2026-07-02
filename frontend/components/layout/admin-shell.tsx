@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { ReactNode } from "react";
 
+import { AlertBanner } from "@/components/layout/alert-banner";
 import { Sidebar } from "@/components/layout/sidebar";
 
 type AdminShellProps = {
@@ -46,6 +47,7 @@ export function AdminShell({ children }: AdminShellProps) {
         </header>
 
         <main className="min-w-0 flex-1 overflow-x-hidden">
+          <AlertBanner />
           <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-8 sm:py-8">
             {children}
           </div>
