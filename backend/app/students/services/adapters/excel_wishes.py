@@ -23,11 +23,12 @@ from app.academic.models import AcademicYear
 from app.mobility.models import Agreement
 from app.shared.excel_utils import format_agreement_label
 
+from ...models import MAX_WISHES_PER_STUDENT
 from ..sync_moveon import WishRow
 
 logger = logging.getLogger(__name__)
 
-MAX_WISHES = 3  # nombre de colonnes Vœu dans le template
+MAX_WISHES = MAX_WISHES_PER_STUDENT  # nombre de colonnes Vœu dans le template
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -201,7 +202,7 @@ def generate_wish_template(
         "RÈGLES :",
         "  - L'ordre des colonnes détermine la priorité : Vœu 1 = premier choix.",
         "  - Laissez une colonne Vœu vide si l'étudiant a moins de choix.",
-        "  - Maximum {max_wishes} vœux par étudiant.",
+        f"  - Maximum {max_wishes} vœux par étudiant.",
         "  - Les lignes sans étudiant sont ignorées.",
         f"  - L'étudiant doit être inscrit pour {academic_year.label} (sync Pégase d'abord).",
         "",

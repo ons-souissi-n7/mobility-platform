@@ -412,7 +412,10 @@ def list_agreement_years(
 )
 def create_agreement_year(request, payload: AgreementYearIn):
     instance = AgreementYear(**payload.model_dump())
-    return 201, save_validated(instance)
+    saved = save_validated(instance)
+    if saved.is_active:
+        ensure_dept_quotas_on_activation(saved)
+    return 201, saved
 
 
 @router.put(
@@ -424,6 +427,7 @@ def update_agreement_year(request, year_id: int, payload: AgreementYearIn):
     instance = get_or_404(AgreementYear, year_id, "Instance annuelle introuvable.")
     if instance.is_validated:
         raise HttpError(400, "Une instance validée ne peut plus être modifiée.")
+    old_n7 = instance.n7_places
     for field, value in payload.model_dump().items():
         if field not in (
             "id",
@@ -435,9 +439,12 @@ def update_agreement_year(request, year_id: int, payload: AgreementYearIn):
         ):
             setattr(instance, field, value)
     saved = save_validated(instance)
-    # Si l'instance est active et n'a pas encore de répartition dept, la créer maintenant
     if saved.is_active:
-        ensure_dept_quotas_on_activation(saved)
+        if saved.n7_places != old_n7:
+            # N7 a changé : redistribuer les quotas dept en conservant les proportions
+            redistribute_department_quotas(saved)
+        else:
+            ensure_dept_quotas_on_activation(saved)
     return saved
 
 
@@ -542,7 +549,18 @@ def create_agreement_year_department(request, payload: AgreementYearDepartmentIn
     )
     if year_instance.is_validated:
         raise HttpError(400, "Une instance validée ne peut plus être modifiée.")
-    dept = AgreementYearDepartment(**payload.model_dump())
+    try:
+        agreement_dept = AgreementDepartment.objects.get(
+            agreement=year_instance.agreement,
+            department_id=payload.department_id,
+        )
+    except AgreementDepartment.DoesNotExist as exc:
+        raise HttpError(400, f"Département {payload.department_id} non associé à cet accord.") from exc
+    dept = AgreementYearDepartment(
+        agreement_year=year_instance,
+        agreement_department=agreement_dept,
+        estimated_places=payload.estimated_places,
+    )
     return 201, save_validated(dept)
 
 
@@ -559,9 +577,7 @@ def update_agreement_year_department(
     )
     if dept.agreement_year.is_validated:
         raise HttpError(400, "Une instance validée ne peut plus être modifiée.")
-    for field, value in payload.model_dump().items():
-        if field not in ("id", "created_at", "updated_at"):
-            setattr(dept, field, value)
+    dept.estimated_places = payload.estimated_places
     return save_validated(dept)
 
 

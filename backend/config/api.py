@@ -1,6 +1,7 @@
 from ninja import NinjaAPI
 
 from app.academic.api import router as academic_router
+from app.alerts.api import router as alerts_router
 from app.audit.api import router as audit_router
 from app.imports.api import router as imports_router
 from app.institutions.api import router as institutions_router
@@ -23,6 +24,7 @@ api.add_router("/academic/", academic_router, tags=["Academic"])
 api.add_router("/mobility/", mobility_router, tags=["Mobility"])
 api.add_router("/imports/", imports_router, tags=["Imports"])
 api.add_router("/audit/", audit_router, tags=["Audit"])
+api.add_router("/alerts/", alerts_router, tags=["Alerts"])
 api.add_router("/students/", students_router, tags=["Students"])
 api.add_router("/outgoing/", outgoing_router, tags=["Outgoing"])
 api.add_router("/student/", student_portal_router, tags=["Student Portal"])

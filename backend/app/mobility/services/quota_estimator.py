@@ -68,16 +68,38 @@ def initialize_new_year_mobility(new_year: AcademicYear) -> InitResult:
 
 
 def redistribute_department_quotas(instance: AgreementYear) -> None:
-    """Redistribue équitablement n7_places sur les départements contraints."""
+    """Redistribue n7_places sur les départements en conservant les proportions actuelles."""
+    current_quotas: dict[int, int] = {
+        dq.agreement_department.department_id: dq.get_effective_quota()
+        for dq in AgreementYearDepartment.objects.filter(
+            agreement_year=instance
+        ).select_related("agreement_department")
+    }
     AgreementYearDepartment.objects.filter(agreement_year=instance).delete()
+
+    if current_quotas:
+        constrained = list(
+            AgreementDepartment.objects.filter(
+                agreement=instance.agreement
+            ).select_related("department")
+        )
+        if constrained and sum(current_quotas.values()) > 0:
+            _create_from_history(instance, constrained, current_quotas)
+            return
+
     _create_department_quotas(instance, previous_year=None)
 
 
 def ensure_dept_quotas_on_activation(instance: AgreementYear) -> None:
     if AgreementYearDepartment.objects.filter(agreement_year=instance).exists():
         return
+
     if instance.n7_places <= 0:
-        return
+        calculated = _estimate_n7_from_inp(instance.agreement)
+        if calculated <= 0:
+            return
+        instance.n7_places = calculated
+        instance.save(update_fields=["n7_places", "updated_at"])
 
     previous_year = (
         AcademicYear.objects.filter(
@@ -93,25 +115,19 @@ def ensure_dept_quotas_on_activation(instance: AgreementYear) -> None:
 # ── private helpers ────────────────────────────────────────────────────────────
 
 
-def _estimate_n7_places(
-    agreement: Agreement, previous_year: AcademicYear | None
-) -> int:
-    if previous_year is not None:
-        prev = AgreementYear.objects.filter(
-            agreement=agreement, academic_year=previous_year
-        ).first()
-        if prev is not None:
-            return prev.n7_places
-
+def _estimate_n7_from_inp(agreement: Agreement) -> int:
     inp = agreement.inp_total_places
     if inp <= 0:
         return 0
-
-    institutions = [
-        i.strip() for i in agreement.inp_institutions.split(",") if i.strip()
-    ]
+    institutions = [i.strip() for i in agreement.inp_institutions.split(",") if i.strip()]
     n_institutions = max(1, len(institutions))
     return max(1, round(inp / n_institutions))
+
+
+def _estimate_n7_places(
+    agreement: Agreement, previous_year: AcademicYear | None  # noqa: ARG001
+) -> int:
+    return _estimate_n7_from_inp(agreement)
 
 
 @transaction.atomic

@@ -146,6 +146,9 @@ class AnnualEnrollment(TimeStampedModel):
         return f"{self.student} — {self.academic_year} ({self.level})"
 
 
+MAX_WISHES_PER_STUDENT = 3
+
+
 class StudentWish(TimeStampedModel):
     id = models.BigAutoField(primary_key=True)
     annual_enrollment = models.ForeignKey(
@@ -191,6 +194,17 @@ class StudentWish(TimeStampedModel):
     def clean(self) -> None:
         if self.rank < 1:
             raise ValidationError({"rank": "Le rang doit être supérieur ou égal à 1."})
+        if self.rank > MAX_WISHES_PER_STUDENT:
+            raise ValidationError(
+                {"rank": f"Le rang ne peut pas dépasser {MAX_WISHES_PER_STUDENT} (maximum {MAX_WISHES_PER_STUDENT} vœux par étudiant)."}
+            )
+        existing = StudentWish.objects.filter(annual_enrollment=self.annual_enrollment)
+        if self.pk:
+            existing = existing.exclude(pk=self.pk)
+        if existing.count() >= MAX_WISHES_PER_STUDENT:
+            raise ValidationError(
+                f"Un étudiant ne peut pas avoir plus de {MAX_WISHES_PER_STUDENT} vœux."
+            )
 
     def __str__(self) -> str:
         return f"{self.annual_enrollment.student} — Vœu {self.rank} ({self.annual_enrollment.academic_year})"

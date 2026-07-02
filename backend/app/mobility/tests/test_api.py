@@ -155,12 +155,12 @@ class TestMobilityAgreementAPI:
         assert response.status_code == 400
 
     def test_create_agreement_year_department(self):
-        ad = AgreementDepartment.objects.create(
+        AgreementDepartment.objects.create(
             agreement=self.agreement, department=self.department
         )
         payload = {
             "agreement_year_id": self.year.id,
-            "agreement_department_id": ad.id,
+            "department_id": self.department.id,
             "estimated_places": 2,
         }
 

@@ -8,7 +8,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 1,
-      "department": 13,
+      "department": 1,
       "remarks": ""
     }
   },
@@ -21,7 +21,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 1,
-      "department": 14,
+      "department": 2,
       "remarks": ""
     }
   },
@@ -34,7 +34,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 2,
-      "department": 13,
+      "department": 1,
       "remarks": ""
     }
   },
@@ -47,7 +47,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 3,
-      "department": 14,
+      "department": 2,
       "remarks": ""
     }
   },
@@ -60,7 +60,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 3,
-      "department": 15,
+      "department": 3,
       "remarks": ""
     }
   },
@@ -73,7 +73,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 4,
-      "department": 13,
+      "department": 1,
       "remarks": ""
     }
   },
@@ -86,7 +86,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 5,
-      "department": 13,
+      "department": 1,
       "remarks": ""
     }
   },
@@ -99,7 +99,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 5,
-      "department": 14,
+      "department": 2,
       "remarks": ""
     }
   },
@@ -112,7 +112,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 5,
-      "department": 15,
+      "department": 3,
       "remarks": ""
     }
   },
@@ -125,7 +125,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 6,
-      "department": 14,
+      "department": 2,
       "remarks": ""
     }
   },
@@ -138,7 +138,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 7,
-      "department": 13,
+      "department": 1,
       "remarks": ""
     }
   },
@@ -151,7 +151,7 @@
       "created_by": "",
       "updated_by": "",
       "agreement": 7,
-      "department": 14,
+      "department": 2,
       "remarks": ""
     }
   }

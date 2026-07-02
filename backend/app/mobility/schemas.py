@@ -103,7 +103,7 @@ class AgreementYearValidateIn(Schema):
 
 class AgreementYearDepartmentIn(Schema):
     agreement_year_id: int
-    agreement_department_id: int
+    department_id: int
     estimated_places: int = 0
 
 
