@@ -635,12 +635,14 @@ class TestValidateAssignment:
         response = self.client.post(f"/api/v1/outgoing/assignments/{a.id}/validate/")
         assert response.status_code == 409
 
-    def test_validate_advances_year_to_validation(self):
+    def test_validate_does_not_change_year_state(self):
+        # validate_assignment only transitions the assignment (proposed → validated),
+        # not the academic year — year state is managed separately by complete_assignment
         AcademicYear.objects.filter(pk=self.year.pk).update(status="pre_assignment")
         a = make_assignment(self.year)
         self.client.post(f"/api/v1/outgoing/assignments/{a.id}/validate/")
         self.year = AcademicYear.objects.get(pk=self.year.pk)
-        assert self.year.status == "validation"
+        assert self.year.status == "pre_assignment"
 
 
 # ---------------------------------------------------------------------------
@@ -670,12 +672,12 @@ class TestPublishAssignment:
         response = self.client.post("/api/v1/outgoing/assignments/9999/publish/")
         assert response.status_code == 404
 
-    def test_publish_closes_year(self):
+    def test_publish_advances_year_to_published(self):
         AcademicYear.objects.filter(pk=self.year.pk).update(status="validation")
         a = make_validated_assignment(self.year)
         self.client.post(f"/api/v1/outgoing/assignments/{a.id}/publish/")
         self.year = AcademicYear.objects.get(pk=self.year.pk)
-        assert self.year.status == "closed"
+        assert self.year.status == "published"
 
 
 # ---------------------------------------------------------------------------
@@ -719,7 +721,7 @@ class TestImportOverrides:
         assert response.status_code == 200
         body = response.json()
         assert body["updated"] == 1
-        assert body["unchanged"] == 0
+        assert body["skipped"] == 0
         assert body["errors"] == []
         self.result.refresh_from_db()
         assert self.result.source == ResultSource.OVERRIDE
@@ -739,7 +741,7 @@ class TestImportOverrides:
         response = self._post_excel([("INE001", "", "")])
         assert response.status_code == 200
         body = response.json()
-        assert body["unchanged"] == 1
+        assert body["skipped"] == 1
         assert body["updated"] == 0
 
     def test_import_blocked_when_validated(self):

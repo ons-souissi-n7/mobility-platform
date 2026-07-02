@@ -1,13 +1,16 @@
+import logging
 import openpyxl
 import openpyxl.worksheet.datavalidation
 from django.db import transaction
-from django.db.models import Count, F, Max, Q
+from django.db.models import Case, CharField, Count, F, IntegerField, Max, Q, When
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django_fsm import TransitionNotAllowed
 from ninja import File, Query, Router, UploadedFile
 from ninja.errors import HttpError
 from openpyxl.utils import get_column_letter
+
+logger = logging.getLogger(__name__)
 
 from app.academic.api import get_academic_year
 from app.academic.models import AcademicYear
@@ -20,7 +23,7 @@ from app.imports.models import (
     RawImportStatus,
 )
 from app.mobility.models import Agreement, AgreementYear, AgreementYearDepartment
-from app.shared.api_helpers import PagedResponse, PaginationQuery, paginate
+from app.shared.api_helpers import LargePaginationQuery, PagedResponse, PaginationQuery, paginate
 from app.shared.excel_utils import (
     build_filename,
     format_agreement_label,
@@ -134,7 +137,7 @@ def list_assignment_results(
     slot_type: str | None = None,
     department_id: int | None = None,
     search: str | None = None,
-    pagination: PaginationQuery = Query(),
+    pagination: LargePaginationQuery = Query(),
 ):
     if not Assignment.objects.filter(pk=assignment_id).exists():
         raise HttpError(404, "Affectation introuvable.")
@@ -179,16 +182,34 @@ def get_assignment_stats(request, assignment_id: int):
     except Assignment.DoesNotExist as exc:
         raise HttpError(404, "Affectation introuvable.") from exc
 
-    slot_counts = dict(
-        AssignmentResult.objects.filter(assignment=assignment)
-        .values("slot_type")
-        .annotate(n=Count("id"))
-        .values_list("slot_type", "n")
+    # Annotations pour les valeurs effectives (après overrides manuels)
+    # eff_slot : slot type final (override_slot_type si correction, sinon slot_type auto)
+    # eff_ay_id : agreement_year_id final (override_agreement_year_id si correction, sinon auto)
+    qs = AssignmentResult.objects.filter(assignment=assignment).annotate(
+        eff_slot=Case(
+            When(
+                source=ResultSource.OVERRIDE,
+                then=Coalesce(F("override_slot_type"), F("slot_type")),
+            ),
+            default=F("slot_type"),
+            output_field=CharField(max_length=20),
+        ),
+        eff_ay_id=Case(
+            When(source=ResultSource.OVERRIDE, then=F("override_agreement_year_id")),
+            default=F("agreement_year_id"),
+            output_field=IntegerField(),
+        ),
     )
 
+    slot_counts = dict(
+        qs.values("eff_slot").annotate(n=Count("id")).values_list("eff_slot", "n")
+    )
+
+    eff_assigned_count = qs.exclude(eff_slot=SlotType.UNASSIGNED).count()
+    eff_unassigned_count = qs.filter(eff_slot=SlotType.UNASSIGNED).count()
+
     dept_counts = list(
-        AssignmentResult.objects.filter(assignment=assignment)
-        .exclude(slot_type=SlotType.UNASSIGNED)
+        qs.exclude(eff_slot=SlotType.UNASSIGNED)
         .values(
             "annual_enrollment__department_id",
             "annual_enrollment__department__code",
@@ -198,42 +219,44 @@ def get_assignment_stats(request, assignment_id: int):
         .order_by("annual_enrollment__department__code")
     )
 
-    agreement_data = list(
-        AssignmentResult.objects.filter(assignment=assignment)
-        .exclude(slot_type=SlotType.UNASSIGNED)
-        .exclude(agreement_year__isnull=True)
+    # Lignes effectivement affectées avec leur ay effectif
+    effective_rows = list(
+        qs.exclude(eff_slot=SlotType.UNASSIGNED)
+        .exclude(eff_ay_id__isnull=True)
         .values(
-            "agreement_year_id",
-            "agreement_year__agreement__name",
-            "agreement_year__agreement__partner_university__name",
-            "agreement_year__n7_places",
-        )
-        .annotate(assigned=Count("id"))
-        .order_by("agreement_year__agreement__name")
-    )
-
-    ay_ids = [r["agreement_year_id"] for r in agreement_data]
-
-    # Nombre d'affectés par accord × département
-    assigned_by_ay_dept: dict[int, dict[str, dict]] = {}
-    for row in (
-        AssignmentResult.objects.filter(
-            assignment=assignment, agreement_year_id__in=ay_ids
-        )
-        .exclude(slot_type=SlotType.UNASSIGNED)
-        .values(
-            "agreement_year_id",
+            "eff_ay_id",
             "annual_enrollment__department__code",
             "annual_enrollment__department__name",
         )
-        .annotate(n=Count("id"))
-    ):
-        ay_id = row["agreement_year_id"]
+    )
+
+    ay_ids = list({r["eff_ay_id"] for r in effective_rows})
+
+    # Détails des accord-années effectives (noms, université, pays)
+    ay_detail_map = {
+        ay.id: ay
+        for ay in AgreementYear.objects.filter(pk__in=ay_ids).select_related(
+            "agreement__partner_university__country"
+        )
+    }
+
+    # Comptage affectés par (eff_ay_id × dept)
+    assigned_by_ay_dept: dict[int, dict[str, dict]] = {}
+    for row in effective_rows:
+        ay_id = row["eff_ay_id"]
         code = row["annual_enrollment__department__code"]
-        assigned_by_ay_dept.setdefault(ay_id, {})[code] = {
-            "assigned": row["n"],
-            "dept_name": row["annual_enrollment__department__name"],
-        }
+        bucket = assigned_by_ay_dept.setdefault(ay_id, {})
+        if code in bucket:
+            bucket[code]["assigned"] += 1
+        else:
+            bucket[code] = {
+                "assigned": 1,
+                "dept_name": row["annual_enrollment__department__name"],
+            }
+
+    # Comptage affectés par eff_ay_id
+    from collections import Counter
+    ay_assigned_count = Counter(r["eff_ay_id"] for r in effective_rows)
 
     # Quotas réservés par accord × département (AgreementYearDepartment)
     quotas_by_ay_dept: dict[int, dict[str, dict]] = {}
@@ -253,10 +276,11 @@ def get_assignment_stats(request, assignment_id: int):
         }
 
     by_agreement = []
-    for r in agreement_data:
-        ay_id = r["agreement_year_id"]
+    for ay_id, n_assigned in sorted(ay_assigned_count.items()):
+        ay = ay_detail_map.get(ay_id)
+        if not ay:
+            continue
 
-        # Merge quota + assigned par département
         dept_map: dict[str, AssignmentAgreementDeptStat] = {}
         for code, q in quotas_by_ay_dept.get(ay_id, {}).items():
             a = assigned_by_ay_dept.get(ay_id, {}).get(code, {})
@@ -266,7 +290,6 @@ def get_assignment_stats(request, assignment_id: int):
                 quota=q["quota"],
                 assigned=a.get("assigned", 0),
             )
-        # Depts affectés mais sans quota explicite (surplus inter-depts)
         for code, a in assigned_by_ay_dept.get(ay_id, {}).items():
             if code not in dept_map:
                 dept_map[code] = AssignmentAgreementDeptStat(
@@ -279,50 +302,66 @@ def get_assignment_stats(request, assignment_id: int):
         by_agreement.append(
             AssignmentAgreementStat(
                 agreement_year_id=ay_id,
-                agreement_name=r["agreement_year__agreement__name"],
-                university_name=r[
-                    "agreement_year__agreement__partner_university__name"
-                ],
-                total_places=r["agreement_year__n7_places"],
-                assigned=r["assigned"],
-                fill_rate=round(
-                    r["assigned"] / max(r["agreement_year__n7_places"], 1) * 100, 1
-                ),
+                agreement_name=ay.agreement.name,
+                university_name=ay.agreement.partner_university.name,
+                total_places=ay.n7_places,
+                assigned=n_assigned,
+                fill_rate=round(n_assigned / max(ay.n7_places, 1) * 100, 1),
                 by_department=sorted(dept_map.values(), key=lambda x: x.dept_code),
             )
         )
 
-    country_counts = list(
-        AssignmentResult.objects.filter(assignment=assignment)
-        .exclude(slot_type=SlotType.UNASSIGNED)
-        .exclude(agreement_year__isnull=True)
-        .values(
-            "agreement_year__agreement__partner_university__country__name_fr",
-            "agreement_year__agreement__partner_university__country__iso2",
-        )
-        .annotate(count=Count("id"))
-        .order_by("-count")
-    )
+    by_agreement.sort(key=lambda x: x.agreement_name)
 
-    dept_country_counts = list(
-        AssignmentResult.objects.filter(assignment=assignment)
-        .exclude(slot_type=SlotType.UNASSIGNED)
-        .exclude(agreement_year__isnull=True)
-        .values(
-            "annual_enrollment__department__code",
-            "annual_enrollment__department__name",
-            "agreement_year__agreement__partner_university__country__name_fr",
-            "agreement_year__agreement__partner_university__country__iso2",
+    # Comptage par pays — depuis les ay effectives
+    country_counter: dict[tuple[str, str], int] = {}
+    for ay_id, n in ay_assigned_count.items():
+        ay = ay_detail_map.get(ay_id)
+        if not ay:
+            continue
+        country = ay.agreement.partner_university.country
+        key = (
+            country.name_fr if country else "Inconnu",
+            country.iso2 if country else "",
         )
-        .annotate(count=Count("id"))
-        .order_by("annual_enrollment__department__code", "-count")
+        country_counter[key] = country_counter.get(key, 0) + n
+
+    # Comptage par (dept × pays)
+    dept_country_counter: dict[tuple[str, str, str, str], int] = {}
+    for row in effective_rows:
+        ay_id = row["eff_ay_id"]
+        ay = ay_detail_map.get(ay_id)
+        if not ay:
+            continue
+        country = ay.agreement.partner_university.country
+        key = (
+            row["annual_enrollment__department__code"],
+            row["annual_enrollment__department__name"],
+            country.name_fr if country else "Inconnu",
+            country.iso2 if country else "",
+        )
+        dept_country_counter[key] = dept_country_counter.get(key, 0) + 1
+
+    # Total inscrits pour l'année (tous les étudiants avec affectation, assignés ou non)
+    from app.students.models import AnnualEnrollment
+    total_enrolled = AnnualEnrollment.objects.filter(
+        academic_year=assignment.academic_year
+    ).count()
+
+    # Total par département (tous étudiants, affectés ou non) depuis les résultats d'affectation
+    total_by_dept = dict(
+        qs.values("annual_enrollment__department__code")
+        .annotate(n=Count("id"))
+        .values_list("annual_enrollment__department__code", "n")
     )
 
     return AssignmentStatsOut(
         total_students=assignment.total_students,
-        assigned_count=assignment.assigned_count,
-        unassigned_count=assignment.unassigned_count,
+        assigned_count=eff_assigned_count,
+        unassigned_count=eff_unassigned_count,
+        total_enrolled=total_enrolled,
         by_slot_type=slot_counts,
+        total_by_dept=total_by_dept,
         by_department=[
             {
                 "department_id": r["annual_enrollment__department_id"],
@@ -333,35 +372,24 @@ def get_assignment_stats(request, assignment_id: int):
             for r in dept_counts
         ],
         by_agreement=by_agreement,
-        by_country=[
-            {
-                "country_name_fr": r[
-                    "agreement_year__agreement__partner_university__country__name_fr"
-                ]
-                or "Inconnu",
-                "country_iso2": r[
-                    "agreement_year__agreement__partner_university__country__iso2"
-                ]
-                or "",
-                "count": r["count"],
-            }
-            for r in country_counts
-        ],
+        by_country=sorted(
+            [
+                {"country_name_fr": name_fr, "country_iso2": iso2, "count": cnt}
+                for (name_fr, iso2), cnt in country_counter.items()
+            ],
+            key=lambda x: -x["count"],
+        ),
         by_dept_country=[
             {
-                "department_code": r["annual_enrollment__department__code"],
-                "department_name": r["annual_enrollment__department__name"],
-                "country_name_fr": r[
-                    "agreement_year__agreement__partner_university__country__name_fr"
-                ]
-                or "Inconnu",
-                "country_iso2": r[
-                    "agreement_year__agreement__partner_university__country__iso2"
-                ]
-                or "",
-                "count": r["count"],
+                "department_code": dept_code,
+                "department_name": dept_name,
+                "country_name_fr": name_fr,
+                "country_iso2": iso2,
+                "count": cnt,
             }
-            for r in dept_country_counts
+            for (dept_code, dept_name, name_fr, iso2), cnt in sorted(
+                dept_country_counter.items(), key=lambda x: (x[0][0], -x[1])
+            )
         ],
     )
 
@@ -827,18 +855,10 @@ def validate_assignment(request, assignment_id: int):
 
     assignment.save(update_fields=["status", "updated_at"])
 
-    year = assignment.academic_year
-    if year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT:
-        try:
-            year.submit_for_validation()
-            year.save(update_fields=["status", "updated_at"])
-        except TransitionNotAllowed:
-            pass
-
     log_action(
         request,
         action="validate_assignment",
-        detail=f"Affectation {assignment_id} ({year.label}) validée.",
+        detail=f"Affectation {assignment_id} ({assignment.academic_year.label}) validée.",
     )
     return assignment
 
@@ -865,13 +885,18 @@ def publish_assignment(request, assignment_id: int):
 
     assignment.save(update_fields=["status", "updated_at"])
 
+    # Transition année : validation → published
     academic_year = assignment.academic_year
     if academic_year.status == AcademicYear.CampaignStatus.VALIDATION:
         try:
-            academic_year.close()
-            academic_year.save(update_fields=["status", "closed_at", "updated_at"])
+            academic_year.publish_results()
+            academic_year.save(update_fields=["status", "updated_at"])
         except TransitionNotAllowed:
-            pass
+            logger.warning(
+                "publish_results transition refused for year %s (status=%s)",
+                academic_year.label,
+                academic_year.status,
+            )
 
     log_action(
         request,
@@ -951,7 +976,7 @@ def import_assignment_overrides(
     }
 
     updated = 0
-    unchanged = 0
+    skipped = 0
     errors: list[dict] = []
 
     with transaction.atomic():
@@ -964,7 +989,7 @@ def import_assignment_overrides(
             motif = str(row[motif_col] or "").strip()
 
             if not correction:
-                unchanged += 1
+                skipped += 1
                 continue
 
             if not motif:
@@ -1042,8 +1067,8 @@ def import_assignment_overrides(
         source=ImportSource.EXCEL_OVERRIDES,
         academic_year=assignment.academic_year,
         triggered_by=triggered_by,
-        total=updated + unchanged + len(errors),
-        success_count=updated + unchanged,
+        total=updated + skipped + len(errors),
+        success_count=updated,
         error_count=len(errors),
         errors=[
             {"external_id": e["ine"], "reason": f"Ligne {e['ligne']}: {e['erreur']}"}
@@ -1054,9 +1079,9 @@ def import_assignment_overrides(
     log_action(
         request,
         action="import_assignment_overrides",
-        detail=f"Affectation {assignment_id} — {updated} correction(s) importée(s), {len(errors)} erreur(s).",
+        detail=f"Affectation {assignment_id} — {updated} correction(s) importée(s), {skipped} ignorée(s), {len(errors)} erreur(s).",
     )
-    return OverrideImportReportOut(updated=updated, unchanged=unchanged, errors=errors)
+    return OverrideImportReportOut(updated=updated, skipped=skipped, errors=errors)
 
 
 @router.patch(

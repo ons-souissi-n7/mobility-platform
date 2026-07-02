@@ -85,7 +85,7 @@ class AssignmentResultOverrideIn(Schema):
 
 class OverrideImportReportOut(Schema):
     updated: int
-    unchanged: int
+    skipped: int
     errors: list[dict]
 
 
@@ -110,8 +110,10 @@ class AssignmentStatsOut(Schema):
     total_students: int
     assigned_count: int
     unassigned_count: int
+    total_enrolled: int
     by_slot_type: dict[str, int]
     by_department: list[dict]
+    total_by_dept: dict[str, int]
     by_agreement: list[AssignmentAgreementStat]
     by_country: list[dict]
     by_dept_country: list[dict]
