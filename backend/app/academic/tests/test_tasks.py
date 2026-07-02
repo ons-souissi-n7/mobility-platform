@@ -6,9 +6,9 @@ from django.utils import timezone
 
 from app.academic.models import AcademicYear
 from app.academic.tasks import (
-    auto_advance_consolidation_to_pre_assignment,
-    auto_advance_recommendation_to_consolidation,
+    auto_advance_recommendation_to_candidature,
     auto_close_academic_year,
+    auto_close_wishes,
     auto_create_next_academic_year,
 )
 
@@ -26,7 +26,7 @@ def _make_year(label, status, **date_kwargs):
 
 
 @pytest.mark.django_db
-class TestAutoAdvanceRecommendationToConsolidation:
+class TestAutoAdvanceRecommendationToCandidature:
     def test_advances_when_wishes_open_date_reached(self):
         today = timezone.now().date()
         year = _make_year(
@@ -36,10 +36,10 @@ class TestAutoAdvanceRecommendationToConsolidation:
             wishes_close_date=today + timedelta(days=30),
         )
 
-        auto_advance_recommendation_to_consolidation()
+        auto_advance_recommendation_to_candidature()
 
         year = AcademicYear.objects.get(pk=year.pk)
-        assert year.status == AcademicYear.CampaignStatus.CONSOLIDATION
+        assert year.status == AcademicYear.CampaignStatus.CANDIDATURE
 
     def test_does_not_advance_when_wishes_open_date_in_future(self):
         today = timezone.now().date()
@@ -50,7 +50,7 @@ class TestAutoAdvanceRecommendationToConsolidation:
             wishes_close_date=today + timedelta(days=30),
         )
 
-        auto_advance_recommendation_to_consolidation()
+        auto_advance_recommendation_to_candidature()
 
         year = AcademicYear.objects.get(pk=year.pk)
         assert year.status == AcademicYear.CampaignStatus.RECOMMENDATION
@@ -64,52 +64,48 @@ class TestAutoAdvanceRecommendationToConsolidation:
             wishes_close_date=today + timedelta(days=30),
         )
 
-        auto_advance_recommendation_to_consolidation()
+        auto_advance_recommendation_to_candidature()
 
         year = AcademicYear.objects.get(pk=year.pk)
         assert year.status == AcademicYear.CampaignStatus.INITIALIZATION
 
 
 @pytest.mark.django_db
-class TestAutoAdvanceConsolidationToPreAssignment:
-    def test_advances_and_enqueues_gale_shapley_when_wishes_closed(self):
+class TestAutoCloseWishes:
+    def test_advances_when_wishes_close_date_reached(self):
         today = timezone.now().date()
         year = _make_year(
             "2024-2025",
-            "consolidation",
+            "candidature",
             wishes_open_date=today - timedelta(days=30),
             wishes_close_date=today,
         )
 
-        with patch("app.academic.tasks.enqueue_gale_shapley") as mock_enqueue:
-            auto_advance_consolidation_to_pre_assignment()
+        auto_close_wishes()
 
         year = AcademicYear.objects.get(pk=year.pk)
-        assert year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT
-        mock_enqueue.assert_called_once_with(year.pk, triggered_by="auto")
+        assert year.status == AcademicYear.CampaignStatus.IMPORT
 
     def test_does_not_advance_when_wishes_close_date_in_future(self):
         today = timezone.now().date()
         year = _make_year(
             "2024-2025",
-            "consolidation",
+            "candidature",
             wishes_open_date=today - timedelta(days=30),
             wishes_close_date=today + timedelta(days=1),
         )
 
-        with patch("app.academic.tasks.enqueue_gale_shapley") as mock_enqueue:
-            auto_advance_consolidation_to_pre_assignment()
+        auto_close_wishes()
 
         year = AcademicYear.objects.get(pk=year.pk)
-        assert year.status == AcademicYear.CampaignStatus.CONSOLIDATION
-        mock_enqueue.assert_not_called()
+        assert year.status == AcademicYear.CampaignStatus.CANDIDATURE
 
 
 @pytest.mark.django_db
 class TestAutoCloseAcademicYear:
-    def test_closes_validation_year_when_end_date_reached(self):
+    def test_closes_published_year_when_end_date_reached(self):
         today = timezone.now().date()
-        year = _make_year("TEST-CLOSE", "validation")
+        year = _make_year("TEST-CLOSE", "published")
         AcademicYear.objects.filter(pk=year.pk).update(end_date=today)
 
         auto_close_academic_year()
@@ -120,7 +116,7 @@ class TestAutoCloseAcademicYear:
 
     def test_does_not_close_when_end_date_in_future(self):
         today = timezone.now().date()
-        year = _make_year("TEST-FUTURE", "validation")
+        year = _make_year("TEST-FUTURE", "published")
         AcademicYear.objects.filter(pk=year.pk).update(
             end_date=today + timedelta(days=1)
         )
@@ -128,9 +124,9 @@ class TestAutoCloseAcademicYear:
         auto_close_academic_year()
 
         year = AcademicYear.objects.get(pk=year.pk)
-        assert year.status == AcademicYear.CampaignStatus.VALIDATION
+        assert year.status == AcademicYear.CampaignStatus.PUBLISHED
 
-    def test_does_not_close_year_not_in_validation(self):
+    def test_does_not_close_year_not_in_published(self):
         today = timezone.now().date()
         year = _make_year("TEST-PRE", "pre_assignment")
         AcademicYear.objects.filter(pk=year.pk).update(end_date=today)

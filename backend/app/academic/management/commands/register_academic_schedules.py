@@ -10,31 +10,31 @@ class Command(BaseCommand):
             "name": "academic_create_next_year",
             "func": "app.academic.tasks.auto_create_next_academic_year",
             "cron": "0 0 * * *",
-            "note": "création automatique de l'année suivante à minuit après clôture",
+            "note": "création année suivante à minuit (lendemain de la clôture)",
         },
         {
-            "name": "academic_recommendation_to_consolidation",
-            "func": "app.academic.tasks.auto_advance_recommendation_to_consolidation",
+            "name": "academic_start_candidature",
+            "func": "app.academic.tasks.auto_advance_recommendation_to_candidature",
             "cron": "0 0 * * *",
-            "note": "recommendation → consolidation à minuit (ouverture des vœux)",
+            "note": "recommendation → candidature à minuit (ouverture des vœux)",
         },
         {
-            "name": "academic_consolidation_to_pre_assignment",
-            "func": "app.academic.tasks.auto_advance_consolidation_to_pre_assignment",
+            "name": "academic_close_wishes",
+            "func": "app.academic.tasks.auto_close_wishes",
             "cron": "59 23 * * *",
-            "note": "consolidation → pre_assignment à 23h59 (clôture des vœux) + Gale-Shapley",
+            "note": "candidature → import à 23h59 (clôture des vœux)",
         },
         {
             "name": "academic_close_at_end_date",
             "func": "app.academic.tasks.auto_close_academic_year",
             "cron": "59 23 * * *",
-            "note": "validation → closed à 23h59 le jour de end_date",
+            "note": "published → closed à 23h59 (end_date atteinte)",
         },
     ]
 
-    def handle(self, *args, **options):
+    def sync_schedules(self) -> None:
         for s in self.SCHEDULES:
-            obj, created = Schedule.objects.update_or_create(
+            Schedule.objects.update_or_create(
                 name=s["name"],
                 defaults={
                     "func": s["func"],
@@ -42,7 +42,9 @@ class Command(BaseCommand):
                     "cron": s["cron"],
                 },
             )
-            verb = "Créé" if created else "Mis à jour"
-            self.stdout.write(f"{verb} : {s['name']} — {s['note']}")
 
+    def handle(self, *_args, **_options):
+        self.sync_schedules()
+        for s in self.SCHEDULES:
+            self.stdout.write(f"OK : {s['name']} — {s['note']}")
         self.stdout.write(self.style.SUCCESS("Planification FSM enregistrée."))

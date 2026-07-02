@@ -1,11 +1,12 @@
 from django.db.models.deletion import ProtectedError
+from django.utils import timezone
 from django_fsm import TransitionNotAllowed
 from ninja import Router
 from ninja.errors import HttpError
 
 from app.audit.logger import log_action
-from app.mobility.models import AgreementYear
-from app.mobility.services.quota_estimator import initialize_new_year_mobility
+from app.mobility.models import AgreementYear, AgreementYearDepartment
+from app.mobility.services.quota_estimator import initialize_new_year_mobility, redistribute_department_quotas
 from app.outgoing.tasks import enqueue_gale_shapley
 from app.shared.api_helpers import SelectOption, save_validated
 from app.students.models import AnnualEnrollment
@@ -65,9 +66,34 @@ def create_academic_year(request, payload: AcademicYearIn):
 def update_academic_year(request, year_id: int, payload: AcademicYearIn):
     academic_year = get_academic_year(year_id)
 
+    # Champs structurels immuables dès que la campagne est lancée
+    if academic_year.status != AcademicYear.CampaignStatus.INITIALIZATION:
+        if payload.label != academic_year.label:
+            raise HttpError(400, "Le libellé ne peut plus être modifié une fois la campagne lancée.")
+        if payload.start_date != academic_year.start_date or payload.end_date != academic_year.end_date:
+            raise HttpError(400, "Les dates de début et de fin ne peuvent plus être modifiées une fois la campagne lancée.")
+
+    # Dates de vœux immuables dès l'ouverture de la période de candidature
+    locked_statuses = {
+        AcademicYear.CampaignStatus.CANDIDATURE,
+        AcademicYear.CampaignStatus.IMPORT,
+        AcademicYear.CampaignStatus.PRE_ASSIGNMENT,
+        AcademicYear.CampaignStatus.VALIDATION,
+        AcademicYear.CampaignStatus.PUBLISHED,
+    }
+    if academic_year.status in locked_statuses:
+        if (
+            payload.wishes_open_date != academic_year.wishes_open_date
+            or payload.wishes_close_date != academic_year.wishes_close_date
+        ):
+            raise HttpError(
+                400,
+                "Les dates d'ouverture et de clôture des vœux ne peuvent plus être modifiées "
+                "une fois la période de candidature démarrée.",
+            )
+
     for field, value in payload.model_dump().items():
         setattr(academic_year, field, value)
-
     return save_validated(academic_year)
 
 
@@ -103,7 +129,6 @@ def open_recommendation(request, year_id: int):
             "Les dates d'ouverture et de clôture des vœux sont obligatoires"
             " avant de lancer la phase de recommandation.",
         )
-
     has_gpa = AnnualEnrollment.objects.filter(
         academic_year=academic_year, gpa__isnull=False
     ).exists()
@@ -113,7 +138,6 @@ def open_recommendation(request, year_id: int):
             "Aucune note GPA importée pour cette année. Importez les GPAs"
             " avant de lancer la phase de recommandation.",
         )
-
     has_quotas = AgreementYear.objects.filter(
         academic_year=academic_year,
         is_active=True,
@@ -125,68 +149,173 @@ def open_recommendation(request, year_id: int):
             "Aucun quota de département configuré pour les accords actifs"
             " de cette année universitaire.",
         )
-
-    return apply_transition(academic_year, "open_recommendation")
+    result = apply_transition(academic_year, "open_recommendation")
+    _auto_validate_agreement_years(academic_year)
+    return result
 
 
 @router.post(
-    "/years/{year_id}/start-consolidation/",
+    "/years/{year_id}/start-candidature/",
     response=AcademicYearOut,
-    summary="Demarrer la consolidation",
+    summary="Démarrer la phase de candidature (ouverture des vœux)",
 )
-def start_consolidation(request, year_id: int):
+def start_candidature(request, year_id: int):
     academic_year = get_academic_year(year_id)
-    return apply_transition(academic_year, "start_consolidation")
+    return apply_transition(academic_year, "start_candidature")
 
 
 @router.post(
-    "/years/{year_id}/launch-pre-assignment/",
-    response={202: AcademicYearOut},
-    summary="Lancer la pre-affectation",
-)
-def launch_pre_assignment(request, year_id: int):
-    academic_year = get_academic_year(year_id)
-    try:
-        academic_year.launch_pre_assignment()
-        academic_year.save(update_fields=["status", "updated_at"])
-    except TransitionNotAllowed as exc:
-        raise HttpError(
-            409, f"Transition impossible depuis l'état '{academic_year.status}'."
-        ) from exc
-    triggered_by = getattr(request.user, "username", "")
-    enqueue_gale_shapley(year_id, triggered_by=triggered_by)
-    log_action(
-        request,
-        action="launch_pre_assignment",
-        detail=f"Année {academic_year.label} — Gale-Shapley lancé par {triggered_by or 'système'}",
-    )
-    return 202, academic_year
-
-
-@router.post(
-    "/years/{year_id}/submit-for-validation/",
+    "/years/{year_id}/close-wishes/",
     response=AcademicYearOut,
-    summary="Soumettre pour validation",
+    summary="Clôturer les vœux (candidature → import)",
 )
-def submit_for_validation(request, year_id: int):
+def close_wishes(request, year_id: int):
     academic_year = get_academic_year(year_id)
-    return apply_transition(academic_year, "submit_for_validation")
+    return apply_transition(academic_year, "close_wishes")
 
 
 @router.post(
     "/years/{year_id}/close/",
     response=AcademicYearOut,
-    summary="Clote l'annee universitaire",
+    summary="Clôturer l'année universitaire (published → closed)",
 )
-def close_academic_year(request, year_id: int):
+def close_year(request, year_id: int):
     academic_year = get_academic_year(year_id)
-    return apply_transition(academic_year, "close")
+    result = apply_transition(academic_year, "close")
+    log_action(
+        request,
+        action="close_year",
+        detail=f"Année {academic_year.label} — clôturée manuellement.",
+    )
+    return result
+
+
+@router.post(
+    "/years/{year_id}/launch-assignment/",
+    response={202: AcademicYearOut},
+    summary="Lancer l'affectation (import → pre_assignment + Gale-Shapley)",
+)
+def launch_assignment(request, year_id: int):
+    from app.students.models import StudentWish
+    academic_year = get_academic_year(year_id)
+    try:
+        academic_year.launch_assignment()
+        academic_year.save(update_fields=["status", "updated_at"])
+    except TransitionNotAllowed as exc:
+        raise HttpError(
+            409,
+            f"Impossible de lancer l'affectation depuis l'état « {academic_year.status} »."
+            " L'année doit être en phase Import.",
+        ) from exc
+
+    wish_count = StudentWish.objects.filter(
+        annual_enrollment__academic_year=academic_year
+    ).count()
+    if wish_count == 0:
+        from app.alerts.models import SystemAlert
+        SystemAlert.objects.create(
+            level="warning",
+            title=f"Affectation lancée sans vœux — {academic_year.label}",
+            message=(
+                f"L'algorithme Gale-Shapley a été lancé pour {academic_year.label} "
+                f"mais aucun vœu étudiant n'a été enregistré. "
+                f"Tous les étudiants seront marqués « non affectés »."
+            ),
+        )
+
+    triggered_by = getattr(request.user, "username", "")
+    enqueue_gale_shapley(year_id, triggered_by=triggered_by)
+    log_action(
+        request,
+        action="launch_assignment",
+        detail=f"Année {academic_year.label} — algorithme d'affectation lancé par {triggered_by or 'système'} ({wish_count} vœux).",
+    )
+    return 202, academic_year
+
+
+@router.post(
+    "/years/{year_id}/publish-results/",
+    response=AcademicYearOut,
+    summary="Publier les résultats (validation → published)",
+)
+def publish_results(request, year_id: int):
+    from app.outgoing.models import Assignment, AssignmentStatus
+    academic_year = get_academic_year(year_id)
+    try:
+        academic_year.publish_results()
+        academic_year.save(update_fields=["status", "updated_at"])
+    except TransitionNotAllowed as exc:
+        raise HttpError(
+            409,
+            f"Impossible de publier les résultats depuis l'état « {academic_year.status} »."
+            " L'année doit être en phase Validation.",
+        ) from exc
+
+    # Publier aussi l'affectation associée si elle est en état validé
+    latest_assignment = (
+        Assignment.objects.filter(academic_year=academic_year)
+        .order_by("-created_at")
+        .first()
+    )
+    if latest_assignment and latest_assignment.status == AssignmentStatus.VALIDATED:
+        try:
+            latest_assignment.publish()
+            latest_assignment.save(update_fields=["status", "updated_at"])
+        except TransitionNotAllowed:
+            pass  # L'affectation est déjà publiée ou dans un état incompatible
+
+    log_action(
+        request,
+        action="publish_results",
+        detail=f"Année {academic_year.label} — résultats publiés.",
+    )
+    return academic_year
+
+
+def _auto_validate_agreement_years(academic_year: AcademicYear) -> None:
+    now = timezone.now()
+    for ay in AgreementYear.objects.filter(
+        academic_year=academic_year, is_active=True, is_validated=False
+    ):
+        depts = list(AgreementYearDepartment.objects.filter(agreement_year=ay))
+        dept_total = sum(dq.get_effective_quota() for dq in depts)
+        if depts and dept_total != ay.n7_places:
+            redistribute_department_quotas(ay)
+        ay.is_validated = True
+        ay.validated_by = "Système"
+        ay.validated_at = now
+        ay.save(update_fields=["is_validated", "validated_by", "validated_at", "updated_at"])
+
+
+@router.post(
+    "/years/{year_id}/complete-assignment/",
+    response=AcademicYearOut,
+    summary="Forcer la transition pre_assignment → validation (récupération après incident)",
+)
+def complete_assignment_recovery(request, year_id: int):
+    academic_year = get_academic_year(year_id)
+    if academic_year.status != AcademicYear.CampaignStatus.PRE_ASSIGNMENT:
+        raise HttpError(
+            409,
+            f"Cette action n'est disponible que pour les années en phase Pré-affectation "
+            f"(état actuel : « {academic_year.status} »).",
+        )
+    result = apply_transition(academic_year, "complete_assignment")
+    log_action(
+        request,
+        action="complete_assignment_recovery",
+        detail=f"Année {academic_year.label} — transition pré-affectation → validation forcée manuellement.",
+    )
+    return result
 
 
 def apply_transition(academic_year: AcademicYear, transition_name: str) -> AcademicYear:
     try:
         getattr(academic_year, transition_name)()
     except TransitionNotAllowed as exc:
-        raise HttpError(400, "Transition non autorisee.") from exc
-
-    return save_validated(academic_year)
+        raise HttpError(
+            400,
+            f"Transition « {transition_name} » non autorisée depuis l'état « {academic_year.status} ».",
+        ) from exc
+    academic_year.save(update_fields=["status", "updated_at"])
+    return academic_year

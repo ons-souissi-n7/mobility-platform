@@ -56,17 +56,25 @@ class TestAcademicYear:
         academic_year.save()
         assert academic_year.status == AcademicYear.CampaignStatus.RECOMMENDATION
 
-        academic_year.start_consolidation()
+        academic_year.start_candidature()
         academic_year.save()
-        assert academic_year.status == AcademicYear.CampaignStatus.CONSOLIDATION
+        assert academic_year.status == AcademicYear.CampaignStatus.CANDIDATURE
 
-        academic_year.launch_pre_assignment()
+        academic_year.close_wishes()
+        academic_year.save()
+        assert academic_year.status == AcademicYear.CampaignStatus.IMPORT
+
+        academic_year.launch_assignment()
         academic_year.save()
         assert academic_year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT
 
-        academic_year.submit_for_validation()
+        academic_year.complete_assignment()
         academic_year.save()
         assert academic_year.status == AcademicYear.CampaignStatus.VALIDATION
+
+        academic_year.publish_results()
+        academic_year.save()
+        assert academic_year.status == AcademicYear.CampaignStatus.PUBLISHED
 
         academic_year.close()
         academic_year.save()
