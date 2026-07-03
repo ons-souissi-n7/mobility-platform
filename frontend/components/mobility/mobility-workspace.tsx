@@ -18,6 +18,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/ui/stat-card";
 import { FileText, Gauge, Landmark, Layers } from "lucide-react";
 import {
+  adjustAgreementYearInp,
   createAgreement,
   createMobilityCategory,
   deleteMobilityCategory,
@@ -246,9 +247,24 @@ export function MobilityWorkspace({
       agreement_id: yi.agreement_id,
       academic_year_id: yi.academic_year_id,
       is_active: yi.is_active,
+      inp_total_places: yi.inp_total_places,
       n7_places: n7Places,
     });
     setAgreementYears((items) => items.map((y) => (y.id === updated.id ? updated : y)));
+    // Rafraîchir les quotas département recalculés par Hamilton
+    const { getMobilityData } = await import("@/lib/api/mobility");
+    const fresh = await getMobilityData();
+    setAgreementYearDepartments(fresh.agreementYearDepartments);
+  }
+
+  async function handleEditYearInp(yi: AgreementYear, inpPlaces: number) {
+    setSyncError("");
+    const updated = await adjustAgreementYearInp(yi.id, inpPlaces);
+    setAgreementYears((items) => items.map((y) => (y.id === updated.id ? updated : y)));
+    // Rafraîchir les quotas département recalculés par Hamilton
+    const { getMobilityData } = await import("@/lib/api/mobility");
+    const fresh = await getMobilityData();
+    setAgreementYearDepartments(fresh.agreementYearDepartments);
   }
 
   async function handleValidateYear(yi: AgreementYear) {
@@ -557,6 +573,7 @@ export function MobilityWorkspace({
           isYearLocked={isYearLocked}
           onToggleYearActive={handleToggleYearActive}
           onEditYear={handleEditYear}
+          onEditYearInp={handleEditYearInp}
           onValidateYear={handleValidateYear}
           onSaveDeptQuota={handleSaveDeptQuota}
         />
