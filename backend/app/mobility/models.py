@@ -142,6 +142,7 @@ class AgreementYear(TimeStampedModel):
         related_name="agreement_years",
     )
     is_active = models.BooleanField(default=True)
+    inp_total_places = models.IntegerField(default=0)
     n7_places = models.IntegerField(default=0)
     is_validated = models.BooleanField(default=False)
     validated_by = models.CharField(max_length=255, blank=True)
@@ -170,11 +171,14 @@ class AgreementYear(TimeStampedModel):
     def clean(self) -> None:
         if self.n7_places < 0:
             raise ValidationError({"n7_places": "n7_places ne peut pas être négatif"})
-        if self.agreement_id and self.n7_places > self.agreement.inp_total_places:
+        if self.inp_total_places < 0:
+            raise ValidationError({"inp_total_places": "inp_total_places ne peut pas être négatif"})
+        effective_inp = self.inp_total_places or (
+            self.agreement.inp_total_places if self.agreement_id else 0
+        )
+        if effective_inp > 0 and self.n7_places > effective_inp:
             raise ValidationError(
-                {
-                    "n7_places": "Le quota N7 ne peut pas dépasser le quota INP de l'accord."
-                }
+                {"n7_places": "Le quota N7 ne peut pas dépasser le quota INP de l'accord."}
             )
 
     @property

@@ -43,6 +43,7 @@ from .schemas import (
     AgreementDepartmentOut,
     AgreementIn,
     AgreementOut,
+    AgreementYearAdjustInpIn,
     AgreementYearDepartmentIn,
     AgreementYearDepartmentOut,
     AgreementYearIn,
@@ -58,6 +59,7 @@ from .services.moveon_validator import ValidationError as MoveOnValidationError
 from .services.moveon_validator import validate_agreement
 from .services.quota_estimator import (
     ensure_dept_quotas_on_activation,
+    estimate_n7_from_inp,
     initialize_new_year_mobility,
     redistribute_department_quotas,
 )
@@ -449,6 +451,29 @@ def update_agreement_year(request, year_id: int, payload: AgreementYearIn):
 
 
 @router.post(
+    "/agreement-years/{year_id}/adjust-inp/",
+    response=AgreementYearOut,
+    summary="Modifier les places INP et recalculer le quota N7 + départements (Hamilton)",
+)
+def adjust_inp_places(request, year_id: int, payload: AgreementYearAdjustInpIn):
+    instance = get_or_404(AgreementYear, year_id, "Instance annuelle introuvable.")
+    if instance.is_validated:
+        raise HttpError(400, "Une instance validée ne peut plus être modifiée.")
+    if payload.inp_total_places < 0:
+        raise HttpError(400, "inp_total_places ne peut pas être négatif.")
+    instance.inp_total_places = payload.inp_total_places
+    new_n7 = estimate_n7_from_inp(
+        instance.agreement,
+        inp_places=payload.inp_total_places,
+        current_year=instance.academic_year,
+    )
+    instance.n7_places = new_n7
+    instance.save(update_fields=["inp_total_places", "n7_places", "updated_at"])
+    redistribute_department_quotas(instance)
+    return instance
+
+
+@router.post(
     "/agreement-years/{year_id}/toggle-active/",
     response=AgreementYearOut,
     summary="Activer / désactiver manuellement une instance annuelle",
@@ -484,7 +509,7 @@ def validate_agreement_year(request, year_id: int, payload: AgreementYearValidat
 @router.post(
     "/agreement-years/{year_id}/redistribute/",
     response=list[AgreementYearDepartmentOut],
-    summary="Redistribuer équitablement les quotas par département",
+    summary="Redistribuer les quotas par département via la méthode Hamilton (proportionnel à l'historique)",
 )
 def redistribute_year_departments(request, year_id: int):
     instance = get_or_404(AgreementYear, year_id, "Instance annuelle introuvable.")
