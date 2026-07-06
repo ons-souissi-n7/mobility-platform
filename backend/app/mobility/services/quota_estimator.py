@@ -43,7 +43,9 @@ def initialize_new_year_mobility(new_year: AcademicYear) -> InitResult:
             defaults={
                 "is_active": auto_active,
                 "inp_total_places": inp,
-                "n7_places": estimate_n7_from_inp(agreement, inp_places=inp, current_year=new_year),
+                "n7_places": estimate_n7_from_inp(
+                    agreement, inp_places=inp, current_year=new_year
+                ),
             },
         )
 
@@ -243,7 +245,9 @@ def estimate_n7_from_inp(
         return 0
 
     # Accepte , ; | comme séparateurs (identique au parser frontend).
-    institutions = [i.strip() for i in re.split(r"[,;|]", agreement.inp_institutions) if i.strip()]
+    institutions = [
+        i.strip() for i in re.split(r"[,;|]", agreement.inp_institutions) if i.strip()
+    ]
     other_institutions = [i for i in institutions if i.lower() not in _N7_ALIASES]
 
     # Si N7 est le seul établissement, il reçoit toutes les places INP.
@@ -260,7 +264,11 @@ def estimate_n7_from_inp(
 
     # Fallback : division égale entre les établissements partageant l'accord.
     # N7 est toujours l'un d'eux — s'il n'est pas explicitement listé on ajoute +1.
-    n_institutions = len(institutions) if _institutions_include_n7(institutions) else len(institutions) + 1
+    n_institutions = (
+        len(institutions)
+        if _institutions_include_n7(institutions)
+        else len(institutions) + 1
+    )
     return max(1, round(inp / max(1, n_institutions)))
 
 

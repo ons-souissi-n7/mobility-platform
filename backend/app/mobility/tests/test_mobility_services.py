@@ -353,7 +353,9 @@ class TestRedistributeByHistory:
         from app.reference.models import Country, CTIRegion, Department, Level
 
         self.country = Country.objects.create(
-            iso2="FR", name_fr="France", name_en="France",
+            iso2="FR",
+            name_fr="France",
+            name_en="France",
             cti_region=CTIRegion.FRANCE,
         )
         self.university = PartnerUniversity.objects.create(
@@ -377,10 +379,10 @@ class TestRedistributeByHistory:
             name="Hamilton Test Agreement",
             partner_university=self.university,
         )
-        self.level = Level.objects.create(code="3A", label="3ème année")
-        self.dept_sn = Department.objects.create(code="SN", label="Systèmes Numériques")
-        self.dept_3ea = Department.objects.create(code="3EA", label="Electronique")
-        self.dept_mf2e = Department.objects.create(code="MF2E", label="Fluides")
+        self.level = Level.objects.create(code="3A", name="3ème année")
+        self.dept_sn = Department.objects.create(code="SN", name="Systèmes Numériques")
+        self.dept_3ea = Department.objects.create(code="3EA", name="Electronique")
+        self.dept_mf2e = Department.objects.create(code="MF2E", name="Fluides")
         self.ad_sn = AgreementDepartment.objects.create(
             agreement=self.agreement, department=self.dept_sn
         )
@@ -411,7 +413,7 @@ class TestRedistributeByHistory:
 
         for i in range(n):
             s = Student.objects.create(
-                ine=f"INE-W-{dept.code}-{i:04d}",
+                ine=f"{dept.pk:06d}{i:05d}",
                 last_name=f"NomW{i}",
                 first_name="Prénom",
             )
@@ -439,8 +441,9 @@ class TestRedistributeByHistory:
 
         quotas = {
             dq.agreement_department.department.code: dq.estimated_places
-            for dq in AgreementYearDepartment.objects.filter(agreement_year=self.instance)
-            .select_related("agreement_department__department")
+            for dq in AgreementYearDepartment.objects.filter(
+                agreement_year=self.instance
+            ).select_related("agreement_department__department")
         }
         assert sum(quotas.values()) == 6
         assert quotas["SN"] == 4
@@ -456,8 +459,9 @@ class TestRedistributeByHistory:
 
         quotas = {
             dq.agreement_department.department.code: dq.estimated_places
-            for dq in AgreementYearDepartment.objects.filter(agreement_year=self.instance)
-            .select_related("agreement_department__department")
+            for dq in AgreementYearDepartment.objects.filter(
+                agreement_year=self.instance
+            ).select_related("agreement_department__department")
         }
         assert sum(quotas.values()) == 6
         assert all(v == 2 for v in quotas.values())
@@ -476,6 +480,8 @@ class TestRedistributeByHistory:
 
         total = sum(
             dq.estimated_places
-            for dq in AgreementYearDepartment.objects.filter(agreement_year=self.instance)
+            for dq in AgreementYearDepartment.objects.filter(
+                agreement_year=self.instance
+            )
         )
         assert total == 7

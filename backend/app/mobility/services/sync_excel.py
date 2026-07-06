@@ -161,12 +161,18 @@ def _process_row(excel_row: ExcelRow, current_year: AcademicYear | None) -> bool
         if excel_row.n7_places is not None:
             n7 = excel_row.n7_places
         else:
-            n7 = estimate_n7_from_inp(agreement, inp_places=inp_total, current_year=current_year)
+            n7 = estimate_n7_from_inp(
+                agreement, inp_places=inp_total, current_year=current_year
+            )
 
         year_instance, year_created = AgreementYear.objects.get_or_create(
             agreement=agreement,
             academic_year=current_year,
-            defaults={"is_active": True, "inp_total_places": inp_total, "n7_places": n7},
+            defaults={
+                "is_active": True,
+                "inp_total_places": inp_total,
+                "n7_places": n7,
+            },
         )
 
         if year_created:
