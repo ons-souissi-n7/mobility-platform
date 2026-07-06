@@ -80,6 +80,7 @@ class AgreementYearIn(Schema):
     agreement_id: int
     academic_year_id: int
     is_active: bool = True
+    inp_total_places: int = 0
     n7_places: int = 0
 
 
@@ -89,12 +90,17 @@ class AgreementYearOut(Schema):
     academic_year_id: int
     academic_year_label: str
     is_active: bool
+    inp_total_places: int
     n7_places: int
     is_validated: bool
     validated_by: str
     validated_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class AgreementYearAdjustInpIn(Schema):
+    inp_total_places: int
 
 
 class AgreementYearValidateIn(Schema):

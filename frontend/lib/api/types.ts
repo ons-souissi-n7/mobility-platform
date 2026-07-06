@@ -94,6 +94,7 @@ export type AgreementYear = {
   academic_year_id: number;
   academic_year_label: string;
   is_active: boolean;
+  inp_total_places: number;
   n7_places: number;
   is_validated: boolean;
   validated_by: string;

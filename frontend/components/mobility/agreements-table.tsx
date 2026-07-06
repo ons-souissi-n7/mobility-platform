@@ -35,6 +35,7 @@ export function AgreementsTable({
   isYearLocked = false,
   onToggleYearActive,
   onEditYear,
+  onEditYearInp,
   onValidateYear,
   onSaveDeptQuota,
 }: {
@@ -50,12 +51,16 @@ export function AgreementsTable({
   isYearLocked?: boolean;
   onToggleYearActive: (yi: AgreementYear) => Promise<void>;
   onEditYear: (yi: AgreementYear, n7Places: number) => Promise<void>;
+  onEditYearInp: (yi: AgreementYear, inpPlaces: number) => Promise<void>;
   onValidateYear: (yi: AgreementYear) => Promise<void>;
   onSaveDeptQuota: (dq: AgreementYearDepartment, places: number) => Promise<void>;
 }) {
   const [editingN7ForId, setEditingN7ForId] = useState<number | null>(null);
   const [n7EditValue, setN7EditValue] = useState("");
   const [n7Errors, setN7Errors] = useState<Record<number, string>>({});
+  const [editingInpForId, setEditingInpForId] = useState<number | null>(null);
+  const [inpEditValue, setInpEditValue] = useState("");
+  const [inpErrors, setInpErrors] = useState<Record<number, string>>({});
   const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
   const [deptEditValue, setDeptEditValue] = useState("");
   const [deptErrors, setDeptErrors] = useState<Record<number, string>>({});
@@ -89,6 +94,30 @@ export function AgreementsTable({
       deptQuotas: yi ? (deptQuotasByYearId.get(yi.id) ?? []) : [],
     };
   });
+
+  function startEditInp(yi: AgreementYear) {
+    setEditingInpForId(yi.id);
+    setInpEditValue(String(yi.inp_total_places));
+    setInpErrors((prev) => ({ ...prev, [yi.id]: "" }));
+  }
+
+  async function saveInp(yi: AgreementYear) {
+    const val = parseInt(inpEditValue, 10);
+    if (!isNaN(val) && val !== yi.inp_total_places) {
+      setInpErrors((prev) => ({ ...prev, [yi.id]: "" }));
+      try {
+        await onEditYearInp(yi, val);
+        setEditingInpForId(null);
+      } catch (err) {
+        setInpErrors((prev) => ({
+          ...prev,
+          [yi.id]: err instanceof Error ? err.message : "Impossible de modifier.",
+        }));
+      }
+    } else {
+      setEditingInpForId(null);
+    }
+  }
 
   function startEditN7(yi: AgreementYear) {
     setEditingN7ForId(yi.id);
@@ -259,9 +288,48 @@ export function AgreementsTable({
 
         return (
           <div className="min-w-52 space-y-2">
-            {/* Statut + N7 */}
+            {/* Statut + INP + N7 */}
             <div className="flex flex-wrap items-center gap-2">
               <YearStatusBadge instance={yearInstance} />
+
+              {/* INP inline-editable */}
+              {!locked && editingInpForId === yearInstance.id ? (
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[10px] text-gray-500">INP :</span>
+                    <input
+                      autoFocus
+                      className={`w-14 rounded border px-1 py-0.5 text-xs text-center focus:outline-none focus:ring-1 ${inpErrors[yearInstance.id] ? "border-red-400 focus:ring-red-400" : "border-orange-300 focus:ring-orange-400"}`}
+                      min="0"
+                      onBlur={() => saveInp(yearInstance)}
+                      onChange={(e) => setInpEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter")  { void saveInp(yearInstance); }
+                        if (e.key === "Escape") { setEditingInpForId(null); setInpErrors((p) => ({ ...p, [yearInstance.id]: "" })); }
+                      }}
+                      type="number"
+                      value={inpEditValue}
+                    />
+                  </div>
+                  {inpErrors[yearInstance.id] && (
+                    <p className="mt-0.5 max-w-32 text-[10px] text-red-600">{inpErrors[yearInstance.id]}</p>
+                  )}
+                </div>
+              ) : (
+                <button
+                  className={`rounded px-1.5 py-0.5 text-xs font-semibold ${
+                    locked ? "cursor-default text-gray-500" : "text-orange-700 hover:bg-orange-50 cursor-text"
+                  }`}
+                  disabled={locked}
+                  onClick={() => !locked && startEditInp(yearInstance)}
+                  title={locked ? "Validé — non modifiable" : "Cliquer pour modifier le quota INP"}
+                  type="button"
+                >
+                  INP : {yearInstance.inp_total_places}
+                  {locked && <Lock className="ml-1 inline" size={9} />}
+                </button>
+              )}
+              <span className="text-[10px] text-gray-400">→</span>
 
               {/* N7 inline-editable */}
               {!locked && editingN7ForId === yearInstance.id ? (

@@ -29,6 +29,7 @@ export type AgreementYearPayload = {
   agreement_id: number;
   academic_year_id: number;
   is_active: boolean;
+  inp_total_places: number;
   n7_places: number;
 };
 
@@ -111,6 +112,13 @@ export function validateAgreementYear(id: number, validatedBy = "Administrateur"
 export function redistributeAgreementYear(id: number) {
   return browserApi<AgreementYearDepartment[]>(`/mobility/agreement-years/${id}/redistribute/`, {
     method: "POST",
+  });
+}
+
+export function adjustAgreementYearInp(id: number, inpTotalPlaces: number) {
+  return browserApi<AgreementYear>(`/mobility/agreement-years/${id}/adjust-inp/`, {
+    method: "POST",
+    body: { inp_total_places: inpTotalPlaces },
   });
 }
 

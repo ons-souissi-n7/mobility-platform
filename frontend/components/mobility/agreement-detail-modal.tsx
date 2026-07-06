@@ -95,8 +95,10 @@ export function AgreementDetailModal({
     deptQuotasByYearId.set(dq.agreement_year_id, list);
   }
 
-  const institutions = parseInstitutions(agreement.inp_institutions);
-  const hasN7 = institutions.some(isN7Institution);
+  const rawInstitutions = parseInstitutions(agreement.inp_institutions);
+  // N7 est toujours implicitement présent — on l'ajoute si non listé explicitement
+  const n7AlreadyListed = rawInstitutions.some(isN7Institution);
+  const institutions = n7AlreadyListed ? rawInstitutions : ["ENSEEIHT", ...rawInstitutions];
 
   const constrainedDepts = agreement.department_ids.length > 0
     ? agreement.department_ids.map((id) => departments.get(id)).filter(Boolean) as Department[]
@@ -213,43 +215,33 @@ export function AgreementDetailModal({
               <div className="flex items-center gap-3">
                 <span className="text-2xl font-bold text-gray-900">{agreement.inp_total_places}</span>
                 <span className="text-sm text-gray-500">places INP au total</span>
-                {hasN7 ? (
-                  <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                    N7 inclus
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-                    N7 absent
-                  </span>
-                )}
+                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                  N7 inclus
+                </span>
               </div>
 
-              {institutions.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {institutions.map((inst, i) => {
-                    const n7 = isN7Institution(inst);
-                    return (
-                      <span
-                        key={i}
-                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
-                          n7
-                            ? "bg-amber-100 text-amber-900 ring-1 ring-amber-300"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {inst}
-                        {n7 && (
-                          <span className="rounded-full bg-amber-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                            N7
-                          </span>
-                        )}
-                      </span>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm italic text-gray-400">Aucun établissement renseigné.</p>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {institutions.map((inst, i) => {
+                  const n7 = isN7Institution(inst);
+                  return (
+                    <span
+                      key={i}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                        n7
+                          ? "bg-amber-100 text-amber-900 ring-1 ring-amber-300"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {inst}
+                      {n7 && (
+                        <span className="rounded-full bg-amber-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                          N7
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
           </Section>
 
