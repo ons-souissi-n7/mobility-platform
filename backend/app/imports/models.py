@@ -19,6 +19,7 @@ class RawImportEntity(models.TextChoices):
     AGREEMENT_CATEGORY = "agreement_category", "Catégorie d'accord"
     AGREEMENT = "agreement", "Accord"
     STUDENT = "student", "Étudiant"
+    INTERNSHIP = "internship", "Stage"
 
 
 class RawImport(TimeStampedModel):

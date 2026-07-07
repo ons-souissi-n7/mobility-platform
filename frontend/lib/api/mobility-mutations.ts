@@ -45,6 +45,8 @@ export type MobilityCategoryPayload = {
 
 export type MobilityImportRetryPayload = {
   partner_university_id?: number;
+  name?: string;
+  reference?: string;
 };
 
 export type InitYearResult = {

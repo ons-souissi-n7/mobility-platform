@@ -446,12 +446,16 @@ def list_assignment_agreement_years(request, assignment_id: int):
     response=PagedResponse[StudentRawImportOut],
     summary="Erreurs d'import vœux MoveON",
 )
-def list_wish_import_errors(request, pagination: PaginationQuery = Query(...)):
+def list_wish_import_errors(
+    request, pagination: PaginationQuery = Query(...), year_id: int | None = None
+):
+    base = RawImport.objects.filter(
+        entity=RawImportEntity.STUDENT, source="moveon_student_wishes"
+    )
+    if year_id is not None:
+        base = base.filter(academic_year_id=year_id)
     latest_ids = (
-        RawImport.objects.filter(
-            entity=RawImportEntity.STUDENT, source="moveon_student_wishes"
-        )
-        .values("external_id")
+        base.values("external_id")
         .annotate(latest_id=Max("id"))
         .values_list("latest_id", flat=True)
     )
@@ -496,6 +500,9 @@ def retry_wish_import_error(request, raw_import_id: int, payload: WishImportRetr
         if agreement is None:
             raise HttpError(400, f"Accord {payload.agreement_id} introuvable.")
         corrected["offre_de_sejour"] = agreement.name
+
+    if payload.rank is not None:
+        corrected["rank"] = payload.rank
 
     from app.academic.models import AcademicYear as AcademicYearModel
 

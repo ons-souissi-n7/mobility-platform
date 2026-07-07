@@ -165,6 +165,13 @@ class StudentImportRetryIn(Schema):
     department_id: int | None = None
     level_id: int | None = None
     parcours_id: int | None = None
+    ine: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    gender: str | None = None
+    gpa: float | None = None
+    nationality_iso2: str | None = None
 
 
 class StudentAssignmentOut(Schema):

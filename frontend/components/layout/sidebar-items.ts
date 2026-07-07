@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Briefcase,
   CalendarRange,
   FileBarChart,
   FileText,
@@ -31,6 +32,11 @@ export const adminNavigation = [
     href: "/admin/entrantes",
     label: "Mobilites entrantes",
     icon: PlaneLanding,
+  },
+  {
+    href: "/admin/internships",
+    label: "Stages internationaux",
+    icon: Briefcase,
   },
   {
     href: "/admin/mobility",

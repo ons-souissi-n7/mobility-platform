@@ -1,12 +1,14 @@
 "use client";
 
-import { AlertTriangle, Check, ChevronDown, ChevronRight, RotateCw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, RefreshCw, RotateCw } from "lucide-react";
+import { useState } from "react";
 
 import { Pagination } from "@/components/ui/pagination";
 import type { Country, RawImport } from "@/lib/api/types";
+import type { DepartmentImportCorrection, UniversityImportCorrection } from "@/lib/api/reference-mutations";
 
-// Field labels by entity type
+export type LevelImportCorrection = { code?: string; name?: string; pegase_id?: string };
+
 const UNIVERSITY_LABELS: Record<string, string> = {
   moveon_id: "ID MoveON",
   name: "Nom",
@@ -24,16 +26,10 @@ const DEPARTMENT_LABELS: Record<string, string> = {
   name: "Nom",
 };
 
-const LEVEL_LABELS: Record<string, string> = {
-  pegase_id: "ID Pégase",
-  code: "Code",
-  name: "Nom",
-};
-
 function getLabels(entity: string | undefined): Record<string, string> {
   if (entity === "partner_university") return UNIVERSITY_LABELS;
   if (entity === "department") return DEPARTMENT_LABELS;
-  if (entity === "level") return LEVEL_LABELS;
+  if (entity === "level") return DEPARTMENT_LABELS;
   return {};
 }
 
@@ -46,19 +42,10 @@ function renderValue(value: unknown): string {
   return String(value);
 }
 
-function PayloadGrid({
-  entity,
-  payload,
-}: {
-  entity: string | undefined;
-  payload: Record<string, unknown>;
-}) {
+function PayloadGrid({ entity, payload }: { entity: string | undefined; payload: Record<string, unknown> }) {
   const labels = getLabels(entity);
   const entries = Object.entries(payload).filter(([, v]) => v !== null && v !== undefined && v !== "");
-
-  if (entries.length === 0)
-    return <p className="text-xs italic text-gray-400">Aucune donnée disponible</p>;
-
+  if (entries.length === 0) return <p className="text-xs italic text-gray-400">Aucune donnée disponible</p>;
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
       {entries.map(([key, value]) => (
@@ -75,15 +62,75 @@ function PayloadGrid({
   );
 }
 
+// ── University form ────────────────────────────────────────────────────────
+
+type UniversityForm = {
+  name: string;
+  short_name: string;
+  translated_name: string;
+  erasmus_code: string;
+  city: string;
+  url: string;
+  email: string;
+  country_id: number | "";
+};
+
+function buildUniversityForm(payload: Record<string, unknown>): UniversityForm {
+  return {
+    name: String(payload.name ?? ""),
+    short_name: String(payload.short_name ?? ""),
+    translated_name: String(payload.translated_name ?? ""),
+    erasmus_code: String(payload.erasmus_code ?? ""),
+    city: String(payload.city ?? ""),
+    url: String(payload.url ?? ""),
+    email: String(payload.email ?? ""),
+    country_id: "",
+  };
+}
+
+function buildUniversityCorrection(form: UniversityForm): UniversityImportCorrection {
+  const c: UniversityImportCorrection = {};
+  if (form.country_id !== "") c.country_id = form.country_id;
+  if (form.name) c.name = form.name;
+  if (form.short_name) c.short_name = form.short_name;
+  if (form.translated_name) c.translated_name = form.translated_name;
+  if (form.erasmus_code) c.erasmus_code = form.erasmus_code;
+  if (form.city) c.city = form.city;
+  if (form.url) c.url = form.url;
+  if (form.email) c.email = form.email;
+  return c;
+}
+
+// ── Department / Level form ────────────────────────────────────────────────
+
+type DeptLevelForm = { code: string; name: string; pegase_id: string };
+
+function buildDeptLevelForm(payload: Record<string, unknown>): DeptLevelForm {
+  return {
+    code: String(payload.code ?? ""),
+    name: String(payload.name ?? ""),
+    pegase_id: String(payload.pegase_id ?? ""),
+  };
+}
+
+function buildDeptCorrection(form: DeptLevelForm): DepartmentImportCorrection {
+  const c: DepartmentImportCorrection = {};
+  if (form.code) c.code = form.code;
+  if (form.name) c.name = form.name;
+  if (form.pegase_id) c.pegase_id = form.pegase_id;
+  return c;
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
 type ImportErrorsPanelProps = {
   countries: Country[];
   errors: RawImport[];
   isBusy: boolean;
   onIgnore: (error: RawImport) => Promise<void>;
-  onRetry: (error: RawImport, correction?: number | string) => Promise<void>;
+  onRetry?: (error: RawImport, correction: UniversityImportCorrection | DepartmentImportCorrection | LevelImportCorrection) => Promise<void>;
   onForce?: (error: RawImport) => Promise<void>;
   title?: string;
-  retryField?: "country" | "code";
   totalCount?: number;
   page?: number;
   pageSize?: number;
@@ -98,34 +145,28 @@ export function ImportErrorsPanel({
   onRetry,
   onForce,
   title,
-  retryField,
   totalCount,
   page = 1,
   pageSize = 25,
   onPageChange,
 }: ImportErrorsPanelProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [selectedCountries, setSelectedCountries] = useState<Record<number, string>>({});
-  const [selectedCodes, setSelectedCodes] = useState<Record<number, string>>({});
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-
-  const sortedCountries = useMemo(
-    () => [...countries].sort((a, b) => a.name_fr.localeCompare(b.name_fr)),
-    [countries],
-  );
+  const [univForms, setUnivForms] = useState<Record<number, UniversityForm>>({});
+  const [deptForms, setDeptForms] = useState<Record<number, DeptLevelForm>>({});
 
   if (errors.length === 0) return null;
 
-  async function runAction(action: () => Promise<void>, id: number) {
+  const sortedCountries = [...countries].sort((a, b) => a.name_fr.localeCompare(b.name_fr));
+
+  async function runAction(fn: () => Promise<void>, id: number) {
     setActiveId(id);
     setActionError(null);
     try {
-      await action();
-    } catch (error) {
-      setActionError(
-        error instanceof Error ? error.message : "Erreur inconnue lors de l'opération.",
-      );
+      await fn();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Erreur inconnue lors de l'opération.");
     } finally {
       setActiveId(null);
     }
@@ -133,6 +174,32 @@ export function ImportErrorsPanel({
 
   function toggleExpand(id: number) {
     setExpandedId((prev) => (prev === id ? null : id));
+  }
+
+  function getUnivForm(error: RawImport): UniversityForm {
+    if (!univForms[error.id]) {
+      const f = buildUniversityForm(error.payload);
+      setUnivForms((prev) => ({ ...prev, [error.id]: f }));
+      return f;
+    }
+    return univForms[error.id];
+  }
+
+  function getDeptForm(error: RawImport): DeptLevelForm {
+    if (!deptForms[error.id]) {
+      const f = buildDeptLevelForm(error.payload);
+      setDeptForms((prev) => ({ ...prev, [error.id]: f }));
+      return f;
+    }
+    return deptForms[error.id];
+  }
+
+  function updateUnivForm(id: number, patch: Partial<UniversityForm>) {
+    setUnivForms((prev) => ({ ...prev, [id]: { ...(prev[id] ?? buildUniversityForm({})), ...patch } }));
+  }
+
+  function updateDeptForm(id: number, patch: Partial<DeptLevelForm>) {
+    setDeptForms((prev) => ({ ...prev, [id]: { ...(prev[id] ?? buildDeptLevelForm({})), ...patch } }));
   }
 
   return (
@@ -155,34 +222,29 @@ export function ImportErrorsPanel({
           const isConflict = error.status === "conflict";
           const busy = isBusy || activeId === error.id;
           const isExpanded = expandedId === error.id;
-          const countryId = Number(selectedCountries[error.id] || 0);
-          const code = selectedCodes[error.id] ?? "";
-
-          const canRetry =
-            !isConflict &&
-            ((retryField === "country" && !!countryId) ||
-              (retryField === "code" && !!code.trim()));
-
-          const correction =
-            retryField === "country" ? countryId : retryField === "code" ? code : undefined;
-
           const entityName = String(error.payload?.name ?? error.external_id ?? "—");
+          const isUniversity = error.entity === "partner_university";
+          const isDeptOrLevel = error.entity === "department" || error.entity === "level";
+
+          let univForm: UniversityForm | null = null;
+          let deptForm: DeptLevelForm | null = null;
+          if (isExpanded) {
+            if (isUniversity) univForm = getUnivForm(error);
+            else if (isDeptOrLevel) deptForm = getDeptForm(error);
+          }
 
           return (
             <div
               key={error.id}
               className={`rounded-md overflow-hidden ${isConflict ? "border border-amber-300 bg-amber-50/30" : "border border-amber-200 bg-white"}`}
             >
-              {/* Summary row */}
               <button
                 type="button"
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-50 transition-colors"
                 onClick={() => toggleExpand(error.id)}
               >
                 <span className="shrink-0 text-amber-500">
-                  {isExpanded
-                    ? <ChevronDown className="h-4 w-4" />
-                    : <ChevronRight className="h-4 w-4" />}
+                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                 </span>
                 <span className="font-mono text-xs text-gray-600 shrink-0 w-28 truncate">
                   {error.external_id || "—"}
@@ -194,18 +256,14 @@ export function ImportErrorsPanel({
                   {error.error_message || "Erreur inconnue"}
                 </span>
                 <span className={`shrink-0 ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                  isConflict
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-red-100 text-red-700"
+                  isConflict ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"
                 }`}>
-                  {isConflict ? "conflit" : retryField ? "corrigeable" : "manuel"}
+                  {isConflict ? "conflit" : "corrigeable"}
                 </span>
               </button>
 
-              {/* Expanded panel */}
               {isExpanded && (
                 <div className="border-t border-amber-100 px-4 py-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  {/* Left: full record */}
                   <div>
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Enregistrement complet
@@ -221,64 +279,46 @@ export function ImportErrorsPanel({
                     </div>
                   </div>
 
-                  {/* Right: correction */}
                   <div>
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Correction proposée
+                      {isConflict ? "Action requise" : "Corriger et relancer"}
                     </h4>
 
-                    {retryField === "country" && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-gray-500">
-                          Le pays n&apos;a pas pu être résolu automatiquement. Sélectionnez le pays correct.
-                        </p>
-                        <select
-                          className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
-                          disabled={busy}
-                          value={selectedCountries[error.id] ?? ""}
-                          onChange={(e) =>
-                            setSelectedCountries((v) => ({ ...v, [error.id]: e.target.value }))
-                          }
-                        >
-                          <option value="">Choisir un pays…</option>
-                          {sortedCountries.map((country) => (
-                            <option key={country.id} value={country.id}>
-                              {country.name_fr} ({country.iso2})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {retryField === "code" && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-gray-500">
-                          Le code source ne correspond à aucune entrée connue. Saisissez le code correct.
-                        </p>
-                        <input
-                          className="w-40 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900 placeholder-gray-400 font-mono"
-                          disabled={busy}
-                          placeholder="Ex: SN"
-                          type="text"
-                          value={code}
-                          onChange={(e) =>
-                            setSelectedCodes((v) => ({
-                              ...v,
-                              [error.id]: e.target.value.toUpperCase(),
-                            }))
-                          }
-                        />
-                      </div>
-                    )}
-
-                    {isConflict && (
+                    {isConflict ? (
                       <p className="text-xs text-amber-700">
                         Cet enregistrement a été modifié localement depuis la dernière synchronisation.
-                        Cliquez sur <strong>Forcer</strong> pour écraser la version locale avec les données de la source externe.
+                        Cliquez sur <strong>Forcer</strong> pour écraser avec les données source.
                       </p>
-                    )}
-
-                    {!isConflict && !retryField && (
+                    ) : isUniversity && univForm ? (
+                      <div className="grid grid-cols-1 gap-2">
+                        <TextField label="Nom" value={univForm.name} onChange={(v) => updateUnivForm(error.id, { name: v })} />
+                        <TextField label="Nom court" value={univForm.short_name} onChange={(v) => updateUnivForm(error.id, { short_name: v })} />
+                        <TextField label="Nom traduit" value={univForm.translated_name} onChange={(v) => updateUnivForm(error.id, { translated_name: v })} />
+                        <TextField label="Code Erasmus" value={univForm.erasmus_code} onChange={(v) => updateUnivForm(error.id, { erasmus_code: v })} />
+                        <TextField label="Ville" value={univForm.city} onChange={(v) => updateUnivForm(error.id, { city: v })} />
+                        <TextField label="Site web" value={univForm.url} onChange={(v) => updateUnivForm(error.id, { url: v })} />
+                        <TextField label="Email" value={univForm.email} onChange={(v) => updateUnivForm(error.id, { email: v })} />
+                        <label className="block">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Pays</span>
+                          <select
+                            className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                            value={univForm.country_id}
+                            onChange={(e) => updateUnivForm(error.id, { country_id: e.target.value ? Number(e.target.value) : "" })}
+                          >
+                            <option value="">— Sélectionner un pays —</option>
+                            {sortedCountries.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name_fr} ({c.iso2})</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    ) : isDeptOrLevel && deptForm ? (
+                      <div className="grid grid-cols-1 gap-2">
+                        <TextField label="Code" value={deptForm.code} onChange={(v) => updateDeptForm(error.id, { code: v })} />
+                        <TextField label="Nom" value={deptForm.name} onChange={(v) => updateDeptForm(error.id, { name: v })} />
+                        <TextField label="ID Pégase" value={deptForm.pegase_id} onChange={(v) => updateDeptForm(error.id, { pegase_id: v })} />
+                      </div>
+                    ) : (
                       <p className="text-xs italic text-gray-400">
                         Ce type d&apos;erreur nécessite une correction manuelle dans la source de données.
                       </p>
@@ -292,17 +332,22 @@ export function ImportErrorsPanel({
                           onClick={() => runAction(() => onForce(error), error.id)}
                           type="button"
                         >
-                          <RotateCw className="h-3 w-3" />
+                          <RefreshCw className="h-3 w-3" />
                           Forcer la mise à jour
                         </button>
                       )}
-                      {!isConflict && retryField && (
+                      {!isConflict && onRetry && (isUniversity || isDeptOrLevel) && (
                         <button
                           className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={!canRetry || busy}
-                          onClick={() =>
-                            runAction(() => onRetry(error, correction), error.id)
-                          }
+                          disabled={busy}
+                          onClick={() => {
+                            const correction = isUniversity && univForm
+                              ? buildUniversityCorrection(univForm)
+                              : deptForm
+                                ? buildDeptCorrection(deptForm)
+                                : {};
+                            return runAction(() => onRetry(error, correction), error.id);
+                          }}
                           type="button"
                         >
                           <RotateCw className="h-3 w-3" />
@@ -339,5 +384,27 @@ export function ImportErrorsPanel({
         </div>
       )}
     </div>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</span>
+      <input
+        className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
   );
 }

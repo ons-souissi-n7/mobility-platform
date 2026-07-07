@@ -8,8 +8,8 @@ Si PEGASE_API_URL n'est pas configuré, la sync retourne une liste vide.
 
 import json
 import logging
+from datetime import date
 from urllib.error import URLError
-from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -21,17 +21,17 @@ from ..student_importer import StudentRow
 logger = logging.getLogger(__name__)
 
 
-def fetch_enrollments(academic_year_label: str) -> list[StudentRow]:
-    """Appelle l'API Pégase pour récupérer les inscriptions de l'année donnée."""
+def fetch_enrollments(start_date: date, end_date: date) -> list[StudentRow]:
+    """Récupère toutes les inscriptions Pégase et filtre celles dont la date de création
+    ou de modification appartient à la plage [start_date, end_date]."""
     api_url = getattr(settings, "PEGASE_API_URL", "").rstrip("/")
     if not api_url:
         logger.warning("PEGASE_API_URL n'est pas configuré — sync étudiants ignorée")
         return []
 
-    logger.info("Pégase sync %s — %s/api/inscriptions", academic_year_label, api_url)
-    params = urlencode({"annee": academic_year_label})
+    logger.info("Pégase sync %s → %s — %s/api/inscriptions", start_date, end_date, api_url)
     request = Request(
-        f"{api_url}/api/inscriptions?{params}",
+        f"{api_url}/api/inscriptions",
         headers={"Accept": "application/json"},
         method="GET",
     )
@@ -46,7 +46,24 @@ def fetch_enrollments(academic_year_label: str) -> list[StudentRow]:
         logger.error("Pégase /api/inscriptions doit retourner une liste")
         return []
 
-    return _parse_rows(data)
+    matching = [row for row in data if isinstance(row, dict) and _in_range(row, start_date, end_date)]
+    logger.info("Pégase : %d inscriptions totales, %d dans la plage %s → %s", len(data), len(matching), start_date, end_date)
+    return _parse_rows(matching)
+
+
+def _in_range(row: dict, start_date: date, end_date: date) -> bool:
+    """Retourne True si date_creation ou date_modification est dans [start_date, end_date]."""
+    for field in ("date_creation", "date_modification"):
+        raw = row.get(field)
+        if not raw:
+            continue
+        try:
+            d = date.fromisoformat(str(raw)[:10])
+            if start_date <= d <= end_date:
+                return True
+        except ValueError:
+            continue
+    return False
 
 
 def _parse_rows(data: list) -> list[StudentRow]:

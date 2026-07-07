@@ -100,10 +100,27 @@ export function getDepartmentImportErrors(
 }
 
 
-export function retryDepartmentImport(id: number, code: string) {
+export type DepartmentImportCorrection = {
+  code?: string;
+  name?: string;
+  pegase_id?: string;
+};
+
+export type UniversityImportCorrection = {
+  country_id?: number;
+  name?: string;
+  short_name?: string;
+  translated_name?: string;
+  erasmus_code?: string;
+  city?: string;
+  url?: string;
+  email?: string;
+};
+
+export function retryDepartmentImport(id: number, correction: DepartmentImportCorrection) {
   return browserApi<RawImport>(`/reference/departments/import-errors/${id}/retry/`, {
     method: "PUT",
-    body: { code },
+    body: correction,
   });
 }
 
@@ -160,10 +177,10 @@ export function getUniversityImportErrors(
   );
 }
 
-export function retryUniversityImport(id: number, countryId: number) {
+export function retryUniversityImport(id: number, correction: UniversityImportCorrection) {
   return browserApi<RawImport>(`/institutions/import-errors/${id}/retry/`, {
-    method: "POST",
-    body: { country_id: countryId },
+    method: "PUT",
+    body: correction,
   });
 }
 

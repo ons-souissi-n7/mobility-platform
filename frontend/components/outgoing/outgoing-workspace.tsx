@@ -183,7 +183,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
       try {
         const [w, errs, students, agr, assignmentsData] = await Promise.all([
           getWishesByYear(yearId),
-          getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE }),
+          getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE, year_id: yearId }),
           getStudentSelectOptions(yearId),
           getValidAgreements(),
           getAssignmentsForYear(yearId),
@@ -365,7 +365,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   async function reloadWishes(yearId: number) {
     const [w, errs] = await Promise.all([
       getWishesByYear(yearId),
-      getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE }),
+      getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE, year_id: yearId }),
     ]);
     setWishes(w);
     setWishImportErrors(errs.results);
@@ -418,7 +418,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
 
   async function loadWishErrors(page: number) {
     try {
-      const errs = await getWishImportErrors({ page, page_size: WISH_ERRORS_PAGE_SIZE });
+      const errs = await getWishImportErrors({ page, page_size: WISH_ERRORS_PAGE_SIZE, year_id: selectedYearId ?? undefined });
       setWishImportErrors(errs.results);
       setWishErrorsTotalCount(errs.count);
       setWishErrorsPage(page);
@@ -469,10 +469,8 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   const isReadOnly = !!selectedYear && ["closed", "published"].includes(selectedYear.status);
   // Verrouillé pendant le calcul ou pour une année clôturée/publiée
   const isLocked = polling || isReadOnly;
-  // Phase vœux terminée (imports/sync désactivés)
-  const isPastWishPhase =
-    !!selectedYear &&
-    !["initialization", "recommendation", "candidature", "import"].includes(selectedYear.status);
+  // Sync et import vœux disponibles uniquement en phase Import
+  const isImportPhase = !!selectedYear && selectedYear.status === "import";
   // Des corrections manuelles ont été importées → relancer l'algo les écraserait
   const hasOverrides = [...resultsMap.values()].some((r) => r.source === "override");
   // Bouton "Lancer l'affectation" : uniquement depuis l'état import, sans corrections existantes
@@ -517,6 +515,13 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
           <span className="mb-2 text-xs text-gray-400 animate-pulse">Chargement...</span>
         )}
       </div>
+
+      {/* Bannière sync/import vœux désactivés */}
+      {selectedYear && !isImportPhase && !isReadOnly && !polling && (
+        <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+          Synchronisation et import des vœux disponibles uniquement en <span className="font-semibold mx-1">phase Import</span>.
+        </div>
+      )}
 
       {/* Bannière année clôturée */}
       {isReadOnly && (
@@ -662,19 +667,19 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
         search={{ value: query, onChange: setQuery, placeholder: "Rechercher par INE, nom, prénom..." }}
         actions={
           <>
-            <Btn disabled={!selectedYear || isLocked || isPastWishPhase} onClick={handleTemplateDownload}>
+            <Btn disabled={!isImportPhase || isLocked} onClick={handleTemplateDownload}>
               <Download className="h-4 w-4" />
               Template
             </Btn>
             <FileBtn
-              disabled={!selectedYear || excelInProgress || isLocked || isPastWishPhase}
+              disabled={!isImportPhase || excelInProgress || isLocked}
               onFile={(file) => { void handleExcelImport(file); }}
             >
               {excelInProgress ? <Upload className="h-4 w-4 animate-bounce" /> : <FileSpreadsheet className="h-4 w-4" />}
               {excelInProgress ? "Import..." : "Importer Excel"}
             </FileBtn>
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
-            <Btn disabled={syncInProgress || !selectedYear || isLocked || isPastWishPhase} onClick={handleSync}>
+            <Btn disabled={!isImportPhase || syncInProgress || isLocked} onClick={handleSync}>
               <RefreshCw className={`h-4 w-4 ${syncInProgress ? "animate-spin" : ""}`} />
               {syncInProgress ? "Synchronisation..." : "Sync MoveON"}
             </Btn>

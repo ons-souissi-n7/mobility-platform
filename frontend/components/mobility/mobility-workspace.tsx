@@ -496,7 +496,7 @@ export function MobilityWorkspace({
               <RefreshCw className={`h-4 w-4 ${syncInProgress ? "animate-spin" : ""}`} />
               {syncInProgress ? "Synchronisation..." : "Sync MoveON"}
             </Btn>
-            <Btn onClick={downloadExcelTemplate}>
+            <Btn disabled={isYearClosed || isYearLocked} onClick={downloadExcelTemplate}>
               <Download className="h-4 w-4" />
               Template
             </Btn>

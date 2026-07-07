@@ -10,8 +10,16 @@ from .sync_moveon import import_wish_rows, sync_moveon_wishes
 
 
 def run_sync_pegase_students(year_id: int, triggered_by: str = "") -> None:
+    from datetime import date
+
     academic_year = AcademicYear.objects.get(pk=year_id)
-    rows = pegase_adapter.fetch_enrollments(academic_year.label)
+    # Dériver les bornes réelles depuis le label (ex. "2027-2028") plutôt que
+    # start_date/end_date qui représentent la période de campagne.
+    start_year = int(academic_year.label.split("-")[0])
+    rows = pegase_adapter.fetch_enrollments(
+        date(start_year, 9, 1),
+        date(start_year + 1, 8, 31),
+    )
     db_report = DbImportReport.objects.create(
         source=ImportSource.PEGASE,
         academic_year=academic_year,

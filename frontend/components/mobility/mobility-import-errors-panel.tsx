@@ -7,11 +7,7 @@ import { Pagination } from "@/components/ui/pagination";
 import type { PartnerUniversity, RawImport } from "@/lib/api/types";
 import type { MobilityImportRetryPayload } from "@/lib/api/mobility-mutations";
 
-type ErrorKind =
-  | "conflict"
-  | "missing_university"
-  | "no_correction"
-  | "category_error";
+type ErrorKind = "conflict" | "missing_university" | "category_error" | "no_correction";
 
 const AGREEMENT_LABELS: Record<string, string> = {
   moveon_id: "ID MoveON",
@@ -25,8 +21,6 @@ const AGREEMENT_LABELS: Record<string, string> = {
   direction: "Direction",
   level: "Niveau",
   discipline: "Discipline",
-  isced: "ISCED",
-  formation: "Formation",
   status: "Statut",
   start_date: "Début",
   end_date: "Fin",
@@ -57,28 +51,17 @@ function renderValue(value: unknown): string {
   return String(value);
 }
 
-function PayloadGrid({
-  entity,
-  payload,
-}: {
-  entity: string | undefined;
-  payload: Record<string, unknown>;
-}) {
+function PayloadGrid({ entity, payload }: { entity: string | undefined; payload: Record<string, unknown> }) {
   const labels = getLabels(entity);
-  // Show top-level scalar/array fields only; skip deeply nested objects except known ones
   const entries = Object.entries(payload).filter(([key, v]) => {
     if (v === null || v === undefined || v === "") return false;
     if (Array.isArray(v) && v.length === 0) return false;
-    // Skip very large nested structures (e.g. inp_institutions raw list)
     if (typeof v === "object" && !Array.isArray(v)) {
       return key === "country" || key === "partner_university";
     }
     return true;
   });
-
-  if (entries.length === 0)
-    return <p className="text-xs italic text-gray-400">Aucune donnée disponible</p>;
-
+  if (entries.length === 0) return <p className="text-xs italic text-gray-400">Aucune donnée disponible</p>;
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
       {entries.map(([key, value]) => (
@@ -98,22 +81,25 @@ function PayloadGrid({
 function classifyError(error: RawImport): ErrorKind {
   if (error.status === "conflict") return "conflict";
   const msg = (error.error_message ?? "").toLowerCase();
-  if (msg.includes("moveon_id is required") || msg.includes("moveon_id")) return "no_correction";
-  if (
-    msg.includes("violates not-null constraint") ||
-    msg.includes("country_id") ||
-    msg.includes("null value in column")
-  )
-    return "no_correction";
-  if (
-    msg.includes("missing partner university") ||
-    msg.includes("partner_university") ||
-    msg.includes("university reference")
-  )
-    return "missing_university";
+  if (msg.includes("moveon_id is required") || msg.includes("null value in column")) return "no_correction";
+  if (msg.includes("missing partner university") || msg.includes("partner_university") || msg.includes("university reference")) return "missing_university";
   if (error.entity === "agreement_category") return "category_error";
   if (error.entity === "agreement") return "missing_university";
   return "no_correction";
+}
+
+type CorrectionForm = {
+  name: string;
+  reference: string;
+  partner_university_id: number | "";
+};
+
+function buildInitialForm(payload: Record<string, unknown>): CorrectionForm {
+  return {
+    name: String(payload.name ?? ""),
+    reference: String(payload.reference ?? ""),
+    partner_university_id: "",
+  };
 }
 
 export function MobilityImportErrorsPanel({
@@ -142,7 +128,7 @@ export function MobilityImportErrorsPanel({
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [corrections, setCorrections] = useState<Record<number, MobilityImportRetryPayload>>({});
+  const [forms, setForms] = useState<Record<number, CorrectionForm>>({});
 
   if (errors.length === 0) return null;
 
@@ -158,19 +144,27 @@ export function MobilityImportErrorsPanel({
     }
   }
 
-  function setUniversity(errorId: number, value: string) {
-    setCorrections((curr) => ({
-      ...curr,
-      [errorId]: {
-        ...(curr[errorId] ?? {}),
-        partner_university_id: value ? Number(value) : undefined,
-      },
+  function getForm(error: RawImport): CorrectionForm {
+    if (!forms[error.id]) {
+      const initial = buildInitialForm(error.payload);
+      setForms((prev) => ({ ...prev, [error.id]: initial }));
+      return initial;
+    }
+    return forms[error.id];
+  }
+
+  function updateForm(id: number, patch: Partial<CorrectionForm>) {
+    setForms((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] ?? buildInitialForm({})), ...patch },
     }));
   }
 
   function toggleExpand(id: number) {
     setExpandedId((prev) => (prev === id ? null : id));
   }
+
+  const sortedUniversities = [...universities].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -191,29 +185,23 @@ export function MobilityImportErrorsPanel({
         {errors.map((error) => {
           const busy = isBusy || activeId === error.id;
           const kind = classifyError(error);
-          const correction = corrections[error.id] ?? {};
-          const isExpanded = expandedId === error.id;
-          const canRetry = kind === "missing_university" && !!correction.partner_university_id;
           const isConflict = kind === "conflict";
-
-          const entityName =
-            String(error.payload?.name ?? error.payload?.reference ?? error.external_id ?? "—");
+          const isExpanded = expandedId === error.id;
+          const form = isExpanded ? getForm(error) : null;
+          const entityName = String(error.payload?.name ?? error.payload?.reference ?? error.external_id ?? "—");
 
           return (
             <div
               key={error.id}
               className={`rounded-md overflow-hidden border ${isConflict ? "border-amber-400 bg-amber-50/60" : "border-amber-200 bg-white"}`}
             >
-              {/* Summary row */}
               <button
                 type="button"
                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${isConflict ? "hover:bg-amber-100/60" : "hover:bg-amber-50"}`}
                 onClick={() => toggleExpand(error.id)}
               >
                 <span className="shrink-0 text-amber-500">
-                  {isExpanded
-                    ? <ChevronDown className="h-4 w-4" />
-                    : <ChevronRight className="h-4 w-4" />}
+                  {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                 </span>
                 <span className="font-mono text-xs text-gray-500 shrink-0 w-24 truncate">
                   {error.external_id || "—"}
@@ -235,10 +223,8 @@ export function MobilityImportErrorsPanel({
                 </span>
               </button>
 
-              {/* Expanded panel */}
-              {isExpanded && (
+              {isExpanded && form && (
                 <div className="border-t border-amber-100 px-4 py-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  {/* Left: full record */}
                   <div>
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Enregistrement complet
@@ -256,51 +242,63 @@ export function MobilityImportErrorsPanel({
                     </div>
                   </div>
 
-                  {/* Right: correction */}
                   <div>
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      {isConflict ? "Action requise" : "Correction proposée"}
+                      {isConflict ? "Action requise" : "Corriger et relancer"}
                     </h4>
 
-                    {isConflict && (
+                    {isConflict ? (
                       <p className="text-xs text-amber-800">
-                        Cet enregistrement a été modifié localement après la dernière synchronisation. Cliquez sur <strong>Forcer</strong> pour écraser la version locale avec les données de la source.
+                        Cet enregistrement a été modifié localement. Cliquez sur{" "}
+                        <strong>Forcer</strong> pour écraser la version locale avec les données source.
                       </p>
-                    )}
-
-                    {kind === "missing_university" && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-gray-500">
-                          {error.payload?.partner_university_name
-                            ? <>L&apos;université <span className="font-mono font-semibold">{String(error.payload.partner_university_name)}</span> n&apos;existe pas dans la base. Associez-la à une université connue.</>
-                            : "L'université partenaire n'a pas pu être résolue. Sélectionnez l'université correcte."}
-                        </p>
-                        <select
-                          className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
-                          disabled={busy}
-                          value={correction.partner_university_id ?? ""}
-                          onChange={(e) => setUniversity(error.id, e.target.value)}
-                        >
-                          <option value="">Choisir une université…</option>
-                          {universities.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {kind === "category_error" && (
-                      <p className="text-xs text-gray-500">
-                        Ce cadre d&apos;accord n&apos;a pas pu être importé. Vérifiez les données dans MoveON et relancez la synchronisation.
-                      </p>
-                    )}
-
-                    {kind === "no_correction" && (
+                    ) : kind === "no_correction" ? (
                       <p className="text-xs italic text-gray-400">
-                        Ce type d&apos;erreur nécessite une correction manuelle dans MoveON avant de relancer la synchronisation.
+                        Ce type d&apos;erreur nécessite une correction manuelle dans MoveON avant de relancer.
                       </p>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2">
+                        <label className="block">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Nom de l&apos;accord</span>
+                          <input
+                            className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
+                            type="text"
+                            value={form.name}
+                            onChange={(e) => updateForm(error.id, { name: e.target.value })}
+                          />
+                        </label>
+
+                        <label className="block">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Référence</span>
+                          <input
+                            className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
+                            type="text"
+                            value={form.reference}
+                            onChange={(e) => updateForm(error.id, { reference: e.target.value })}
+                          />
+                        </label>
+
+                        {(kind === "missing_university" || kind === "category_error") && (
+                          <label className="block">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Université partenaire</span>
+                            {error.payload?.partner_university_name && (
+                              <p className="mt-0.5 text-xs text-gray-400">
+                                Source : <span className="font-mono">{String(error.payload.partner_university_name)}</span>
+                              </p>
+                            )}
+                            <select
+                              className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                              value={form.partner_university_id}
+                              onChange={(e) => updateForm(error.id, { partner_university_id: e.target.value ? Number(e.target.value) : "" })}
+                            >
+                              <option value="">— Sélectionner —</option>
+                              {sortedUniversities.map((u) => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                              ))}
+                            </select>
+                          </label>
+                        )}
+                      </div>
                     )}
 
                     <div className="mt-4 flex gap-2">
@@ -315,13 +313,18 @@ export function MobilityImportErrorsPanel({
                           Forcer
                         </button>
                       )}
-                      {kind === "missing_university" && (
+                      {!isConflict && kind !== "no_correction" && (
                         <button
                           className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={!canRetry || busy}
+                          disabled={busy}
                           onClick={() =>
                             runAction(
-                              () => onRetry(error, corrections[error.id] ?? {}),
+                              () =>
+                                onRetry(error, {
+                                  ...(form.partner_university_id !== "" ? { partner_university_id: form.partner_university_id } : {}),
+                                  ...(form.name ? { name: form.name } : {}),
+                                  ...(form.reference ? { reference: form.reference } : {}),
+                                }),
                               error.id,
                             )
                           }

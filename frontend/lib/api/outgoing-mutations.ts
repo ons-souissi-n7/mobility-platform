@@ -69,14 +69,16 @@ type TaskResponse = { task_id: string; message: string };
 export type WishImportCorrection = {
   student_id?: number;
   agreement_id?: number;
+  rank?: number;
 };
 
 export function getWishImportErrors(
-  params: { page?: number; page_size?: number } = {},
+  params: { page?: number; page_size?: number; year_id?: number } = {},
 ): Promise<PagedResponse<RawImport>> {
   const qs = new URLSearchParams();
   qs.set("page", String(params.page ?? 1));
   qs.set("page_size", String(params.page_size ?? 25));
+  if (params.year_id) qs.set("year_id", String(params.year_id));
   return browserApi<PagedResponse<RawImport>>(
     `/outgoing/wishes/import-errors/?${qs}`,
     { method: "GET" },

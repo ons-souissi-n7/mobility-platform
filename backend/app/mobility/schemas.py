@@ -162,3 +162,5 @@ class RawImportOut(Schema):
 
 class RawImportRetryIn(Schema):
     partner_university_id: int | None = None
+    name: str | None = None
+    reference: str | None = None

@@ -27,6 +27,7 @@ import {
 const ERRORS_PAGE_SIZE = 25;
 import type {
   AcademicYear,
+  Country,
   Department,
   Level,
   PagedResponse,
@@ -44,11 +45,13 @@ import { StudentImportErrorsPanel } from "./student-import-errors-panel";
 
 export function StudentsWorkspace({
   academicYears,
+  countries,
   departments,
   levels,
   parcourses,
 }: {
   academicYears: AcademicYear[];
+  countries: Country[];
   departments: Department[];
   levels: Level[];
   parcourses: Parcours[];
@@ -126,7 +129,7 @@ export function StudentsWorkspace({
         const [s, data, errs] = await Promise.all([
           getStudentStatsForYear(id),
           getStudentsByYear(id, { page: 1, page_size: DEFAULT_PAGE_SIZE }),
-          getStudentImportErrors({ page: 1, page_size: ERRORS_PAGE_SIZE }),
+          getStudentImportErrors({ page: 1, page_size: ERRORS_PAGE_SIZE, year_id: id }),
         ]);
         if (cancelled) return;
         setStats(s);
@@ -152,7 +155,7 @@ export function StudentsWorkspace({
 
   async function loadStudentErrors(page: number) {
     try {
-      const errs = await getStudentImportErrors({ page, page_size: ERRORS_PAGE_SIZE });
+      const errs = await getStudentImportErrors({ page, page_size: ERRORS_PAGE_SIZE, year_id: selectedYearId ?? undefined });
       setImportErrors(errs.results);
       setErrorsTotalCount(errs.count);
       setErrorsPage(page);
@@ -168,7 +171,7 @@ export function StudentsWorkspace({
       const [s, data, errs] = await Promise.all([
         getStudentStatsForYear(selectedYearId),
         getStudentsByYear(selectedYearId, { ...buildFilters(), page: currentPage, page_size: DEFAULT_PAGE_SIZE }),
-        getStudentImportErrors({ page: errorsPage, page_size: ERRORS_PAGE_SIZE }),
+        getStudentImportErrors({ page: errorsPage, page_size: ERRORS_PAGE_SIZE, year_id: selectedYearId }),
       ]);
       setStats(s);
       setPagedData(data);
@@ -250,6 +253,8 @@ export function StudentsWorkspace({
     setError(""); setSyncInProgress(true);
     try {
       await syncStudentsFromPegase(selectedYear.id);
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await refreshYear();
     } catch (err) {
       setError(err instanceof Error ? err.message : "La synchronisation Pegase a echoue.");
     } finally { setSyncInProgress(false); }
@@ -361,7 +366,7 @@ export function StudentsWorkspace({
         search={{ value: query, onChange: handleQueryChange, placeholder: "Rechercher par INE, nom, prénom..." }}
         actions={
           <>
-            <TemplateButton isLoading={templateLoading} onClick={handleTemplateDownload} />
+            <TemplateButton isLoading={templateLoading} disabled={isLocked} onClick={handleTemplateDownload} />
             <ExcelImportButton isLoading={importInProgress} disabled={selectedYear?.status === "closed" || isLocked} onImport={handleExcelImport} />
             <SyncButton isLoading={syncInProgress} disabled={selectedYear?.status === "closed" || isLocked} onClick={handleSync} />
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
@@ -450,6 +455,7 @@ export function StudentsWorkspace({
 
       <div id="erreurs">
         <StudentImportErrorsPanel
+          countries={countries}
           departments={departments}
           errors={importErrors}
           isBusy={isBusy || isLocked}
@@ -554,7 +560,7 @@ function EnrollmentTable({
           <thead className="bg-gray-50">
             <tr>
               <Th>INE</Th><Th>Nom</Th><Th>Prenom</Th><Th>Email</Th>
-              <Th>Genre</Th><Th>Nationalité</Th><Th>Departement</Th><Th>Niveau</Th><Th>Parcours</Th>
+              <Th>Genre</Th><Th>Nationalité</Th><Th>Departement</Th><Th>Niveau</Th><Th>Parcours</Th><Th>GPA</Th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -592,6 +598,11 @@ function EnrollmentTable({
                 <Td>
                   {e.parcours_code
                     ? <span className="text-xs text-gray-600">{e.parcours_code}</span>
+                    : <span className="text-xs italic text-gray-300">—</span>}
+                </Td>
+                <Td>
+                  {e.gpa != null
+                    ? <span className="font-mono text-xs text-gray-700">{parseFloat(e.gpa).toFixed(2)}</span>
                     : <span className="text-xs italic text-gray-300">—</span>}
                 </Td>
                 <td className="px-4 py-3 text-right">

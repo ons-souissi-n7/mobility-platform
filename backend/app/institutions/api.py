@@ -196,6 +196,10 @@ def retry_university_import(
             "name": (correction.get("country_name") or "").strip(),
         }
 
+    for field in ("name", "short_name", "translated_name", "erasmus_code", "city", "url", "email"):
+        if correction.get(field) is not None:
+            corrected_payload[field] = correction[field]
+
     try:
         transformed = transform_institution(corrected_payload)
         validate_institution(transformed)

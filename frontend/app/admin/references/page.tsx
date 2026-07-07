@@ -1,9 +1,15 @@
 import { ReferencesContainer } from "@/components/references/references-container";
+import { getCachedCurrentYear } from "@/lib/api/server-cache";
 import { getReferenceData } from "@/lib/api/references";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReferencesPage() {
+  const [referenceData, currentYear] = await Promise.all([
+    getReferenceData(),
+    getCachedCurrentYear(),
+  ]);
+
   const {
     countries,
     departments,
@@ -16,7 +22,7 @@ export default async function ReferencesPage() {
     levelImportErrors,
     levelImportErrorsCount,
     parcours,
-  } = await getReferenceData();
+  } = referenceData;
 
   return (
     <ReferencesContainer
@@ -31,6 +37,7 @@ export default async function ReferencesPage() {
       initialLevelImportErrors={levelImportErrors}
       initialLevelImportErrorsCount={levelImportErrorsCount}
       initialParcours={parcours}
+      currentYear={currentYear}
     />
   );
 }

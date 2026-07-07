@@ -171,44 +171,45 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
         )
 
     # Transition automatique pre_assignment → validation
-    # refresh_from_db() est incompatible avec FSMField(protected=True) — refetch propre
-    academic_year = AcademicYear.objects.select_for_update().get(pk=year_id)
-    if academic_year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT:
-        try:
-            academic_year.complete_assignment()
-            academic_year.save(update_fields=["status", "updated_at"])
-        except TransitionNotAllowed:
-            logger.error(
-                "complete_assignment refused for year %s (status=%s) — possible race condition",
-                academic_year.label,
-                academic_year.status,
-            )
-            SystemAlert.objects.create(
-                level="error",
-                title=f"Transition automatique échouée — {academic_year.label}",
-                message=(
-                    f"L'algorithme Gale-Shapley a terminé pour {academic_year.label} "
-                    f"mais la transition pre_assignment → validation a été refusée "
-                    f"(état actuel : {academic_year.status}). "
-                    f"Utilisez l'endpoint /academic/years/{year_id}/complete-assignment/ "
-                    f"pour forcer la transition manuellement."
-                ),
-            )
-        except Exception:
-            logger.exception(
-                "Unexpected error during complete_assignment for year %s",
-                academic_year.label,
-            )
-            SystemAlert.objects.create(
-                level="error",
-                title=f"Erreur inattendue après Gale-Shapley — {academic_year.label}",
-                message=(
-                    f"L'affectation a été calculée pour {academic_year.label} "
-                    f"mais la transition vers Validation a échoué avec une erreur inattendue. "
-                    f"Consultez les logs serveur et utilisez l'endpoint "
-                    f"/academic/years/{year_id}/complete-assignment/ pour récupérer."
-                ),
-            )
+    # select_for_update() requiert une transaction active — wrapper dans atomic()
+    with transaction.atomic():
+        academic_year = AcademicYear.objects.select_for_update().get(pk=year_id)
+        if academic_year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT:
+            try:
+                academic_year.complete_assignment()
+                academic_year.save(update_fields=["status", "updated_at"])
+            except TransitionNotAllowed:
+                logger.error(
+                    "complete_assignment refused for year %s (status=%s) — possible race condition",
+                    academic_year.label,
+                    academic_year.status,
+                )
+                SystemAlert.objects.create(
+                    level="error",
+                    title=f"Transition automatique échouée — {academic_year.label}",
+                    message=(
+                        f"L'algorithme Gale-Shapley a terminé pour {academic_year.label} "
+                        f"mais la transition pre_assignment → validation a été refusée "
+                        f"(état actuel : {academic_year.status}). "
+                        f"Utilisez l'endpoint /academic/years/{year_id}/complete-assignment/ "
+                        f"pour forcer la transition manuellement."
+                    ),
+                )
+            except Exception:
+                logger.exception(
+                    "Unexpected error during complete_assignment for year %s",
+                    academic_year.label,
+                )
+                SystemAlert.objects.create(
+                    level="error",
+                    title=f"Erreur inattendue après Gale-Shapley — {academic_year.label}",
+                    message=(
+                        f"L'affectation a été calculée pour {academic_year.label} "
+                        f"mais la transition vers Validation a échoué avec une erreur inattendue. "
+                        f"Consultez les logs serveur et utilisez l'endpoint "
+                        f"/academic/years/{year_id}/complete-assignment/ pour récupérer."
+                    ),
+                )
 
     log_action(
         action="gale_shapley_completed",
