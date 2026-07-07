@@ -22,7 +22,7 @@ function getColumns(
     },
     {
       key: "year",
-      header: "Annee",
+      header: "Année",
       render: (quota) => quota.academic_year_label,
     },
     {

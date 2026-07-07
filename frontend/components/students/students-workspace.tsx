@@ -239,24 +239,24 @@ export function StudentsWorkspace({
   }
 
   async function handleExcelImport(file: File) {
-    if (!selectedYear) { setError("Selectionnez une annee universitaire."); return; }
+    if (!selectedYear) { setError("Sélectionnez une année universitaire."); return; }
     setError(""); setImportInProgress(true);
     try {
       await importStudentsFromExcel(selectedYear.id, file);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "L'import Excel a echoue.");
+      setError(err instanceof Error ? err.message : "L'import Excel a échoué.");
     } finally { setImportInProgress(false); }
   }
 
   async function handleSync() {
-    if (!selectedYear) { setError("Selectionnez une annee universitaire."); return; }
+    if (!selectedYear) { setError("Sélectionnez une année universitaire."); return; }
     setError(""); setSyncInProgress(true);
     try {
       await syncStudentsFromPegase(selectedYear.id);
       await new Promise((resolve) => setTimeout(resolve, 3000));
       await refreshYear();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "La synchronisation Pegase a echoue.");
+      setError(err instanceof Error ? err.message : "La synchronisation Pégase a échoué.");
     } finally { setSyncInProgress(false); }
   }
 
@@ -297,7 +297,7 @@ export function StudentsWorkspace({
       {/* Year selector */}
       <div className="flex items-end gap-4">
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">Annee universitaire</span>
+          <span className="text-sm font-medium text-gray-700">Année universitaire</span>
           <select
             className="mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[#1E3A8A]"
             onChange={(e) => {
@@ -448,7 +448,7 @@ export function StudentsWorkspace({
           />
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-12 text-center text-sm text-gray-400">
-            Selectionnez une annee universitaire pour afficher les inscriptions.
+            Sélectionnez une année universitaire pour afficher les inscriptions.
           </div>
         )}
       </div>
@@ -559,8 +559,8 @@ function EnrollmentTable({
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <Th>INE</Th><Th>Nom</Th><Th>Prenom</Th><Th>Email</Th>
-              <Th>Genre</Th><Th>Nationalité</Th><Th>Departement</Th><Th>Niveau</Th><Th>Parcours</Th><Th>GPA</Th>
+              <Th>INE</Th><Th>Nom</Th><Th>Prénom</Th><Th>Email</Th>
+              <Th>Genre</Th><Th>Nationalité</Th><Th>Département</Th><Th>Niveau</Th><Th>Parcours</Th><Th>GPA</Th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -646,13 +646,27 @@ function StudentDetailPanel({
 }) {
   const [detail, setDetail] = useState<StudentDetail | null>(null);
   const [loadedId, setLoadedId] = useState<number | null>(null);
-  const loading = loadedId !== student.student_id;
+  const [loadError, setLoadError] = useState("");
+  const loading = loadedId !== student.student_id && !loadError;
 
   useEffect(() => {
-    getStudentDetail(student.student_id).then((data) => {
-      setDetail(data);
-      setLoadedId(student.student_id);
-    });
+    let cancelled = false;
+    setLoadError("");
+
+    getStudentDetail(student.student_id)
+      .then((data) => {
+        if (cancelled) return;
+        setDetail(data);
+        setLoadedId(student.student_id);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "Impossible de charger le détail de l'étudiant.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [student.student_id]);
 
   return (
@@ -709,7 +723,9 @@ function StudentDetailPanel({
 
           {/* Historique */}
           <DetailSection title="Historique des inscriptions">
-            {loading ? (
+            {loadError ? (
+              <p className="text-sm text-red-600">{loadError}</p>
+            ) : loading ? (
               <div className="space-y-2">
                 {[1, 2].map((i) => (
                   <div key={i} className="h-12 animate-pulse rounded-md bg-gray-100" />

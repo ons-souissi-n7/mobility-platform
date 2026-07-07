@@ -96,7 +96,9 @@ export function InternshipsWorkspace({
 
   const selectedYear = academicYears.find((y) => y.id === selectedYearId) ?? null;
   const isReadOnly = !!selectedYear && selectedYear.status === "closed";
-  const isImportPhase = !!selectedYear && selectedYear.status === "import";
+  // Aucun étudiant n'est encore importé en phase Initialisation — pas de stage à rattacher.
+  const isInitializationPhase = !!selectedYear && selectedYear.status === "initialization";
+  const canManageInternships = !!selectedYear && !isInitializationPhase && !isReadOnly;
 
   const [modal, setModal] = useState<{ item?: Internship } | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirm();
@@ -135,10 +137,11 @@ export function InternshipsWorkspace({
     setPage(p);
   }
 
-  async function loadErrors(p: number) {
+  async function loadErrors(p: number, yearId?: number | null) {
     try {
+      const yid = yearId !== undefined ? yearId : selectedYearId;
       const data = await getInternshipImportErrors({
-        yearId: selectedYearId ?? undefined,
+        yearId: yid ?? undefined,
         page: p,
         pageSize: ERRORS_PAGE_SIZE,
       });
@@ -156,6 +159,7 @@ export function InternshipsWorkspace({
     setSelectedYearId(yearId);
     setFilters({});
     void fetchInternships({}, 1, yearId);
+    void loadErrors(1, yearId);
   }
 
   // ── Filter change ──────────────────────────────────────────────────────────
@@ -330,9 +334,9 @@ export function InternshipsWorkspace({
       </div>
 
       {/* Bannière sync/import désactivés */}
-      {selectedYear && !isImportPhase && !isReadOnly && (
+      {isInitializationPhase && (
         <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
-          Synchronisation, import et ajout de stages disponibles uniquement en <span className="font-semibold mx-1">phase Import</span>.
+          Synchronisation, import et ajout de stages disponibles à partir de la phase <span className="font-semibold mx-1">Recommandation</span> (aucun étudiant importé en phase Initialisation).
         </div>
       )}
 
@@ -345,11 +349,11 @@ export function InternshipsWorkspace({
 
       {/* Toolbar */}
       <div className="flex flex-wrap gap-2">
-        <Btn disabled={syncInProgress || !isImportPhase} onClick={handleSync}>
+        <Btn disabled={syncInProgress || !canManageInternships} onClick={handleSync}>
           <RefreshCw className={`h-4 w-4 ${syncInProgress ? "animate-spin" : ""}`} />
           {syncInProgress ? "Synchronisation..." : "Sync Eudonet"}
         </Btn>
-        <FileBtn disabled={importInProgress || !isImportPhase} onFile={handleExcelImport}>
+        <FileBtn disabled={importInProgress || !canManageInternships} onFile={handleExcelImport}>
           {importInProgress ? (
             <Upload className="h-4 w-4 animate-bounce" />
           ) : (
@@ -368,7 +372,7 @@ export function InternshipsWorkspace({
           <Download className="h-4 w-4" />
           Template
         </Btn>
-        <Btn disabled={!isImportPhase} variant="primary" onClick={() => setModal({})}>
+        <Btn disabled={!canManageInternships} variant="primary" onClick={() => setModal({})}>
           <Plus className="h-4 w-4" />
           Ajouter
         </Btn>
@@ -411,7 +415,7 @@ export function InternshipsWorkspace({
             <div className="border-t border-amber-100 p-4">
               <InternshipImportErrorsPanel
                 errors={importErrors}
-                isBusy={syncInProgress || importInProgress}
+                isBusy={syncInProgress || importInProgress || isReadOnly}
                 onRetry={handleRetryError}
                 onIgnore={handleIgnoreError}
                 onForce={handleForceError}

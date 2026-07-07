@@ -10,8 +10,8 @@ export default async function EtudiantsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Etudiants"
-        description="Consultez et importez les donnees academiques des etudiants."
+        title="Étudiants"
+        description="Consultez et importez les données académiques des étudiants."
       />
       <StudentsWorkspace
         academicYears={academicYears}

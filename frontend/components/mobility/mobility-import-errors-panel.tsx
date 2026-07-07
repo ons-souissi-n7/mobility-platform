@@ -189,6 +189,10 @@ export function MobilityImportErrorsPanel({
           const isExpanded = expandedId === error.id;
           const form = isExpanded ? getForm(error) : null;
           const entityName = String(error.payload?.name ?? error.payload?.reference ?? error.external_id ?? "—");
+          const partnerUniversityName =
+            typeof error.payload?.partner_university_name === "string"
+              ? error.payload.partner_university_name
+              : undefined;
 
           return (
             <div
@@ -281,9 +285,9 @@ export function MobilityImportErrorsPanel({
                         {(kind === "missing_university" || kind === "category_error") && (
                           <label className="block">
                             <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Université partenaire</span>
-                            {error.payload?.partner_university_name && (
+                            {partnerUniversityName && (
                               <p className="mt-0.5 text-xs text-gray-400">
-                                Source : <span className="font-mono">{String(error.payload.partner_university_name)}</span>
+                                Source : <span className="font-mono">{partnerUniversityName}</span>
                               </p>
                             )}
                             <select

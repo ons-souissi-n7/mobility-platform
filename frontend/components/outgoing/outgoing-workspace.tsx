@@ -1016,23 +1016,21 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
       <WishImportErrorsPanel
         agreements={agreements}
         errors={wishImportErrors}
-        isBusy={syncInProgress}
+        isBusy={syncInProgress || isLocked}
         students={enrolledStudents}
         title="Erreurs d'import vœux MoveON"
         totalCount={wishErrorsTotalCount}
         page={wishErrorsPage}
         pageSize={WISH_ERRORS_PAGE_SIZE}
         onPageChange={loadWishErrors}
-        {...(!isLocked && {
-          onIgnore: async (err) => {
-            await ignoreStudentImportError(err.id);
-            await loadWishErrors(wishErrorsPage);
-          },
-          onRetry: async (err, correction: WishImportCorrection) => {
-            await retryWishImportError(err.id, correction);
-            await loadWishErrors(wishErrorsPage);
-          },
-        })}
+        onIgnore={async (err) => {
+          await ignoreStudentImportError(err.id);
+          await loadWishErrors(wishErrorsPage);
+        }}
+        onRetry={async (err, correction: WishImportCorrection) => {
+          await retryWishImportError(err.id, correction);
+          await loadWishErrors(wishErrorsPage);
+        }}
       />
     </>
   );
@@ -1318,6 +1316,13 @@ function DecisionCell({
           </span>
         )}
       </div>
+
+      {/* Remarque système (ex. vœux incompatibles avec le niveau) */}
+      {result.system_note && (
+        <p className="text-xs text-amber-600 leading-snug break-words">
+          ⚠ {result.system_note}
+        </p>
+      )}
 
       {/* Contexte auto — séparé par une ligne, toujours affiché quand override */}
       {isOverride && (

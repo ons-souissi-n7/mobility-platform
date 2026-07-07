@@ -1,4 +1,4 @@
-import { browserApi } from "@/lib/api/browser-client";
+import { browserApi, browserApiUpload } from "@/lib/api/browser-client";
 import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
 import type {
   PagedResponse,
@@ -16,26 +16,10 @@ export async function importStudentsFromExcel(
 ): Promise<TaskResponse> {
   const formData = new FormData();
   formData.append("file", file);
-
-  const response = await fetch(
-    `${publicApiBaseUrl}/students/students/import-excel/${yearId}/`,
-    { method: "POST", body: formData },
+  return browserApiUpload<TaskResponse>(
+    `/students/students/import-excel/${yearId}/`,
+    formData,
   );
-
-  if (!response.ok) {
-    const text = await response.text();
-    let message = `Erreur API ${response.status}`;
-    try {
-      const payload = JSON.parse(text);
-      if (payload?.detail) message = String(payload.detail);
-      else if (text) message = text;
-    } catch {
-      if (text) message = text;
-    }
-    throw new Error(message);
-  }
-
-  return response.json() as Promise<TaskResponse>;
 }
 
 export function syncStudentsFromPegase(yearId: number): Promise<TaskResponse> {
@@ -127,23 +111,10 @@ export function retryStudentImportError(
 }
 
 export async function downloadStudentTemplate(): Promise<void> {
-  const response = await fetch(`${publicApiBaseUrl}/students/students/template/`, {
-    method: "GET",
-  });
-
-  if (!response.ok) {
-    throw new Error("Impossible de telecharger le template.");
-  }
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "template_etudiants.xlsx";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  await downloadBlob(
+    `${publicApiBaseUrl}/students/students/template/`,
+    "template_etudiants.xlsx",
+  );
 }
 
 export function getStudentDetail(studentId: number): Promise<import("@/lib/api/types").StudentDetail> {

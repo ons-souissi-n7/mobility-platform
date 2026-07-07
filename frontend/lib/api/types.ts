@@ -372,6 +372,7 @@ export type AssignmentResult = {
   override_slot_type: string | null;
   override_rank: number | null;
   source: "auto" | "override";
+  system_note: string;
 };
 
 export type OverrideImportReport = {

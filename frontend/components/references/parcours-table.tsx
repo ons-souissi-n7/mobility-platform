@@ -12,7 +12,7 @@ function getColumns(
   return [
     {
       key: "department",
-      header: "Departement",
+      header: "Département",
       render: (p) => {
         const d = deptMap.get(p.department_id);
         return d ? (

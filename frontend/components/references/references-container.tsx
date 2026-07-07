@@ -88,9 +88,9 @@ export function ReferencesContainer({
           value={mobilityLevels.length}
         />
         <StatCard
-          helper="Etablissements partenaires"
+          helper="Établissements partenaires"
           icon={University}
-          label="Universites partenaires"
+          label="Universités partenaires"
           tone="amber"
           value={universities.count}
         />

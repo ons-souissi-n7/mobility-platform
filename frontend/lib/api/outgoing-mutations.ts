@@ -1,4 +1,4 @@
-import { browserApi } from "@/lib/api/browser-client";
+import { browserApi, browserApiUpload } from "@/lib/api/browser-client";
 import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
 import type {
   AgreementYearOption,
@@ -113,23 +113,10 @@ export async function getWishesByYear(yearId: number): Promise<StudentWishes[]> 
 }
 
 export async function downloadWishTemplate(yearId: number): Promise<void> {
-  const response = await fetch(
+  await downloadBlob(
     `${publicApiBaseUrl}/outgoing/wishes/template/${yearId}/`,
-    { method: "GET" },
+    "template_voeux.xlsx",
   );
-  if (!response.ok) throw new Error("Impossible de télécharger le template vœux.");
-  const blob = await response.blob();
-  const cd = response.headers.get("Content-Disposition") ?? "";
-  const match = /filename="?([^"]+)"?/.exec(cd);
-  const filename = match?.[1] ?? "template_voeux.xlsx";
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 export async function importWishesFromExcel(
@@ -138,23 +125,10 @@ export async function importWishesFromExcel(
 ): Promise<TaskResponse> {
   const formData = new FormData();
   formData.append("file", file);
-  const response = await fetch(
-    `${publicApiBaseUrl}/outgoing/wishes/import-excel/${yearId}/`,
-    { method: "POST", body: formData },
+  return browserApiUpload<TaskResponse>(
+    `/outgoing/wishes/import-excel/${yearId}/`,
+    formData,
   );
-  if (!response.ok) {
-    const text = await response.text();
-    let message = `Erreur API ${response.status}`;
-    try {
-      const payload = JSON.parse(text) as { detail?: string };
-      if (payload?.detail) message = String(payload.detail);
-      else if (text) message = text;
-    } catch {
-      if (text) message = text;
-    }
-    throw new Error(message);
-  }
-  return response.json() as Promise<TaskResponse>;
 }
 
 export async function exportWishesExcel(
@@ -206,21 +180,8 @@ export async function importOverridesFromExcel(
 ): Promise<OverrideImportReport> {
   const formData = new FormData();
   formData.append("file", file);
-  const response = await fetch(
-    `${publicApiBaseUrl}/outgoing/assignments/${assignmentId}/import-overrides/`,
-    { method: "POST", body: formData },
+  return browserApiUpload<OverrideImportReport>(
+    `/outgoing/assignments/${assignmentId}/import-overrides/`,
+    formData,
   );
-  if (!response.ok) {
-    const text = await response.text();
-    let message = `Erreur API ${response.status}`;
-    try {
-      const payload = JSON.parse(text) as { detail?: string };
-      if (payload?.detail) message = String(payload.detail);
-      else if (text) message = text;
-    } catch {
-      if (text) message = text;
-    }
-    throw new Error(message);
-  }
-  return response.json() as Promise<OverrideImportReport>;
 }

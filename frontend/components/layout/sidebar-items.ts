@@ -20,7 +20,7 @@ export const adminNavigation = [
   },
   {
     href: "/admin/etudiants",
-    label: "Etudiants",
+    label: "Étudiants",
     icon: Users,
   },
   {
@@ -55,7 +55,7 @@ export const adminNavigation = [
   },
   {
     href: "/admin/academic-years",
-    label: "Annees universitaires",
+    label: "Années universitaires",
     icon: CalendarRange,
   },
   {

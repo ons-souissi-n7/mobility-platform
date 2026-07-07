@@ -21,6 +21,7 @@ function makeError(overrides: Partial<RawImport> = {}): RawImport {
 }
 
 const defaultProps = {
+  countries: [],
   departments: [],
   levels: [],
   parcourses: [],

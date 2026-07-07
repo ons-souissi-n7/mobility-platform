@@ -15,7 +15,7 @@ function getColumns(
   return [
     {
       key: "name",
-      header: "Universite",
+      header: "Université",
       render: (university) => (
         <div className="min-w-0">
           <p className="font-medium text-gray-900">{university.name}</p>

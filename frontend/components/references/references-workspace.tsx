@@ -613,8 +613,8 @@ export function ReferencesWorkspace({
 
         <div id="universites">
           <ReferenceSection
-            title="Universites"
-            description="Etablissements partenaires."
+            title="Universités"
+            description="Établissements partenaires."
             toolbar={
               <div className="flex items-center gap-2">
                 <select

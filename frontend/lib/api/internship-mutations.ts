@@ -1,4 +1,4 @@
-import { browserApi } from "@/lib/api/browser-client";
+import { browserApi, browserApiUpload } from "@/lib/api/browser-client";
 import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
 import type { Internship, InternshipImportError, PagedResponse } from "@/lib/api/types";
 
@@ -59,27 +59,10 @@ export function syncInternshipsFromEudonet(yearId?: number) {
 export async function importInternshipsFromExcel(yearId: number, file: File) {
   const formData = new FormData();
   formData.append("file", file);
-
-  const response = await fetch(
-    `${publicApiBaseUrl}/internships/import/?year_id=${yearId}`,
-    {
-      method: "POST",
-      body: formData,
-    },
+  return browserApiUpload<{ task_id: string; message: string }>(
+    `/internships/import/?year_id=${yearId}`,
+    formData,
   );
-
-  if (!response.ok) {
-    const text = await response.text();
-    let message = `Erreur API ${response.status}`;
-    try {
-      const data = JSON.parse(text) as Record<string, unknown>;
-      if (data?.detail) message = String(data.detail);
-    } catch {
-      message = text || message;
-    }
-    throw new Error(message);
-  }
-  return response.json() as Promise<{ task_id: string; message: string }>;
 }
 
 // ── Export Excel ──────────────────────────────────────────────────────────────
