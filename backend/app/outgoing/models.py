@@ -137,6 +137,13 @@ class AssignmentResult(TimeStampedModel):
         choices=ResultSource.choices,
         default=ResultSource.AUTO,
     )
+    system_note = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Remarque système",
+        help_text="Explication automatique pour un cas particulier "
+        "(ex. vœux incompatibles avec le niveau d'études).",
+    )
 
     class Meta:
         verbose_name = "Résultat d'affectation"

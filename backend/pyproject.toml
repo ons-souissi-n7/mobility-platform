@@ -16,5 +16,17 @@ python_version = "3.12"
 plugins = ["mypy_django_plugin.main"]
 ignore_missing_imports = true
 
-[mypy.plugins.django-stubs]
+[tool.django-stubs]
 django_settings_module = "config.settings.development"
+
+[tool.coverage.run]
+omit = [
+  "manage.py",
+  "*/asgi.py",
+  "*/wsgi.py",
+  "config/settings/production.py",
+  "config/settings/staging.py",
+  # Commandes d'administration ponctuelles (seed/purge/reset) — outils d'exploitation
+  # vérifiés manuellement, non couverts par la suite unitaire (convention du projet).
+  "*/management/commands/*.py",
+]

@@ -31,6 +31,7 @@ class AssignmentResultOut(Schema):
     override_slot_type: str | None
     override_rank: int | None
     source: str
+    system_note: str
 
     @staticmethod
     def resolve_student_ine(obj) -> str:

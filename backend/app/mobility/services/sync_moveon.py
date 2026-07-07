@@ -113,15 +113,19 @@ def sync_moveon_mobility_categories(
         triggered_by=triggered_by,
     )
 
+    # Pré-chargement des IGNORED — évite une requête par enregistrement dans la boucle
+    ignored_external_ids = set(
+        RawImport.objects.filter(
+            entity=RawImportEntity.AGREEMENT_CATEGORY,
+            status=RawImportStatus.IGNORED,
+        ).values_list("external_id", flat=True)
+    )
+
     for category in client.fetch_agreement_frameworks():
         payload = category.payload
         external_id = _extract_external_id(payload, RawImportEntity.AGREEMENT_CATEGORY)
 
-        if RawImport.objects.filter(
-            external_id=external_id,
-            entity=RawImportEntity.AGREEMENT_CATEGORY,
-            status=RawImportStatus.IGNORED,
-        ).exists():
+        if external_id in ignored_external_ids:
             continue
 
         raw_import = _create_raw_import(
@@ -178,15 +182,19 @@ def sync_moveon_agreements(
         triggered_by=triggered_by,
     )
 
+    # Pré-chargement des IGNORED — évite une requête par enregistrement dans la boucle
+    ignored_external_ids = set(
+        RawImport.objects.filter(
+            entity=RawImportEntity.AGREEMENT,
+            status=RawImportStatus.IGNORED,
+        ).values_list("external_id", flat=True)
+    )
+
     for agreement in client.fetch_agreements():
         payload = agreement.payload
         external_id = _extract_external_id(payload, RawImportEntity.AGREEMENT)
 
-        if RawImport.objects.filter(
-            external_id=external_id,
-            entity=RawImportEntity.AGREEMENT,
-            status=RawImportStatus.IGNORED,
-        ).exists():
+        if external_id in ignored_external_ids:
             continue
 
         raw_import = _create_raw_import(

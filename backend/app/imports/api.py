@@ -113,9 +113,15 @@ def force_overwrite_conflict(request, raw_import_id: int):
 
             upsert_department(payload, force_overwrite=True)
         elif entity == RawImportEntity.LEVEL:
-            from app.reference.services.sync_pegase_levels import _upsert_level
+            from app.reference.services.sync_pegase_levels import upsert_level
 
-            _upsert_level(payload, force_overwrite=True)
+            upsert_level(payload, force_overwrite=True)
+        elif entity == RawImportEntity.PARTNER_UNIVERSITY:
+            from app.institutions.services.sync_moveon import (
+                upsert_partner_university,
+            )
+
+            upsert_partner_university(payload, force_overwrite=True)
         else:
             raise HttpError(
                 400, f"Force-overwrite non supporte pour l'entite {entity}."

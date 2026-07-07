@@ -438,7 +438,7 @@ class TestLevelAPI:
         assert raw.status == RawImportStatus.IGNORED
         assert "Traite manuellement" in raw.error_message
 
-    @patch("app.reference.services.sync_pegase_levels._upsert_level")
+    @patch("app.reference.services.sync_pegase_levels.upsert_level")
     def test_force_overwrite_level_import(self, mock_upsert):
         raw = RawImport.objects.create(
             source="pegase_levels",

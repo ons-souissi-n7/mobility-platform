@@ -395,9 +395,9 @@ def force_overwrite_level_import(request, raw_import_id: int):
         raise HttpError(404, "Niveau en conflit introuvable.") from exc
 
     try:
-        from .services.sync_pegase_levels import _upsert_level
+        from .services.sync_pegase_levels import upsert_level
 
-        _upsert_level(raw_import.payload, force_overwrite=True)
+        upsert_level(raw_import.payload, force_overwrite=True)
     except (IntegrityError, ValidationError, ValueError, KeyError) as exc:
         raise HttpError(400, str(exc)) from exc
 

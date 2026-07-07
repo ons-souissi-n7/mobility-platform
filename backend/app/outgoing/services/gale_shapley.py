@@ -30,6 +30,10 @@ class StudentInput:
     gpa: float | None
     preferences: list[int]  # agreement_year_ids ordonnés par rang croissant
     level_id: int | None = None  # None = compatible avec tous les niveaux
+    # True si l'étudiant avait exprimé des vœux mais qu'aucun n'était compatible
+    # avec son niveau d'études — traité comme un rejet total (tente une
+    # destination alternative) plutôt qu'un simple "aucun vœu exprimé".
+    level_mismatch: bool = False
 
 
 @dataclass
@@ -46,6 +50,7 @@ class AssignmentOutput:
     agreement_year_id: int | None  # None = non affecté
     assigned_rank: int | None  # rang du vœu retenu (1-based), None si non affecté
     slot_type: str  # 'dept' | 'surplus' | 'alternative' | 'unassigned'
+    note: str = ""  # remarque système (ex. vœux incompatibles avec le niveau)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -266,8 +271,16 @@ def gale_shapley(
     for eid in unmatched:
         student = student_map[eid]
 
-        # Pas de vœux exprimés → aucune destination alternative
-        if not student.preferences:
+        note = (
+            "Vœux non compatibles avec le niveau d'études du parcours — "
+            "destination alternative recherchée automatiquement."
+            if student.level_mismatch
+            else ""
+        )
+
+        # Pas de vœux exprimés (et pas de vœux rejetés pour incompatibilité de
+        # niveau) → l'étudiant n'a rien demandé, aucune destination alternative
+        if not student.preferences and not student.level_mismatch:
             results.append(
                 AssignmentOutput(
                     enrollment_id=eid,
@@ -301,6 +314,7 @@ def gale_shapley(
                         agreement_year_id=ay_id,
                         assigned_rank=None,
                         slot_type="alternative",
+                        note=note,
                     )
                 )
                 assigned_eids.add(eid)
@@ -314,6 +328,7 @@ def gale_shapley(
                     agreement_year_id=None,
                     assigned_rank=None,
                     slot_type="unassigned",
+                    note=note,
                 )
             )
 

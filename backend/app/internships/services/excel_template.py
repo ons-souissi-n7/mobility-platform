@@ -3,7 +3,6 @@ from __future__ import annotations
 from io import BytesIO
 
 import openpyxl
-from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
 from app.academic.models import AcademicYear
@@ -37,8 +36,7 @@ def generate_internship_template(academic_year: AcademicYear) -> bytes:
         .order_by("student__last_name", "student__first_name")
     )
     student_rows = [
-        (e.student.ine, e.student.last_name, e.student.first_name)
-        for e in enrollments
+        (e.student.ine, e.student.last_name, e.student.first_name) for e in enrollments
     ]
 
     # Pays triés par nom français
@@ -64,19 +62,7 @@ def generate_internship_template(academic_year: AcademicYear) -> bytes:
     ws = wb.active
     ws.title = "Stages"
 
-    blue_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
-    white_font = Font(bold=True, color="FFFFFF")
-    center = Alignment(horizontal="center", vertical="center")
-
-    for col, (header, width) in enumerate(zip(_HEADERS, _WIDTHS, strict=False), 1):
-        cell = ws.cell(row=1, column=col, value=header)
-        cell.fill = blue_fill
-        cell.font = white_font
-        cell.alignment = center
-        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = width
-
-    ws.row_dimensions[1].height = 28
-    ws.freeze_panes = "A2"
+    write_header_row(ws, _HEADERS, _WIDTHS)
 
     # Validation colonne A → étudiants
     if student_rows:

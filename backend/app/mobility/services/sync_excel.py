@@ -65,16 +65,20 @@ def sync_agreements_from_excel(
         triggered_by=triggered_by,
     )
 
+    # Pré-chargement des IGNORED — évite une requête par ligne dans la boucle
+    ignored_external_ids = set(
+        RawImport.objects.filter(
+            entity=RawImportEntity.AGREEMENT,
+            status=RawImportStatus.IGNORED,
+        ).values_list("external_id", flat=True)
+    )
+
     for excel_row in rows:
         external_id = (
             f"row_{excel_row.row_number}_{(excel_row.university_name or '')[:30]}"
         )
 
-        if RawImport.objects.filter(
-            external_id=external_id,
-            entity=RawImportEntity.AGREEMENT,
-            status=RawImportStatus.IGNORED,
-        ).exists():
+        if external_id in ignored_external_ids:
             result.skipped += 1
             continue
 

@@ -57,7 +57,7 @@ class TestRunSyncPegaseStudents:
         )
         assert report.triggered_by == "ci-runner"
 
-    def test_fetches_by_year_label(self):
+    def test_fetches_by_year_date_range(self):
         year = make_year()
         with (
             patch(
@@ -68,7 +68,7 @@ class TestRunSyncPegaseStudents:
         ):
             run_sync_pegase_students(year.id)
 
-        mock_fetch.assert_called_once_with(year.label)
+        mock_fetch.assert_called_once_with(year.start_date, year.end_date)
 
     def test_passes_rows_and_year_to_importer(self):
         year = make_year()
