@@ -518,7 +518,14 @@ def retry_student_import_error(
             raise HttpError(400, f"Parcours {payload.parcours_id} introuvable.")
         corrected["parcours_code"] = parcours.code
 
-    for field in ("ine", "first_name", "last_name", "email", "gender", "nationality_iso2"):
+    for field in (
+        "ine",
+        "first_name",
+        "last_name",
+        "email",
+        "gender",
+        "nationality_iso2",
+    ):
         val = getattr(payload, field, None)
         if val is not None:
             corrected[field] = val

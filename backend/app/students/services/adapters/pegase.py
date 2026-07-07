@@ -29,7 +29,9 @@ def fetch_enrollments(start_date: date, end_date: date) -> list[StudentRow]:
         logger.warning("PEGASE_API_URL n'est pas configuré — sync étudiants ignorée")
         return []
 
-    logger.info("Pégase sync %s → %s — %s/api/inscriptions", start_date, end_date, api_url)
+    logger.info(
+        "Pégase sync %s → %s — %s/api/inscriptions", start_date, end_date, api_url
+    )
     request = Request(
         f"{api_url}/api/inscriptions",
         headers={"Accept": "application/json"},
@@ -46,8 +48,18 @@ def fetch_enrollments(start_date: date, end_date: date) -> list[StudentRow]:
         logger.error("Pégase /api/inscriptions doit retourner une liste")
         return []
 
-    matching = [row for row in data if isinstance(row, dict) and _in_range(row, start_date, end_date)]
-    logger.info("Pégase : %d inscriptions totales, %d dans la plage %s → %s", len(data), len(matching), start_date, end_date)
+    matching = [
+        row
+        for row in data
+        if isinstance(row, dict) and _in_range(row, start_date, end_date)
+    ]
+    logger.info(
+        "Pégase : %d inscriptions totales, %d dans la plage %s → %s",
+        len(data),
+        len(matching),
+        start_date,
+        end_date,
+    )
     return _parse_rows(matching)
 
 
