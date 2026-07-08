@@ -27,6 +27,7 @@ import {
 const ERRORS_PAGE_SIZE = 25;
 import type {
   AcademicYear,
+  Country,
   Department,
   Level,
   PagedResponse,
@@ -44,11 +45,13 @@ import { StudentImportErrorsPanel } from "./student-import-errors-panel";
 
 export function StudentsWorkspace({
   academicYears,
+  countries,
   departments,
   levels,
   parcourses,
 }: {
   academicYears: AcademicYear[];
+  countries: Country[];
   departments: Department[];
   levels: Level[];
   parcourses: Parcours[];
@@ -126,7 +129,7 @@ export function StudentsWorkspace({
         const [s, data, errs] = await Promise.all([
           getStudentStatsForYear(id),
           getStudentsByYear(id, { page: 1, page_size: DEFAULT_PAGE_SIZE }),
-          getStudentImportErrors({ page: 1, page_size: ERRORS_PAGE_SIZE }),
+          getStudentImportErrors({ page: 1, page_size: ERRORS_PAGE_SIZE, year_id: id }),
         ]);
         if (cancelled) return;
         setStats(s);
@@ -152,7 +155,7 @@ export function StudentsWorkspace({
 
   async function loadStudentErrors(page: number) {
     try {
-      const errs = await getStudentImportErrors({ page, page_size: ERRORS_PAGE_SIZE });
+      const errs = await getStudentImportErrors({ page, page_size: ERRORS_PAGE_SIZE, year_id: selectedYearId ?? undefined });
       setImportErrors(errs.results);
       setErrorsTotalCount(errs.count);
       setErrorsPage(page);
@@ -168,7 +171,7 @@ export function StudentsWorkspace({
       const [s, data, errs] = await Promise.all([
         getStudentStatsForYear(selectedYearId),
         getStudentsByYear(selectedYearId, { ...buildFilters(), page: currentPage, page_size: DEFAULT_PAGE_SIZE }),
-        getStudentImportErrors({ page: errorsPage, page_size: ERRORS_PAGE_SIZE }),
+        getStudentImportErrors({ page: errorsPage, page_size: ERRORS_PAGE_SIZE, year_id: selectedYearId }),
       ]);
       setStats(s);
       setPagedData(data);
@@ -236,22 +239,24 @@ export function StudentsWorkspace({
   }
 
   async function handleExcelImport(file: File) {
-    if (!selectedYear) { setError("Selectionnez une annee universitaire."); return; }
+    if (!selectedYear) { setError("Sélectionnez une année universitaire."); return; }
     setError(""); setImportInProgress(true);
     try {
       await importStudentsFromExcel(selectedYear.id, file);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "L'import Excel a echoue.");
+      setError(err instanceof Error ? err.message : "L'import Excel a échoué.");
     } finally { setImportInProgress(false); }
   }
 
   async function handleSync() {
-    if (!selectedYear) { setError("Selectionnez une annee universitaire."); return; }
+    if (!selectedYear) { setError("Sélectionnez une année universitaire."); return; }
     setError(""); setSyncInProgress(true);
     try {
       await syncStudentsFromPegase(selectedYear.id);
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await refreshYear();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "La synchronisation Pegase a echoue.");
+      setError(err instanceof Error ? err.message : "La synchronisation Pégase a échoué.");
     } finally { setSyncInProgress(false); }
   }
 
@@ -292,7 +297,7 @@ export function StudentsWorkspace({
       {/* Year selector */}
       <div className="flex items-end gap-4">
         <label className="block">
-          <span className="text-sm font-medium text-gray-700">Annee universitaire</span>
+          <span className="text-sm font-medium text-gray-700">Année universitaire</span>
           <select
             className="mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[#1E3A8A]"
             onChange={(e) => {
@@ -361,7 +366,7 @@ export function StudentsWorkspace({
         search={{ value: query, onChange: handleQueryChange, placeholder: "Rechercher par INE, nom, prénom..." }}
         actions={
           <>
-            <TemplateButton isLoading={templateLoading} onClick={handleTemplateDownload} />
+            <TemplateButton isLoading={templateLoading} disabled={isLocked} onClick={handleTemplateDownload} />
             <ExcelImportButton isLoading={importInProgress} disabled={selectedYear?.status === "closed" || isLocked} onImport={handleExcelImport} />
             <SyncButton isLoading={syncInProgress} disabled={selectedYear?.status === "closed" || isLocked} onClick={handleSync} />
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
@@ -443,13 +448,14 @@ export function StudentsWorkspace({
           />
         ) : (
           <div className="rounded-md border border-dashed border-gray-300 px-4 py-12 text-center text-sm text-gray-400">
-            Selectionnez une annee universitaire pour afficher les inscriptions.
+            Sélectionnez une année universitaire pour afficher les inscriptions.
           </div>
         )}
       </div>
 
       <div id="erreurs">
         <StudentImportErrorsPanel
+          countries={countries}
           departments={departments}
           errors={importErrors}
           isBusy={isBusy || isLocked}
@@ -553,8 +559,8 @@ function EnrollmentTable({
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <Th>INE</Th><Th>Nom</Th><Th>Prenom</Th><Th>Email</Th>
-              <Th>Genre</Th><Th>Nationalité</Th><Th>Departement</Th><Th>Niveau</Th><Th>Parcours</Th>
+              <Th>INE</Th><Th>Nom</Th><Th>Prénom</Th><Th>Email</Th>
+              <Th>Genre</Th><Th>Nationalité</Th><Th>Département</Th><Th>Niveau</Th><Th>Parcours</Th><Th>GPA</Th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -592,6 +598,11 @@ function EnrollmentTable({
                 <Td>
                   {e.parcours_code
                     ? <span className="text-xs text-gray-600">{e.parcours_code}</span>
+                    : <span className="text-xs italic text-gray-300">—</span>}
+                </Td>
+                <Td>
+                  {e.gpa != null
+                    ? <span className="font-mono text-xs text-gray-700">{parseFloat(e.gpa).toFixed(2)}</span>
                     : <span className="text-xs italic text-gray-300">—</span>}
                 </Td>
                 <td className="px-4 py-3 text-right">
@@ -635,13 +646,27 @@ function StudentDetailPanel({
 }) {
   const [detail, setDetail] = useState<StudentDetail | null>(null);
   const [loadedId, setLoadedId] = useState<number | null>(null);
-  const loading = loadedId !== student.student_id;
+  const [loadError, setLoadError] = useState("");
+  const loading = loadedId !== student.student_id && !loadError;
 
   useEffect(() => {
-    getStudentDetail(student.student_id).then((data) => {
-      setDetail(data);
-      setLoadedId(student.student_id);
-    });
+    let cancelled = false;
+    setLoadError("");
+
+    getStudentDetail(student.student_id)
+      .then((data) => {
+        if (cancelled) return;
+        setDetail(data);
+        setLoadedId(student.student_id);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "Impossible de charger le détail de l'étudiant.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [student.student_id]);
 
   return (
@@ -698,7 +723,9 @@ function StudentDetailPanel({
 
           {/* Historique */}
           <DetailSection title="Historique des inscriptions">
-            {loading ? (
+            {loadError ? (
+              <p className="text-sm text-red-600">{loadError}</p>
+            ) : loading ? (
               <div className="space-y-2">
                 {[1, 2].map((i) => (
                   <div key={i} className="h-12 animate-pulse rounded-md bg-gray-100" />

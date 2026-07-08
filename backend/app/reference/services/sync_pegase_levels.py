@@ -40,7 +40,7 @@ def sync_pegase_levels(
 
         try:
             _validate_level_payload(payload)
-            created = _upsert_level(payload)
+            created = upsert_level(payload)
         except SyncConflictError as exc:
             result.conflicted += 1
             mark_raw_import(raw_import, RawImportStatus.CONFLICT, str(exc))
@@ -74,7 +74,7 @@ def _validate_level_payload(payload: dict[str, Any]) -> None:
 
 
 @transaction.atomic
-def _upsert_level(payload: dict[str, Any], force_overwrite: bool = False) -> bool:
+def upsert_level(payload: dict[str, Any], force_overwrite: bool = False) -> bool:
     pegase_id = str(payload["pegase_id"])
     code = str(payload["code"]).strip().upper()
     name = str(payload["name"]).strip()

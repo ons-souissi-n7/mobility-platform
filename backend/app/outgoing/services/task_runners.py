@@ -100,32 +100,20 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
             continue
         wishes_by_enrollment.setdefault(eid, []).append(ay_id)
 
-    # Détecter les étudiants dont tous les vœux ont été filtrés (niveau incompatible)
+    # Étudiants dont tous les vœux ont été filtrés (niveau incompatible) : ils
+    # sont traités comme un rejet total plutôt qu'ignorés — l'algorithme leur
+    # cherche une destination alternative et documente le cas via un
+    # AssignmentResult.system_note (cf. gale_shapley.StudentInput.level_mismatch).
     # enrollments_with_wishes est collecté dans la boucle ci-dessus (évite une 2e requête DB)
-    enrollments_with_valid_wishes = set(wishes_by_enrollment.keys())
-    fully_filtered = enrollments_with_wishes - enrollments_with_valid_wishes
-    if fully_filtered:
-        logger.warning(
-            "%d étudiant(s) ont des vœux mais aucun compatible avec leur niveau "
-            "— ils seront traités comme non affectés. IDs inscription : %s",
-            len(fully_filtered),
-            list(fully_filtered)[:10],
-        )
-        SystemAlert.objects.create(
-            level="warning",
-            title=f"Vœux incompatibles avec le niveau — {academic_year.label}",
-            message=(
-                f"{len(fully_filtered)} étudiant(s) ont des vœux sur des accords "
-                f"dont les niveaux autorisés ne correspondent pas à leur niveau d'études. "
-                f"Ces étudiants seront traités comme non affectés. "
-                f"Vérifiez les niveaux autorisés dans la section Mobilité > Accords."
-            ),
-        )
+    level_mismatch_enrollments = enrollments_with_wishes - set(
+        wishes_by_enrollment.keys()
+    )
 
     student_inputs: list[StudentInput] = []
     for enrollment in enrollments:
         prefs = wishes_by_enrollment.get(enrollment.id, [])
-        if not prefs:
+        level_mismatch = enrollment.id in level_mismatch_enrollments
+        if not prefs and not level_mismatch:
             continue
         nationality = enrollment.student.nationality
         is_french = nationality is not None and nationality.iso2 == "FR"
@@ -138,6 +126,7 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
                 gpa=gpa,
                 preferences=prefs,
                 level_id=enrollment.level_id,
+                level_mismatch=level_mismatch,
             )
         )
 
@@ -165,50 +154,52 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
                     agreement_year_id=output.agreement_year_id,
                     slot_type=output.slot_type,
                     assigned_rank=output.assigned_rank,
+                    system_note=output.note,
                 )
                 for output in outputs
             ]
         )
 
     # Transition automatique pre_assignment → validation
-    # refresh_from_db() est incompatible avec FSMField(protected=True) — refetch propre
-    academic_year = AcademicYear.objects.select_for_update().get(pk=year_id)
-    if academic_year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT:
-        try:
-            academic_year.complete_assignment()
-            academic_year.save(update_fields=["status", "updated_at"])
-        except TransitionNotAllowed:
-            logger.error(
-                "complete_assignment refused for year %s (status=%s) — possible race condition",
-                academic_year.label,
-                academic_year.status,
-            )
-            SystemAlert.objects.create(
-                level="error",
-                title=f"Transition automatique échouée — {academic_year.label}",
-                message=(
-                    f"L'algorithme Gale-Shapley a terminé pour {academic_year.label} "
-                    f"mais la transition pre_assignment → validation a été refusée "
-                    f"(état actuel : {academic_year.status}). "
-                    f"Utilisez l'endpoint /academic/years/{year_id}/complete-assignment/ "
-                    f"pour forcer la transition manuellement."
-                ),
-            )
-        except Exception:
-            logger.exception(
-                "Unexpected error during complete_assignment for year %s",
-                academic_year.label,
-            )
-            SystemAlert.objects.create(
-                level="error",
-                title=f"Erreur inattendue après Gale-Shapley — {academic_year.label}",
-                message=(
-                    f"L'affectation a été calculée pour {academic_year.label} "
-                    f"mais la transition vers Validation a échoué avec une erreur inattendue. "
-                    f"Consultez les logs serveur et utilisez l'endpoint "
-                    f"/academic/years/{year_id}/complete-assignment/ pour récupérer."
-                ),
-            )
+    # select_for_update() requiert une transaction active — wrapper dans atomic()
+    with transaction.atomic():
+        academic_year = AcademicYear.objects.select_for_update().get(pk=year_id)
+        if academic_year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT:
+            try:
+                academic_year.complete_assignment()
+                academic_year.save(update_fields=["status", "updated_at"])
+            except TransitionNotAllowed:
+                logger.error(
+                    "complete_assignment refused for year %s (status=%s) — possible race condition",
+                    academic_year.label,
+                    academic_year.status,
+                )
+                SystemAlert.objects.create(
+                    level="error",
+                    title=f"Transition automatique échouée — {academic_year.label}",
+                    message=(
+                        f"L'algorithme Gale-Shapley a terminé pour {academic_year.label} "
+                        f"mais la transition pre_assignment → validation a été refusée "
+                        f"(état actuel : {academic_year.status}). "
+                        f"Utilisez l'endpoint /academic/years/{year_id}/complete-assignment/ "
+                        f"pour forcer la transition manuellement."
+                    ),
+                )
+            except Exception:
+                logger.exception(
+                    "Unexpected error during complete_assignment for year %s",
+                    academic_year.label,
+                )
+                SystemAlert.objects.create(
+                    level="error",
+                    title=f"Erreur inattendue après Gale-Shapley — {academic_year.label}",
+                    message=(
+                        f"L'affectation a été calculée pour {academic_year.label} "
+                        f"mais la transition vers Validation a échoué avec une erreur inattendue. "
+                        f"Consultez les logs serveur et utilisez l'endpoint "
+                        f"/academic/years/{year_id}/complete-assignment/ pour récupérer."
+                    ),
+                )
 
     log_action(
         action="gale_shapley_completed",

@@ -770,6 +770,9 @@ def retry_raw_import(request, raw_import_id: int, payload: RawImportRetryIn):
     correction = payload.model_dump(exclude_none=True)
     if partner_university_id := correction.get("partner_university_id"):
         corrected["partner_university_id"] = partner_university_id
+    for field in ("name", "reference"):
+        if correction.get(field) is not None:
+            corrected[field] = correction[field]
 
     try:
         transformed = transform_agreement(corrected)

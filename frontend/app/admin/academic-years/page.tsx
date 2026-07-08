@@ -14,29 +14,29 @@ export default async function AcademicYearsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Annees universitaires"
-        description="Pilotez le cycle de vie de la campagne via une machine a etats securisee."
+        title="Années universitaires"
+        description="Pilotez le cycle de vie de la campagne via une machine à états sécurisée."
       />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <StatCard
-          helper="Campagnes configurees"
+          helper="Campagnes configurées"
           icon={CalendarClock}
-          label="Annees"
+          label="Années"
           tone="blue"
           value={years.length}
         />
         <StatCard
           helper={currentYear ? statusLabels[currentYear.status] : "Aucune active"}
           icon={Clock3}
-          label="Annee courante"
+          label="Année courante"
           tone="emerald"
           value={currentYear?.label ?? "-"}
         />
         <StatCard
-          helper="Campagnes archivees ou terminees"
+          helper="Campagnes archivées ou terminées"
           icon={CheckCircle2}
-          label="Cloturees"
+          label="Clôturées"
           tone="amber"
           value={years.filter((year) => year.status === "closed").length}
         />

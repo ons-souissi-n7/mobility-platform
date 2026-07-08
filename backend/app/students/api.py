@@ -433,11 +433,16 @@ def list_students_by_year(
     response=PagedResponse[StudentRawImportOut],
     summary="Erreurs d'import étudiants (Pégase ou Excel)",
 )
-def list_student_import_errors(request, pagination: PaginationQuery = Query(...)):
+def list_student_import_errors(
+    request, pagination: PaginationQuery = Query(...), year_id: int | None = None
+):
+    base = RawImport.objects.filter(entity=RawImportEntity.STUDENT).exclude(
+        source="moveon_student_wishes"
+    )
+    if year_id is not None:
+        base = base.filter(academic_year_id=year_id)
     latest_ids = (
-        RawImport.objects.filter(entity=RawImportEntity.STUDENT)
-        .exclude(source="moveon_student_wishes")
-        .values("external_id")
+        base.values("external_id")
         .annotate(latest_id=Max("id"))
         .values_list("latest_id", flat=True)
     )
@@ -512,6 +517,20 @@ def retry_student_import_error(
         if parcours is None:
             raise HttpError(400, f"Parcours {payload.parcours_id} introuvable.")
         corrected["parcours_code"] = parcours.code
+
+    for field in (
+        "ine",
+        "first_name",
+        "last_name",
+        "email",
+        "gender",
+        "nationality_iso2",
+    ):
+        val = getattr(payload, field, None)
+        if val is not None:
+            corrected[field] = val
+    if payload.gpa is not None:
+        corrected["gpa"] = payload.gpa
 
     from app.academic.models import AcademicYear as AcademicYearModel
 

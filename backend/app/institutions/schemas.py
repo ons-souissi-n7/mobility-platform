@@ -47,6 +47,13 @@ class PartnerUniversityImportRetryIn(Schema):
     country_id: int | None = None
     country_iso2: str | None = None
     country_name: str | None = None
+    name: str | None = None
+    short_name: str | None = None
+    translated_name: str | None = None
+    erasmus_code: str | None = None
+    city: str | None = None
+    url: str | None = None
+    email: str | None = None
 
 
 class PartnerUniversityImportOut(Schema):

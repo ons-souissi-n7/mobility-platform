@@ -14,7 +14,12 @@ Cas couverts :
   GPA0  — GPA null traité comme -inf (priorité la plus basse)
   TIE   — égalité de score → occupant conservé (statu quo)
   EXH   — étudiant épuise tous ses vœux → unassigned
+  LVL   — vœux tous incompatibles avec le niveau → destination alternative + note
+  PERF  — 300 étudiants / promotion complète → temps d'exécution < 30s (besoin non fonctionnel)
 """
+
+import random
+import time
 
 from app.outgoing.services.gale_shapley import (
     AgreementInput,
@@ -34,13 +39,14 @@ AY_B = 102
 AY_C = 103
 
 
-def make_student(eid, dept, gpa, prefs, is_french=True):
+def make_student(eid, dept, gpa, prefs, is_french=True, level_mismatch=False):
     return StudentInput(
         enrollment_id=eid,
         dept_id=dept,
         is_french=is_french,
         gpa=gpa,
         preferences=prefs,
+        level_mismatch=level_mismatch,
     )
 
 
@@ -392,3 +398,107 @@ class TestExhausted:
     def test_empty_inputs(self):
         results = gale_shapley([], [])
         assert results == []
+
+
+# ── Vœux incompatibles avec le niveau ─────────────────────────────────────────
+
+
+class TestLevelMismatch:
+    def test_level_mismatch_student_gets_alternative_destination(self):
+        """
+        Un étudiant dont tous les vœux ont été filtrés en amont (niveau
+        incompatible) arrive ici avec preferences=[] et level_mismatch=True.
+        Il doit être traité comme un rejet total : tentative de destination
+        alternative, avec une note explicative sur le résultat.
+        """
+        students = [make_student(1, DEPT_SN, 3.0, [], level_mismatch=True)]
+        agreements = [
+            make_agr(AY_A, {DEPT_SN: 1})
+        ]  # place libre, personne ne la demande
+
+        results = result_map(gale_shapley(students, agreements))
+
+        assert results[1].slot_type == "alternative"
+        assert results[1].agreement_year_id == AY_A
+        assert results[1].note != ""
+
+    def test_level_mismatch_student_without_available_slot_is_unassigned_with_note(
+        self,
+    ):
+        students = [make_student(1, DEPT_SN, 3.0, [], level_mismatch=True)]
+        agreements = [make_agr(AY_A, {DEPT_3EA: 1})]  # aucun quota pour DEPT_SN
+
+        results = result_map(gale_shapley(students, agreements))
+
+        assert results[1].slot_type == "unassigned"
+        assert results[1].note != ""
+
+    def test_student_with_no_wishes_at_all_gets_no_note(self):
+        students = [make_student(1, DEPT_SN, 3.0, [])]  # aucun vœu, pas de mismatch
+        agreements = [make_agr(AY_A, {DEPT_SN: 1})]
+
+        results = result_map(gale_shapley(students, agreements))
+
+        assert results[1].slot_type == "unassigned"
+        assert results[1].note == ""
+
+
+# ── Performance : promotion complète (besoin non fonctionnel du rapport) ─────
+#
+# Le rapport de conception exige que l'algorithme d'affectation s'exécute en
+# moins de 30 secondes pour une promotion de 300 étudiants (§3.2 Besoins non
+# fonctionnels — Performance).
+
+
+def _make_scaled_scenario(n_students: int, seed: int = 42):
+    """Génère un scénario réaliste : 3 départements, 12 accords, vœux ordonnés."""
+    rng = random.Random(seed)
+    depts = [DEPT_SN, DEPT_3EA, DEPT_MF2E]
+
+    agreements = []
+    for i in range(12):
+        ay_id = 200 + i
+        # Chaque accord n'est ouvert qu'à 1 ou 2 départements, comme en réalité.
+        open_depts = rng.sample(depts, k=rng.choice([1, 2]))
+        quota_dept = {d: rng.randint(2, 6) for d in open_depts}
+        agreements.append(make_agr(ay_id, quota_dept, n7=sum(quota_dept.values()) + 2))
+
+    agreement_ids = [a.agreement_year_id for a in agreements]
+    agreement_by_id = {a.agreement_year_id: a for a in agreements}
+
+    students = []
+    for eid in range(1, n_students + 1):
+        dept = rng.choice(depts)
+        eligible = [
+            ay_id
+            for ay_id in agreement_ids
+            if dept in agreement_by_id[ay_id].quota_dept
+        ]
+        n_wishes = min(len(eligible), rng.randint(1, 3))
+        prefs = rng.sample(eligible, n_wishes) if eligible else []
+        students.append(
+            make_student(
+                eid,
+                dept,
+                round(rng.uniform(2.0, 4.0), 2),
+                prefs,
+                is_french=rng.random() < 0.8,
+            )
+        )
+
+    return students, agreements
+
+
+class TestPerformanceAtScale:
+    def test_full_promotion_completes_in_under_30_seconds(self):
+        students, agreements = _make_scaled_scenario(300)
+
+        start = time.perf_counter()
+        results = gale_shapley(students, agreements)
+        elapsed = time.perf_counter() - start
+
+        assert len(results) == 300
+        assert elapsed < 30, (
+            f"Gale-Shapley a pris {elapsed:.2f}s pour 300 étudiants — "
+            "dépasse l'objectif de performance du rapport (<30s)."
+        )

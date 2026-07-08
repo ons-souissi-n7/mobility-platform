@@ -1,4 +1,4 @@
-import { publicApiBaseUrl } from "@/lib/api/download-utils";
+import { formatApiErrorDetail, publicApiBaseUrl } from "@/lib/api/browser-client";
 import type {
   StudentAgreement,
   StudentAssignment,
@@ -11,12 +11,16 @@ async function clientFetch<T>(url: string): Promise<T | null> {
   if (res.status === 404) return null;
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    let msg = `Erreur API ${res.status}`;
+    let message = `Erreur API ${res.status}`;
     try {
-      const payload = JSON.parse(text) as { detail?: string };
-      if (payload.detail) msg = payload.detail;
-    } catch { /* ignore */ }
-    throw new Error(msg);
+      const payload = JSON.parse(text);
+      if (payload && typeof payload === "object" && "detail" in payload) {
+        message = formatApiErrorDetail((payload as { detail: unknown }).detail);
+      }
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }

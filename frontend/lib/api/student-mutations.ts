@@ -1,4 +1,4 @@
-import { browserApi } from "@/lib/api/browser-client";
+import { browserApi, browserApiUpload } from "@/lib/api/browser-client";
 import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
 import type {
   PagedResponse,
@@ -16,26 +16,10 @@ export async function importStudentsFromExcel(
 ): Promise<TaskResponse> {
   const formData = new FormData();
   formData.append("file", file);
-
-  const response = await fetch(
-    `${publicApiBaseUrl}/students/students/import-excel/${yearId}/`,
-    { method: "POST", body: formData },
+  return browserApiUpload<TaskResponse>(
+    `/students/students/import-excel/${yearId}/`,
+    formData,
   );
-
-  if (!response.ok) {
-    const text = await response.text();
-    let message = `Erreur API ${response.status}`;
-    try {
-      const payload = JSON.parse(text);
-      if (payload?.detail) message = String(payload.detail);
-      else if (text) message = text;
-    } catch {
-      if (text) message = text;
-    }
-    throw new Error(message);
-  }
-
-  return response.json() as Promise<TaskResponse>;
 }
 
 export function syncStudentsFromPegase(yearId: number): Promise<TaskResponse> {
@@ -84,11 +68,12 @@ export function getStudentsByYear(
 }
 
 export function getStudentImportErrors(
-  params: { page?: number; page_size?: number } = {},
+  params: { page?: number; page_size?: number; year_id?: number } = {},
 ): Promise<PagedResponse<RawImport>> {
   const qs = new URLSearchParams();
   qs.set("page", String(params.page ?? 1));
   qs.set("page_size", String(params.page_size ?? 25));
+  if (params.year_id) qs.set("year_id", String(params.year_id));
   return browserApi<PagedResponse<RawImport>>(
     `/students/students/import-errors/?${qs}`,
     { method: "GET" },
@@ -106,6 +91,13 @@ export type StudentImportCorrection = {
   department_id?: number;
   level_id?: number;
   parcours_id?: number;
+  ine?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  gender?: string;
+  gpa?: number;
+  nationality_iso2?: string;
 };
 
 export function retryStudentImportError(
@@ -119,23 +111,10 @@ export function retryStudentImportError(
 }
 
 export async function downloadStudentTemplate(): Promise<void> {
-  const response = await fetch(`${publicApiBaseUrl}/students/students/template/`, {
-    method: "GET",
-  });
-
-  if (!response.ok) {
-    throw new Error("Impossible de telecharger le template.");
-  }
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "template_etudiants.xlsx";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  await downloadBlob(
+    `${publicApiBaseUrl}/students/students/template/`,
+    "template_etudiants.xlsx",
+  );
 }
 
 export function getStudentDetail(studentId: number): Promise<import("@/lib/api/types").StudentDetail> {

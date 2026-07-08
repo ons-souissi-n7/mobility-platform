@@ -372,6 +372,7 @@ export type AssignmentResult = {
   override_slot_type: string | null;
   override_rank: number | null;
   source: "auto" | "override";
+  system_note: string;
 };
 
 export type OverrideImportReport = {
@@ -487,4 +488,39 @@ export type StudentWishItem = {
   university_name: string;
   country_name: string;
   country_iso2: string;
+};
+
+export type Internship = {
+  id: number;
+  student_id: number;
+  student_ine: string;
+  student_name: string;
+  academic_year_id: number | null;
+  academic_year_label: string | null;
+  company_name: string;
+  country_id: number | null;
+  country_name_fr: string | null;
+  city: string;
+  title: string;
+  internship_type: string;
+  status_code: string;
+  status_label: string;
+  start_date: string | null;
+  end_date: string | null;
+  weeks_in_company: number | null;
+  school_tutor: string;
+  company_tutor: string;
+  eudonet_label: string;
+  last_sync_eudonet: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InternshipImportError = {
+  id: number;
+  external_id: string;
+  payload: Record<string, unknown>;
+  error_message: string;
+  status: string;
+  created_at: string;
 };

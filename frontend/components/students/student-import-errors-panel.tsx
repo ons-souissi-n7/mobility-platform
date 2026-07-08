@@ -4,10 +4,8 @@ import { AlertTriangle, Check, ChevronDown, ChevronRight, RotateCw } from "lucid
 import { useState } from "react";
 
 import { Pagination } from "@/components/ui/pagination";
-import type { Department, Level, Parcours, RawImport } from "@/lib/api/types";
+import type { Country, Department, Level, Parcours, RawImport } from "@/lib/api/types";
 import type { StudentImportCorrection } from "@/lib/api/student-mutations";
-
-type ErrorKind = "department" | "level" | "parcours" | "no_correction";
 
 const STUDENT_FIELD_LABELS: Record<string, string> = {
   ine: "INE",
@@ -21,14 +19,6 @@ const STUDENT_FIELD_LABELS: Record<string, string> = {
   gpa: "Moyenne (GPA)",
   nationality_iso2: "Nationalité",
 };
-
-function classifyStudentError(error: RawImport): ErrorKind {
-  const msg = (error.error_message ?? "").toLowerCase();
-  if (msg.includes("département introuvable") || msg.includes("departement introuvable")) return "department";
-  if (msg.includes("niveau introuvable")) return "level";
-  if (msg.includes("parcours introuvable")) return "parcours";
-  return "no_correction";
-}
 
 function PayloadGrid({ payload }: { payload: Record<string, unknown> }) {
   const entries = Object.entries(payload).filter(([, v]) => v !== null && v !== undefined && v !== "");
@@ -50,7 +40,59 @@ function PayloadGrid({ payload }: { payload: Record<string, unknown> }) {
   );
 }
 
+type CorrectionForm = {
+  ine: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  gender: string;
+  department_id: number | "";
+  level_id: number | "";
+  parcours_id: number | "";
+  gpa: string;
+  nationality_iso2: string;
+};
+
+function buildInitialForm(
+  payload: Record<string, unknown>,
+  departments: Department[],
+  levels: Level[],
+  parcourses: Parcours[],
+): CorrectionForm {
+  const deptCode = String(payload.department_code ?? "").toUpperCase();
+  const levelCode = String(payload.level_code ?? "").toUpperCase();
+  const parcoursCode = String(payload.parcours_code ?? "").toUpperCase();
+  return {
+    ine: String(payload.ine ?? ""),
+    first_name: String(payload.first_name ?? ""),
+    last_name: String(payload.last_name ?? ""),
+    email: String(payload.email ?? ""),
+    gender: String(payload.gender ?? ""),
+    department_id: departments.find((d) => d.code.toUpperCase() === deptCode)?.id ?? "",
+    level_id: levels.find((l) => l.code.toUpperCase() === levelCode)?.id ?? "",
+    parcours_id: parcourses.find((p) => p.code.toUpperCase() === parcoursCode)?.id ?? "",
+    gpa: payload.gpa !== null && payload.gpa !== undefined ? String(payload.gpa) : "",
+    nationality_iso2: String(payload.nationality_iso2 ?? ""),
+  };
+}
+
+function buildCorrection(form: CorrectionForm): StudentImportCorrection {
+  const c: StudentImportCorrection = {};
+  if (form.department_id !== "") c.department_id = form.department_id;
+  if (form.level_id !== "") c.level_id = form.level_id;
+  if (form.parcours_id !== "") c.parcours_id = form.parcours_id;
+  if (form.ine) c.ine = form.ine;
+  if (form.first_name) c.first_name = form.first_name;
+  if (form.last_name) c.last_name = form.last_name;
+  if (form.email) c.email = form.email;
+  if (form.gender) c.gender = form.gender;
+  if (form.gpa !== "") c.gpa = Number(form.gpa);
+  if (form.nationality_iso2) c.nationality_iso2 = form.nationality_iso2;
+  return c;
+}
+
 export function StudentImportErrorsPanel({
+  countries,
   departments,
   errors,
   isBusy,
@@ -64,6 +106,7 @@ export function StudentImportErrorsPanel({
   pageSize = 25,
   onPageChange,
 }: {
+  countries: Country[];
   departments: Department[];
   errors: RawImport[];
   isBusy: boolean;
@@ -80,7 +123,7 @@ export function StudentImportErrorsPanel({
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [corrections, setCorrections] = useState<Record<number, StudentImportCorrection>>({});
+  const [forms, setForms] = useState<Record<number, CorrectionForm>>({});
 
   if (errors.length === 0) return null;
 
@@ -96,13 +139,27 @@ export function StudentImportErrorsPanel({
     }
   }
 
-  function setCorrection(id: number, patch: Partial<StudentImportCorrection>) {
-    setCorrections((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), ...patch } }));
+  function getForm(error: RawImport): CorrectionForm {
+    if (!forms[error.id]) {
+      const initial = buildInitialForm(error.payload, departments, levels, parcourses);
+      setForms((prev) => ({ ...prev, [error.id]: initial }));
+      return initial;
+    }
+    return forms[error.id];
+  }
+
+  function updateForm(id: number, patch: Partial<CorrectionForm>) {
+    setForms((prev) => ({ ...prev, [id]: { ...(prev[id] ?? buildInitialForm({}, departments, levels, parcourses)), ...patch } }));
   }
 
   function toggleExpand(id: number) {
     setExpandedId((prev) => (prev === id ? null : id));
   }
+
+  const sortedDepts = [...departments].sort((a, b) => a.code.localeCompare(b.code));
+  const sortedLevels = [...levels].sort((a, b) => a.code.localeCompare(b.code));
+  const sortedParcours = [...parcourses].sort((a, b) => a.code.localeCompare(b.code));
+  const sortedCountries = [...countries].sort((a, b) => a.name_fr.localeCompare(b.name_fr));
 
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -120,23 +177,16 @@ export function StudentImportErrorsPanel({
       )}
 
       <div className="mt-4 space-y-2">
-        {errors.length === 0 && <p className="text-xs text-gray-500 italic">Aucune erreur sur cette page.</p>}
         {errors.map((error) => {
           const busy = isBusy || activeId === error.id;
-          const kind = classifyStudentError(error);
-          const correction = corrections[error.id] ?? {};
           const isExpanded = expandedId === error.id;
-          const canRetry =
-            (kind === "department" && !!correction.department_id) ||
-            (kind === "level" && !!correction.level_id) ||
-            (kind === "parcours" && !!correction.parcours_id);
+          const form = isExpanded ? getForm(error) : null;
 
           return (
             <div
               key={error.id}
               className="rounded-md border border-amber-200 bg-white overflow-hidden"
             >
-              {/* Summary row — click to expand */}
               <button
                 type="button"
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-amber-50 transition-colors"
@@ -156,18 +206,14 @@ export function StudentImportErrorsPanel({
                 <span className="flex-1 text-xs text-red-700 truncate">
                   {error.error_message || "Erreur inconnue"}
                 </span>
-                <span
-                  className="shrink-0 ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium bg-red-100 text-red-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {kind === "no_correction" ? "manuel" : "corrigeable"}
+                <span className="shrink-0 ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium bg-red-100 text-red-700">
+                  {error.status}
                 </span>
               </button>
 
-              {/* Expanded detail panel */}
-              {isExpanded && (
+              {isExpanded && form && (
                 <div className="border-t border-amber-100 px-4 py-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  {/* Left: full record */}
+                  {/* Left: full record + error */}
                   <div>
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Enregistrement complet
@@ -181,107 +227,110 @@ export function StudentImportErrorsPanel({
                     </div>
                   </div>
 
-                  {/* Right: correction + actions */}
+                  {/* Right: full correction form */}
                   <div>
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Correction proposée
+                      Corriger et relancer
                     </h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      <CorrField label="N°INE" value={form.ine} onChange={(v) => updateForm(error.id, { ine: v })} />
+                      <CorrField label="Prénom" value={form.first_name} onChange={(v) => updateForm(error.id, { first_name: v })} />
+                      <CorrField label="Nom" value={form.last_name} onChange={(v) => updateForm(error.id, { last_name: v })} />
+                      <CorrField label="Email" value={form.email} onChange={(v) => updateForm(error.id, { email: v })} />
 
-                    {kind === "department" && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-gray-500">
-                          Le code <span className="font-mono font-semibold">{String(error.payload.department_code ?? "")}</span> ne correspond à aucun département connu. Sélectionnez le département correct.
-                        </p>
+                      <label className="block">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Genre</span>
                         <select
-                          className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
-                          disabled={busy}
-                          value={correction.department_id ?? ""}
-                          onChange={(e) =>
-                            setCorrection(error.id, {
-                              department_id: e.target.value ? Number(e.target.value) : undefined,
-                            })
-                          }
+                          className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                          value={form.gender}
+                          onChange={(e) => updateForm(error.id, { gender: e.target.value })}
                         >
-                          <option value="">Choisir un département…</option>
-                          {departments.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.code} — {d.name}
-                            </option>
+                          <option value="">—</option>
+                          <option value="M">M — Masculin</option>
+                          <option value="F">F — Féminin</option>
+                        </select>
+                      </label>
+
+                      <label className="block">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Département</span>
+                        <select
+                          className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                          value={form.department_id}
+                          onChange={(e) => updateForm(error.id, { department_id: e.target.value ? Number(e.target.value) : "" })}
+                        >
+                          <option value="">— Sélectionner —</option>
+                          {sortedDepts.map((d) => (
+                            <option key={d.id} value={d.id}>{d.code} — {d.name}</option>
                           ))}
                         </select>
-                      </div>
-                    )}
+                      </label>
 
-                    {kind === "level" && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-gray-500">
-                          Le code <span className="font-mono font-semibold">{String(error.payload.level_code ?? "")}</span> ne correspond à aucun niveau connu. Sélectionnez le niveau correct.
-                        </p>
+                      <label className="block">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Niveau</span>
                         <select
-                          className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
-                          disabled={busy}
-                          value={correction.level_id ?? ""}
-                          onChange={(e) =>
-                            setCorrection(error.id, {
-                              level_id: e.target.value ? Number(e.target.value) : undefined,
-                            })
-                          }
+                          className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                          value={form.level_id}
+                          onChange={(e) => updateForm(error.id, { level_id: e.target.value ? Number(e.target.value) : "" })}
                         >
-                          <option value="">Choisir un niveau…</option>
-                          {levels.map((l) => (
-                            <option key={l.id} value={l.id}>
-                              {l.code} — {l.name}
-                            </option>
+                          <option value="">— Sélectionner —</option>
+                          {sortedLevels.map((l) => (
+                            <option key={l.id} value={l.id}>{l.code} — {l.name}</option>
                           ))}
                         </select>
-                      </div>
-                    )}
+                      </label>
 
-                    {kind === "parcours" && (
-                      <div className="space-y-2">
-                        <p className="text-xs text-gray-500">
-                          Le code <span className="font-mono font-semibold">{String(error.payload.parcours_code ?? "")}</span> ne correspond à aucun parcours connu. Sélectionnez le parcours correct.
-                        </p>
+                      <label className="block">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Parcours</span>
                         <select
-                          className="w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
-                          disabled={busy}
-                          value={correction.parcours_id ?? ""}
-                          onChange={(e) =>
-                            setCorrection(error.id, {
-                              parcours_id: e.target.value ? Number(e.target.value) : undefined,
-                            })
-                          }
+                          className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                          value={form.parcours_id}
+                          onChange={(e) => updateForm(error.id, { parcours_id: e.target.value ? Number(e.target.value) : "" })}
                         >
-                          <option value="">Choisir un parcours…</option>
-                          {parcourses.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.code} — {p.label}
-                            </option>
+                          <option value="">— Sélectionner —</option>
+                          {sortedParcours.map((p) => (
+                            <option key={p.id} value={p.id}>{p.code} — {p.label}</option>
                           ))}
                         </select>
-                      </div>
-                    )}
+                      </label>
 
-                    {kind === "no_correction" && (
-                      <p className="text-xs italic text-gray-400">
-                        Ce type d&apos;erreur nécessite une correction manuelle dans la source de données.
-                      </p>
-                    )}
+                      <label className="block">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Moyenne (GPA)</span>
+                          <input
+                            className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
+                            type="number"
+                            min="0"
+                            max="4"
+                            step="0.01"
+                            value={form.gpa}
+                            onChange={(e) => updateForm(error.id, { gpa: e.target.value })}
+                          />
+                        </label>
+
+                      <label className="block">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Nationalité (pays)</span>
+                          <select
+                            className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                            value={form.nationality_iso2}
+                            onChange={(e) => updateForm(error.id, { nationality_iso2: e.target.value })}
+                          >
+                            <option value="">— Sélectionner —</option>
+                            {sortedCountries.map((c) => (
+                              <option key={c.id} value={c.iso2}>{c.name_fr} ({c.iso2})</option>
+                            ))}
+                          </select>
+                        </label>
+                    </div>
 
                     <div className="mt-4 flex gap-2">
-                      {kind !== "no_correction" && (
-                        <button
-                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={!canRetry || busy}
-                          onClick={() =>
-                            runAction(() => onRetry(error, correction), error.id)
-                          }
-                          type="button"
-                        >
-                          <RotateCw className="h-3 w-3" />
-                          Relancer
-                        </button>
-                      )}
+                      <button
+                        className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={busy}
+                        onClick={() => runAction(() => onRetry(error, buildCorrection(form)), error.id)}
+                        type="button"
+                      >
+                        <RotateCw className="h-3 w-3" />
+                        Relancer
+                      </button>
                       <button
                         className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={busy}
@@ -312,5 +361,29 @@ export function StudentImportErrorsPanel({
         </div>
       )}
     </div>
+  );
+}
+
+function CorrField({
+  label,
+  value,
+  type = "text",
+  onChange,
+}: {
+  label: string;
+  value: string;
+  type?: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</span>
+      <input
+        className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
   );
 }

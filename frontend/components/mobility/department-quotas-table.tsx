@@ -21,7 +21,7 @@ function getColumns(
   return [
     {
       key: "department",
-      header: "Departement",
+      header: "Département",
       render: (quota) => <span className="font-medium text-gray-900">{quota.departmentLabel}</span>,
     },
     {
@@ -36,7 +36,7 @@ function getColumns(
     },
     {
       key: "places",
-      header: "Places estimees",
+      header: "Places estimées",
       render: (quota) => (
         <span className="font-medium text-gray-900">{quota.estimated_places}</span>
       ),
@@ -79,8 +79,8 @@ export function DepartmentQuotasTable({
     return {
       ...dq,
       agreementName: agreement?.name ?? "Accord inconnu",
-      departmentLabel: department ? `${department.code} - ${department.name}` : "Departement inconnu",
-      quotaLabel: yearInstance?.academic_year_label ?? "Annee inconnue",
+      departmentLabel: department ? `${department.code} - ${department.name}` : "Département inconnu",
+      quotaLabel: yearInstance?.academic_year_label ?? "Année inconnue",
     };
   });
 

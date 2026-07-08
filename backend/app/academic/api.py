@@ -265,14 +265,20 @@ def publish_results(request, year_id: int):
             " L'année doit être en phase Validation.",
         ) from exc
 
-    # Publier aussi l'affectation associée si elle est en état validé
+    # Publier aussi l'affectation associée (proposed → validated → published si besoin)
     latest_assignment = (
         Assignment.objects.filter(academic_year=academic_year)
         .order_by("-created_at")
         .first()
     )
-    if latest_assignment and latest_assignment.status == AssignmentStatus.VALIDATED:
+    if latest_assignment and latest_assignment.status in (
+        AssignmentStatus.PROPOSED,
+        AssignmentStatus.VALIDATED,
+    ):
         try:
+            if latest_assignment.status == AssignmentStatus.PROPOSED:
+                latest_assignment.validate()
+                latest_assignment.save(update_fields=["status", "updated_at"])
             latest_assignment.publish()
             latest_assignment.save(update_fields=["status", "updated_at"])
         except TransitionNotAllowed:

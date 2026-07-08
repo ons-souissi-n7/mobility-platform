@@ -60,7 +60,7 @@ export function ParcoursForm({
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
       <label className="block">
-        <span className="text-sm font-medium text-gray-700">Departement *</span>
+        <span className="text-sm font-medium text-gray-700">Département *</span>
         <select
           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-[#1E3A8A]"
           defaultValue={item?.department_id ?? ""}

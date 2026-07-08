@@ -344,6 +344,7 @@ class TestHamilton:
 
 @pytest.mark.django_db
 class TestRedistributeByHistory:
+    _ine_seq = 0
     """Tests d'intégration : redistribute_department_quotas via historique voeux+affectations."""
 
     def setup_method(self):
@@ -411,10 +412,12 @@ class TestRedistributeByHistory:
         """Crée n voeux pour cet accord depuis le département dept (année passée)."""
         from app.students.models import AnnualEnrollment, Student, StudentWish
 
-        for i in range(n):
+        for _ in range(n):
+            TestRedistributeByHistory._ine_seq += 1
+            seq = TestRedistributeByHistory._ine_seq
             s = Student.objects.create(
-                ine=f"{dept.pk:06d}{i:05d}",
-                last_name=f"NomW{i}",
+                ine=f"{seq:09d}AB",
+                last_name=f"NomW{seq}",
                 first_name="Prénom",
             )
             enrollment = AnnualEnrollment.objects.create(

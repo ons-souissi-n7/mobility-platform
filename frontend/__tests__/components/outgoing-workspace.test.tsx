@@ -68,8 +68,15 @@ describe("OutgoingWorkspace", () => {
     });
   });
 
-  it("Template button is enabled in initialization phase", async () => {
+  it("Template button is disabled in initialization phase", async () => {
     render(<OutgoingWorkspace academicYears={[makeYear("initialization")]} />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /template/i })).toBeDisabled();
+    });
+  });
+
+  it("Template button is enabled in import phase", async () => {
+    render(<OutgoingWorkspace academicYears={[makeYear("import")]} />);
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /template/i })).not.toBeDisabled();
     });

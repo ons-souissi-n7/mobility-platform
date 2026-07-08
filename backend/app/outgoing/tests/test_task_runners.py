@@ -101,6 +101,54 @@ class TestRunGaleShapley:
         assert assignment.total_students == 0
         assert assignment.assigned_count == 0
 
+    def test_level_mismatch_creates_result_with_note_and_no_alert(self):
+        from app.alerts.models import SystemAlert
+
+        year = make_year(
+            label="2028-2029", start_date=date(2028, 9, 1), end_date=date(2029, 8, 31)
+        )
+        dept = Department.objects.create(code="EL", name="Electronique")
+        student_level = Level.objects.create(code="2A", name="2e année")
+        restricted_level = Level.objects.create(code="5A", name="5e année")
+        student = Student.objects.create(
+            ine="222222222BB", first_name="Chloe", last_name="Petit"
+        )
+        enrollment = AnnualEnrollment.objects.create(
+            student=student, academic_year=year, department=dept, level=student_level
+        )
+        country = Country.objects.create(
+            iso2="IT",
+            name_fr="Italie",
+            name_en="Italy",
+            cti_region=CTIRegion.EUROPE_HORS_FRANCE,
+        )
+        university = PartnerUniversity.objects.create(name="Polimi", country=country)
+        agreement = Agreement.objects.create(
+            name="Acc Polimi",
+            partner_university=university,
+            direction="outgoing",
+            inp_total_places=2,
+        )
+        agreement.levels.add(
+            restricted_level
+        )  # incompatible avec le niveau de l'étudiant
+        ay = AgreementYear.objects.create(
+            agreement=agreement, academic_year=year, is_active=True, n7_places=1
+        )
+        StudentWish.objects.create(
+            annual_enrollment=enrollment, agreement_year=ay, rank=1
+        )
+
+        run_gale_shapley(year.id)
+
+        assignment = Assignment.objects.get(academic_year=year)
+        assert assignment.total_students == 1
+        result = AssignmentResult.objects.get(assignment=assignment)
+        assert result.annual_enrollment_id == enrollment.id
+        assert result.slot_type == "unassigned"
+        assert result.system_note != ""
+        assert not SystemAlert.objects.exists()
+
     def test_raises_for_unknown_year(self):
         with pytest.raises(ValueError, match="introuvable"):
             run_gale_shapley(99999)

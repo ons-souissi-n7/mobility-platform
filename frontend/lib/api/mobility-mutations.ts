@@ -1,4 +1,4 @@
-import { browserApi } from "@/lib/api/browser-client";
+import { browserApi, browserApiUpload } from "@/lib/api/browser-client";
 import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
 import type {
   Agreement,
@@ -45,6 +45,8 @@ export type MobilityCategoryPayload = {
 
 export type MobilityImportRetryPayload = {
   partner_university_id?: number;
+  name?: string;
+  reference?: string;
 };
 
 export type InitYearResult = {
@@ -203,24 +205,10 @@ export function retryMobilityImport(id: number, payload: MobilityImportRetryPayl
 export async function importAgreementsFromExcel(file: File) {
   const formData = new FormData();
   formData.append("file", file);
-
-  const response = await fetch(`${publicApiBaseUrl}/mobility/import-excel/`, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    let message = `Erreur API ${response.status}`;
-    try {
-      const payload = JSON.parse(text);
-      if (payload?.detail) message = String(payload.detail);
-    } catch {
-      message = text || message;
-    }
-    throw new Error(message);
-  }
-  return response.json() as Promise<{ task_id: string; message: string }>;
+  return browserApiUpload<{ task_id: string; message: string }>(
+    "/mobility/import-excel/",
+    formData,
+  );
 }
 
 export function downloadExcelTemplate() {

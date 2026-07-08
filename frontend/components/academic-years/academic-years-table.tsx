@@ -24,7 +24,7 @@ function getColumns({
   return [
     {
       key: "label",
-      header: "Annee",
+      header: "Année",
       render: (year) => <span className="font-medium text-gray-900">{year.label}</span>,
     },
     {

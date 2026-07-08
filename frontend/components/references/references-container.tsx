@@ -7,6 +7,7 @@ import { ReferencesWorkspace } from "@/components/references/references-workspac
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import type {
+  AcademicYear,
   Country,
   Department,
   Level,
@@ -28,6 +29,7 @@ type ReferencesContainerProps = {
   initialLevelImportErrors: RawImport[];
   initialLevelImportErrorsCount: number;
   initialParcours: Parcours[];
+  currentYear: AcademicYear | null;
 };
 
 export function ReferencesContainer({
@@ -42,6 +44,7 @@ export function ReferencesContainer({
   initialLevelImportErrors,
   initialLevelImportErrorsCount,
   initialParcours,
+  currentYear,
 }: ReferencesContainerProps) {
   const [countries, setCountries] = useState(initialCountries);
   const [departments, setDepartments] = useState(initialDepartments);
@@ -85,9 +88,9 @@ export function ReferencesContainer({
           value={mobilityLevels.length}
         />
         <StatCard
-          helper="Etablissements partenaires"
+          helper="Établissements partenaires"
           icon={University}
-          label="Universites partenaires"
+          label="Universités partenaires"
           tone="amber"
           value={universities.count}
         />
@@ -123,6 +126,7 @@ export function ReferencesContainer({
         setCountries={setCountries}
         parcours={parcours}
         setParcours={setParcours}
+        currentYear={currentYear}
       />
     </div>
   );

@@ -57,12 +57,15 @@ import {
   updateParcours,
   updateUniversity,
   type CountryPayload,
+  type DepartmentImportCorrection,
   type DepartmentPayload,
   type LevelPayload,
   type ParcoursPayload,
   type PartnerUniversityPayload,
+  type UniversityImportCorrection,
 } from "@/lib/api/reference-mutations";
 import type {
+  AcademicYear,
   Country,
   Department,
   Level,
@@ -101,6 +104,7 @@ type ReferencesWorkspaceProps = {
   setLevelImportErrorsCount: Dispatch<SetStateAction<number>>;
   parcours: Parcours[];
   setParcours: Dispatch<SetStateAction<Parcours[]>>;
+  currentYear: AcademicYear | null;
 };
 
 export function ReferencesWorkspace({
@@ -126,7 +130,10 @@ export function ReferencesWorkspace({
   setLevelImportErrorsCount,
   parcours,
   setParcours,
+  currentYear,
 }: ReferencesWorkspaceProps) {
+  const refLocked = !!currentYear && currentYear.status !== "initialization";
+
   const [query, setQuery] = useState("");
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [modal, setModal] = useState<{
@@ -434,8 +441,7 @@ export function ReferencesWorkspace({
     await refreshUniversityData();
   }
 
-  async function retryImportError(error: RawImport, correction?: number | string) {
-    if (typeof correction !== "number") return;
+  async function retryImportError(error: RawImport, correction: UniversityImportCorrection) {
     await retryUniversityImport(error.id, correction);
     const univData = await fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE });
     setUniversities(univData);
@@ -454,8 +460,7 @@ export function ReferencesWorkspace({
     await loadUniversityErrors(universityErrorsPage);
   }
 
-  async function retryDepartmentImportError(error: RawImport, correction?: number | string) {
-    if (typeof correction !== "string" || !correction.trim()) return;
+  async function retryDepartmentImportError(error: RawImport, correction: DepartmentImportCorrection) {
     await retryDepartmentImport(error.id, correction);
     const refreshed = await getDepartments();
     setDepartments(refreshed);
@@ -513,6 +518,12 @@ export function ReferencesWorkspace({
       <ErrorBanner message={departmentSyncError} />
       <ErrorBanner message={levelSyncError} />
 
+      {refLocked && (
+        <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+          Modifications des référentiels disponibles uniquement en <span className="font-semibold mx-1">phase Initialisation</span>.
+        </div>
+      )}
+
       <div className="space-y-10">
         <div id="departements">
           <ReferenceSection
@@ -520,8 +531,8 @@ export function ReferencesWorkspace({
             description="Departements pedagogiques."
             toolbar={
               <div className="flex gap-2">
-                <AddButton label="Ajouter" onClick={() => setModal({ kind: "department" })} />
-                <SyncButton label="Sync Pegase" isLoading={departmentSyncInProgress} onClick={handleSyncDepartments} />
+                <AddButton label="Ajouter" disabled={refLocked} onClick={() => setModal({ kind: "department" })} />
+                <SyncButton label="Sync Pegase" isLoading={departmentSyncInProgress} disabled={refLocked} onClick={handleSyncDepartments} />
               </div>
             }
           >
@@ -532,12 +543,11 @@ export function ReferencesWorkspace({
             />
             <ImportErrorsPanel
               title="Erreurs Pegase"
-              retryField="code"
               countries={countries}
               errors={departmentImportErrors}
               isBusy={departmentSyncInProgress}
               onIgnore={ignoreDepartmentImportError}
-              onRetry={retryDepartmentImportError}
+              onRetry={(e, c) => retryDepartmentImportError(e, c as DepartmentImportCorrection)}
               onForce={forceDepartmentImportError}
               totalCount={departmentImportErrorsCount}
               page={departmentErrorsPage}
@@ -554,6 +564,7 @@ export function ReferencesWorkspace({
             toolbar={
               <AddButton
                 label="Ajouter un parcours"
+                disabled={refLocked}
                 onClick={() => setParcoursModal({ kind: "parcours" })}
               />
             }
@@ -573,8 +584,8 @@ export function ReferencesWorkspace({
             description="Niveaux d'etude synchronises depuis Pegase."
             toolbar={
               <div className="flex gap-2">
-                <AddButton label="Ajouter un niveau" onClick={() => setLevelModal({ kind: "mobilityLevel" })} />
-                <SyncButton label="Sync Pegase" isLoading={levelSyncInProgress} onClick={handleSyncLevels} />
+                <AddButton label="Ajouter un niveau" disabled={refLocked} onClick={() => setLevelModal({ kind: "mobilityLevel" })} />
+                <SyncButton label="Sync Pegase" isLoading={levelSyncInProgress} disabled={refLocked} onClick={handleSyncLevels} />
               </div>
             }
           >
@@ -590,7 +601,6 @@ export function ReferencesWorkspace({
                 errors={levelImportErrors}
                 isBusy={levelSyncInProgress}
                 onIgnore={ignoreLevelImportError}
-                onRetry={async () => {}}
                 onForce={forceLevelImportError}
                 totalCount={levelImportErrorsCount}
                 page={levelErrorsPage}
@@ -603,8 +613,8 @@ export function ReferencesWorkspace({
 
         <div id="universites">
           <ReferenceSection
-            title="Universites"
-            description="Etablissements partenaires."
+            title="Universités"
+            description="Établissements partenaires."
             toolbar={
               <div className="flex items-center gap-2">
                 <select
@@ -617,8 +627,8 @@ export function ReferencesWorkspace({
                     <option key={c.id} value={c.id}>{c.name_fr}</option>
                   ))}
                 </select>
-                <AddButton label="Ajouter" onClick={() => setModal({ kind: "university" })} />
-                <SyncButton label="Sync MoveON" isLoading={syncInProgress} onClick={handleSyncUniversities} />
+                <AddButton label="Ajouter" disabled={refLocked} onClick={() => setModal({ kind: "university" })} />
+                <SyncButton label="Sync MoveON" isLoading={syncInProgress} disabled={refLocked} onClick={handleSyncUniversities} />
               </div>
             }
           >
@@ -635,12 +645,11 @@ export function ReferencesWorkspace({
             />
             <ImportErrorsPanel
               title="Erreurs MoveON"
-              retryField="country"
               countries={countries}
               errors={universityImportErrors}
               isBusy={syncInProgress}
               onIgnore={ignoreImportError}
-              onRetry={retryImportError}
+              onRetry={(e, c) => retryImportError(e, c as UniversityImportCorrection)}
               onForce={forceUniversityImportError}
               totalCount={universityImportErrorsCount}
               page={universityErrorsPage}
@@ -654,7 +663,7 @@ export function ReferencesWorkspace({
           <ReferenceSection
             title="Pays"
             description="Liste stable des pays."
-            toolbar={<AddButton label="Ajouter un pays" onClick={() => setModal({ kind: "country" })} />}
+            toolbar={<AddButton label="Ajouter un pays" disabled={refLocked} onClick={() => setModal({ kind: "country" })} />}
           >
             <CountriesTable
               countries={filteredCountries}
@@ -715,17 +724,17 @@ export function ReferencesWorkspace({
   );
 }
 
-function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
+function AddButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <Btn variant="primary" onClick={onClick}>
+    <Btn variant="primary" disabled={disabled} onClick={onClick}>
       <Plus className="h-4 w-4" /> {label}
     </Btn>
   );
 }
 
-function SyncButton({ isLoading, label, onClick }: { isLoading: boolean; label: string; onClick: () => void }) {
+function SyncButton({ isLoading, label, onClick, disabled }: { isLoading: boolean; label: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <Btn disabled={isLoading} onClick={onClick}>
+    <Btn disabled={isLoading || disabled} onClick={onClick}>
       <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
       {isLoading ? "Synchronisation..." : label}
     </Btn>

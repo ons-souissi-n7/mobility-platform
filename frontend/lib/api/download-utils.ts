@@ -1,8 +1,4 @@
-const publicApiBaseUrl = (
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"
-).replace(/\/$/, "");
-
-export { publicApiBaseUrl };
+export { publicApiBaseUrl } from "@/lib/api/browser-client";
 
 export async function downloadBlob(url: string, defaultFilename = "export.xlsx"): Promise<void> {
   const response = await fetch(url);

@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Briefcase,
   CalendarRange,
   FileBarChart,
   FileText,
@@ -19,7 +20,7 @@ export const adminNavigation = [
   },
   {
     href: "/admin/etudiants",
-    label: "Etudiants",
+    label: "Étudiants",
     icon: Users,
   },
   {
@@ -31,6 +32,11 @@ export const adminNavigation = [
     href: "/admin/entrantes",
     label: "Mobilites entrantes",
     icon: PlaneLanding,
+  },
+  {
+    href: "/admin/internships",
+    label: "Stages internationaux",
+    icon: Briefcase,
   },
   {
     href: "/admin/mobility",
@@ -49,7 +55,7 @@ export const adminNavigation = [
   },
   {
     href: "/admin/academic-years",
-    label: "Annees universitaires",
+    label: "Années universitaires",
     icon: CalendarRange,
   },
   {

@@ -1,32 +1,118 @@
 [
-  { "ine": "23010000001", "nom": "MARTIN",   "prenom": "Jean",    "email": "jean.martin@etud.n7.fr",     "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "France" },
-  { "ine": "23010000002", "nom": "DUPONT",   "prenom": "Marie",   "email": "marie.dupont@etud.n7.fr",    "sexe": "F", "departement": "SN",   "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "France" },
-  { "ine": "23010000003", "nom": "BERNARD",  "prenom": "Paul",    "email": "paul.bernard@etud.n7.fr",    "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "France" },
-  { "ine": "23010000004", "nom": "PETIT",    "prenom": "Lucie",   "email": "lucie.petit@etud.n7.fr",     "sexe": "F", "departement": "SN",   "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "Maroc" },
-  { "ine": "23010000005", "nom": "ROBERT",   "prenom": "Thomas",  "email": "thomas.robert@etud.n7.fr",   "sexe": "M", "departement": "3EA",  "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "France" },
-  { "ine": "23010000006", "nom": "RICHARD",  "prenom": "Emma",    "email": "emma.richard@etud.n7.fr",    "sexe": "F", "departement": "3EA",  "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "Allemagne" },
-  { "ine": "23010000007", "nom": "SIMON",    "prenom": "Nicolas", "email": "nicolas.simon@etud.n7.fr",   "sexe": "M", "departement": "3EA",  "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "France" },
-  { "ine": "23010000008", "nom": "GARCIA",   "prenom": "Lea",     "email": "lea.garcia@etud.n7.fr",      "sexe": "F", "departement": "MF2E", "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "Espagne" },
-  { "ine": "23010000009", "nom": "MARTINEZ", "prenom": "Hugo",    "email": "hugo.martinez@etud.n7.fr",   "sexe": "M", "departement": "MF2E", "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "Espagne" },
-  { "ine": "23010000010", "nom": "LEFEBVRE", "prenom": "Camille", "email": "camille.lefebvre@etud.n7.fr","sexe": "F", "departement": "MF2E", "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "France" },
-  { "ine": "22010000001", "nom": "THOMAS",   "prenom": "Alexis",  "email": "alexis.thomas@etud.n7.fr",   "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": "IA",   "moyenne": 15.2, "nationalite": "France" },
-  { "ine": "22010000002", "nom": "LEROY",    "prenom": "Sophie",  "email": "sophie.leroy@etud.n7.fr",    "sexe": "F", "departement": "SN",   "niveau": "ING", "parcours": "IA",   "moyenne": 16.8, "nationalite": "France" },
-  { "ine": "22010000003", "nom": "MOREAU",   "prenom": "Kevin",   "email": "kevin.moreau@etud.n7.fr",    "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": "IA",   "moyenne": 13.4, "nationalite": "Maroc" },
-  { "ine": "22010000004", "nom": "DAVID",    "prenom": "Manon",   "email": "manon.david@etud.n7.fr",     "sexe": "F", "departement": "SN",   "niveau": "ING", "parcours": "SESG", "moyenne": 14.7, "nationalite": "Tunisie" },
-  { "ine": "22010000005", "nom": "FOURNIER", "prenom": "Antoine", "email": "antoine.fournier@etud.n7.fr","sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": "SESG", "moyenne": 12.9, "nationalite": "France" },
-  { "ine": "22010000006", "nom": "GIRARD",   "prenom": "Mathieu", "email": "mathieu.girard@etud.n7.fr",  "sexe": "M", "departement": "3EA",  "niveau": "ING", "parcours": "EEA",  "moyenne": 14.1, "nationalite": "France" },
-  { "ine": "22010000007", "nom": "BONNET",   "prenom": "Alice",   "email": "alice.bonnet@etud.n7.fr",    "sexe": "F", "departement": "3EA",  "niveau": "ING", "parcours": "EEA",  "moyenne": 15.9, "nationalite": "Allemagne" },
-  { "ine": "22010000008", "nom": "DUBOIS",   "prenom": "Romain",  "email": "romain.dubois@etud.n7.fr",   "sexe": "M", "departement": "MF2E", "niveau": "ING", "parcours": "EE",   "moyenne": 13.8, "nationalite": "France" },
-  { "ine": "22010000009", "nom": "LAMBERT",  "prenom": "Clara",   "email": "clara.lambert@etud.n7.fr",   "sexe": "F", "departement": "MF2E", "niveau": "ING", "parcours": "EE",   "moyenne": 14.5, "nationalite": "Maroc" },
-  { "ine": "22010000010", "nom": "MORIN",    "prenom": "Julien",  "email": "julien.morin@etud.n7.fr",    "sexe": "M", "departement": "3EA",  "niveau": "ING", "parcours": "RT",   "moyenne": 11.6, "nationalite": "France" },
-  { "ine": "21010000001", "nom": "FONTAINE", "prenom": "Theo",    "email": "theo.fontaine@etud.n7.fr",   "sexe": "M", "departement": "SN",   "niveau": "M1",  "parcours": "IA",   "moyenne": 16.3, "nationalite": "France" },
-  { "ine": "21010000002", "nom": "ROUSSEAU", "prenom": "Ines",    "email": "ines.rousseau@etud.n7.fr",   "sexe": "F", "departement": "SN",   "niveau": "M1",  "parcours": "IA",   "moyenne": 17.1, "nationalite": "France" },
-  { "ine": "21010000003", "nom": "VINCENT",  "prenom": "Baptiste","email": "baptiste.vincent@etud.n7.fr","sexe": "M", "departement": "SN",   "niveau": "M2",  "parcours": "SESG", "moyenne": 14.9, "nationalite": "Tunisie" },
-  { "ine": "21010000004", "nom": "MULLER",   "prenom": "Sarah",   "email": "sarah.muller@etud.n7.fr",    "sexe": "F", "departement": "SN",   "niveau": "M2",  "parcours": "SESG", "moyenne": 15.4, "nationalite": "Allemagne" },
-  { "ine": "21010000005", "nom": "LECOMTE",  "prenom": "Maxime",  "email": "maxime.lecomte@etud.n7.fr",  "sexe": "M", "departement": "3EA",  "niveau": "M1",  "parcours": "EEA",  "moyenne": 13.2, "nationalite": "France" },
-  { "ine": "21010000006", "nom": "MOREL",    "prenom": "Clement", "email": "clement.morel@etud.n7.fr",   "sexe": "M", "departement": "3EA",  "niveau": "M2",  "parcours": "RT",   "moyenne": 14.6, "nationalite": "France" },
-  { "ine": "21010000007", "nom": "POIRIER",  "prenom": "Jade",    "email": "jade.poirier@etud.n7.fr",    "sexe": "F", "departement": "MF2E", "niveau": "M1",  "parcours": "EE",   "moyenne": 16.0, "nationalite": "Chine" },
-  { "ine": "21010000008", "nom": "RENARD",   "prenom": "Louis",   "email": "louis.renard@etud.n7.fr",    "sexe": "M", "departement": "MF2E", "niveau": "M2",  "parcours": "EE",   "moyenne": 12.7, "nationalite": "France" },
-  { "ine": "20010000001", "nom": "PERRIN",   "prenom": "Anais",   "email": "anais.perrin@etud.n7.fr",    "sexe": "F", "departement": "SN",   "niveau": "L3",  "parcours": null,   "moyenne": 15.8, "nationalite": "France" },
-  { "ine": "20010000002", "nom": "COLIN",    "prenom": "Florian", "email": "florian.colin@etud.n7.fr",   "sexe": "M", "departement": "3EA",  "niveau": "L3",  "parcours": null,   "moyenne": 13.5, "nationalite": "Maroc" }
+  {
+    "ine": "01234567890", "nom": "DUBOIS",    "prenom": "Lea",      "email": "lea.dubois@etu.inp-toulouse.fr",        "sexe": "F", "departement": "SN",   "niveau": "ING", "parcours": "IA",   "moyenne": 3.36, "nationalite": "FR",
+    "date_creation": "2025-09-01", "date_modification": "2025-09-01"
+  },
+  {
+    "ine": "11234567890", "nom": "GARCIA",    "prenom": "Nathan",   "email": "nathan.garcia@etu.inp-toulouse.fr",     "sexe": "M", "departement": "3EA",  "niveau": "ING", "parcours": "RT",   "moyenne": 2.90, "nationalite": "FR",
+    "date_creation": "2025-09-03", "date_modification": "2025-09-03"
+  },
+  {
+    "ine": "21234567890", "nom": "ROUX",      "prenom": "Camille",  "email": "camille.roux@etu.inp-toulouse.fr",      "sexe": "F", "departement": "MF2E", "niveau": "ING", "parcours": "EE",   "moyenne": 3.44, "nationalite": "MA",
+    "date_creation": "2025-09-05", "date_modification": "2025-11-12"
+  },
+  {
+    "ine": "31234567890", "nom": "FOURNIER",  "prenom": "Axel",     "email": "axel.fournier@etu.inp-toulouse.fr",     "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": "SESG", "moyenne": 3.00, "nationalite": "FR",
+    "date_creation": "2025-09-08", "date_modification": "2026-01-20"
+  },
+  {
+    "ine": "41234567890", "nom": "MOREL",     "prenom": "Ines",     "email": "ines.morel@etu.inp-toulouse.fr",        "sexe": "F", "departement": "3EA",  "niveau": "ING", "parcours": "EEA",  "moyenne": 3.16, "nationalite": "FR",
+    "date_creation": "2025-09-10", "date_modification": "2026-03-15"
+  },
+  {
+    "ine": "51234567890", "nom": "GIRARD",    "prenom": "Theo",     "email": "theo.girard@etu.inp-toulouse.fr",       "sexe": "M", "departement": "SN",   "niveau": "M2",   "parcours": "IA",   "moyenne": 3.50, "nationalite": "CM",
+    "date_creation": "2025-09-15", "date_modification": "2025-09-15"
+  },
+  {
+    "ine": "61234567890", "nom": "RENAUD",    "prenom": "Vincent",  "email": "vincent.renaud@etu.inp-toulouse.fr",    "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "FR",
+    "date_creation": "2025-09-20", "date_modification": "2025-12-05"
+  },
+  {
+    "ine": "71234567890", "nom": "FONTAINE",  "prenom": "Amandine", "email": "amandine.fontaine@etu.inp-toulouse.fr", "sexe": "F", "departement": "3EA",  "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "FR",
+    "date_creation": "2025-10-01", "date_modification": "2026-02-10"
+  },
+  {
+    "ine": "82234567890", "nom": "MARCHAL",   "prenom": "Antoine",  "email": "antoine.marchal@etu.inp-toulouse.fr",   "sexe": "M", "departement": "SN",   "niveau": "M2",   "parcours": "IA",   "moyenne": 3.65, "nationalite": "FR",
+    "date_creation": "2024-09-01", "date_modification": "2025-10-18"
+  },
+  {
+    "ine": "92234567890", "nom": "HASSAN",    "prenom": "Amira",    "email": "amira.hassan@etu.inp-toulouse.fr",      "sexe": "F", "departement": "SN",   "niveau": "ING", "parcours": "IA",   "moyenne": 3.48, "nationalite": "EG",
+    "date_creation": "2024-09-01", "date_modification": "2026-04-22"
+  },
+  {
+    "ine": "03234567890", "nom": "NGUYEN",    "prenom": "Minh",     "email": "minh.nguyen@etu.inp-toulouse.fr",       "sexe": "M", "departement": "3EA",  "niveau": "ING", "parcours": "EEA",  "moyenne": 3.33, "nationalite": "VN",
+    "date_creation": "2024-09-05", "date_modification": "2025-11-30"
+  },
+  {
+    "ine": "12234567890", "nom": "AOUAD",     "prenom": "Fatima",   "email": "fatima.aouad@etu.inp-toulouse.fr",      "sexe": "F", "departement": "SN",   "niveau": "M1",   "parcours": null,   "moyenne": null, "nationalite": "MA",
+    "date_creation": "2024-09-01", "date_modification": "2025-08-31"
+  },
+  {
+    "ine": "22234567890", "nom": "LEFEVRE",   "prenom": "Hugo",     "email": "hugo.lefevre@etu.inp-toulouse.fr",      "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": "IA",   "moyenne": 3.72, "nationalite": "FR",
+    "date_creation": "2024-09-01", "date_modification": "2024-11-15"
+  },
+  {
+    "ine": "32234567890", "nom": "PHAM",      "prenom": "Linh",     "email": "linh.pham@etu.inp-toulouse.fr",         "sexe": "F", "departement": "3EA",  "niveau": "ING", "parcours": "EEA",  "moyenne": 3.58, "nationalite": "VN",
+    "date_creation": "2024-09-03", "date_modification": "2025-07-10"
+  },
+  {
+    "ine": "42234567890", "nom": "BENSAID",   "prenom": "Youssef",  "email": "youssef.bensaid@etu.inp-toulouse.fr",   "sexe": "M", "departement": "MF2E", "niveau": "ING", "parcours": "EE",   "moyenne": 3.10, "nationalite": "DZ",
+    "date_creation": "2024-09-10", "date_modification": "2024-12-20"
+  },
+  {
+    "ine": "52234567890", "nom": "SCHNEIDER", "prenom": "Clara",    "email": "clara.schneider@etu.inp-toulouse.fr",   "sexe": "F", "departement": "SN",   "niveau": "ING", "parcours": "SESG", "moyenne": 3.25, "nationalite": "DE",
+    "date_creation": "2024-09-15", "date_modification": "2025-06-30"
+  },
+  {
+    "ine": "90000000001", "nom": "BORDURE",   "prenom": "DebutFenetre", "email": "bordure.debut@etu.inp-toulouse.fr", "sexe": "F", "departement": "SN",   "niveau": "ING", "parcours": "IA",   "moyenne": 3.20, "nationalite": "FR",
+    "date_creation": "2025-09-01", "date_modification": "2025-09-01"
+  },
+  {
+    "ine": "90000000002", "nom": "BORDURE",   "prenom": "FinFenetre", "email": "bordure.fin@etu.inp-toulouse.fr",     "sexe": "M", "departement": "3EA",  "niveau": "ING", "parcours": "RT",   "moyenne": 3.10, "nationalite": "FR",
+    "date_creation": "2026-08-31", "date_modification": "2026-08-31"
+  },
+  {
+    "ine": "90000000003", "nom": "EXCLU",     "prenom": "AvantFenetre", "email": "exclu.avant@etu.inp-toulouse.fr",  "sexe": "F", "departement": "MF2E", "niveau": "ING", "parcours": "EE",   "moyenne": 3.05, "nationalite": "FR",
+    "date_creation": "2025-08-31", "date_modification": "2025-08-31"
+  },
+  {
+    "ine": "90000000004", "nom": "EXCLU",     "prenom": "ApresFenetre", "email": "exclu.apres@etu.inp-toulouse.fr",  "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": "SESG", "moyenne": 2.95, "nationalite": "FR",
+    "date_creation": "2026-09-01", "date_modification": "2026-09-01"
+  },
+  {
+    "ine": "90000000005", "nom": "INCLUS",    "prenom": "ModifSeule", "email": "inclus.modifseule@etu.inp-toulouse.fr", "sexe": "F", "departement": "3EA", "niveau": "ING", "parcours": "EEA",  "moyenne": 3.40, "nationalite": "FR",
+    "date_creation": "2024-01-15", "date_modification": "2025-09-10"
+  },
+  {
+    "ine": "90000000006", "nom": "EXCLU",     "prenom": "ModifAvantFenetre", "email": "exclu.modifavant@etu.inp-toulouse.fr", "sexe": "M", "departement": "SN", "niveau": "M1", "parcours": null, "moyenne": 3.15, "nationalite": "FR",
+    "date_creation": "2023-05-01", "date_modification": "2025-08-20"
+  },
+  {
+    "ine": "90000000007", "nom": "EXCLU",     "prenom": "ModifApresFenetre", "email": "exclu.modifapres@etu.inp-toulouse.fr", "sexe": "F", "departement": "MF2E", "niveau": "ING", "parcours": "EE", "moyenne": 3.30, "nationalite": "FR",
+    "date_creation": "2020-01-01", "date_modification": "2026-09-05"
+  },
+  {
+    "ine": "90000000008", "nom": "INCLUS",    "prenom": "CreationSeule", "email": "inclus.creationseule@etu.inp-toulouse.fr", "sexe": "M", "departement": "3EA", "niveau": "M2", "parcours": "RT", "moyenne": 3.60, "nationalite": "FR",
+    "date_creation": "2025-12-01", "date_modification": "2025-12-01"
+  },
+  {
+    "ine": "23010000001", "nom": "MARTIN",    "prenom": "Jean",     "email": "jean.martin@etud.n7.fr",                "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "France",
+    "date_creation": "2023-09-01", "date_modification": "2023-09-01"
+  },
+  {
+    "ine": "23010000002", "nom": "DUPONT",    "prenom": "Marie",    "email": "marie.dupont@etud.n7.fr",               "sexe": "F", "departement": "SN",   "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "France",
+    "date_creation": "2023-09-01", "date_modification": "2024-03-01"
+  },
+  {
+    "ine": "23010000003", "nom": "BERNARD",   "prenom": "Paul",     "email": "paul.bernard@etud.n7.fr",               "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": null,   "moyenne": null, "nationalite": "France",
+    "date_creation": "2023-09-01", "date_modification": "2023-12-15"
+  },
+  {
+    "ine": "22010000001", "nom": "THOMAS",    "prenom": "Alexis",   "email": "alexis.thomas@etud.n7.fr",              "sexe": "M", "departement": "SN",   "niveau": "ING", "parcours": "IA",   "moyenne": 15.2, "nationalite": "France",
+    "date_creation": "2022-09-01", "date_modification": "2022-09-01"
+  },
+  {
+    "ine": "22010000002", "nom": "LEROY",     "prenom": "Sophie",   "email": "sophie.leroy@etud.n7.fr",               "sexe": "F", "departement": "SN",   "niveau": "ING", "parcours": "IA",   "moyenne": 16.8, "nationalite": "France",
+    "date_creation": "2022-09-01", "date_modification": "2023-05-20"
+  }
 ]

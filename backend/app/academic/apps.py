@@ -1,4 +1,8 @@
+import logging
+
 from django.apps import AppConfig
+
+logger = logging.getLogger(__name__)
 
 
 class AcademicConfig(AppConfig):
@@ -18,4 +22,6 @@ class AcademicConfig(AppConfig):
 
                 Command().sync_schedules()
         except Exception:
-            pass
+            logger.exception(
+                "Échec de la synchronisation des schedules Django-Q au démarrage"
+            )

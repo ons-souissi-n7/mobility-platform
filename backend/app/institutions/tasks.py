@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime, time, timedelta
 
 from django.utils import timezone
 from django_q.models import OrmQ, Schedule
 from django_q.signing import SignedPackage
 from django_q.tasks import async_task
+
+logger = logging.getLogger(__name__)
 
 SYNC_MOVEON_INSTITUTIONS_TASK = (
     "app.institutions.services.sync_moveon.sync_moveon_institutions"
@@ -52,6 +55,10 @@ def purge_pending_sync_moveon_institutions() -> int:
         try:
             payload = SignedPackage.loads(queued_task.payload)
         except Exception:
+            logger.exception(
+                "Impossible de désérialiser la tâche Django-Q en file (id=%s) — ignorée",
+                queued_task.pk,
+            )
             continue
 
         if payload.get("func") != SYNC_MOVEON_INSTITUTIONS_TASK:
