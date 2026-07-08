@@ -104,12 +104,12 @@ export async function syncWishesFromMoveon(yearId: number): Promise<TaskResponse
   return response.json() as Promise<TaskResponse>;
 }
 
-export async function getWishesByYear(yearId: number): Promise<StudentWishes[]> {
+export async function getWishesByYear(yearId: number): Promise<PagedResponse<StudentWishes>> {
   const response = await fetch(
-    `${publicApiBaseUrl}/outgoing/wishes/by-year/${yearId}/`,
+    `${publicApiBaseUrl}/outgoing/wishes/by-year/${yearId}/?page=1&page_size=500`,
   );
   if (!response.ok) throw new Error(`Erreur chargement vœux : ${response.status}`);
-  return response.json() as Promise<StudentWishes[]>;
+  return response.json() as Promise<PagedResponse<StudentWishes>>;
 }
 
 export async function downloadWishTemplate(yearId: number): Promise<void> {

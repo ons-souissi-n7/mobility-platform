@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -65,6 +65,7 @@ import type {
   StudentWishes,
 } from "@/lib/api/types";
 import { WishImportErrorsPanel } from "@/components/students/wish-import-errors-panel";
+import { CollapsibleStatsPanel } from "@/components/ui/collapsible-stats-panel";
 
 // ─── Labels métier ────────────────────────────────────────────────────────────
 const ASSIGNMENT_STATUS_LABELS: Record<string, { label: string; cls: string }> = {
@@ -124,6 +125,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   const [importingOverrides, setImportingOverrides] = useState(false);
   const { confirm, dialog } = useConfirm();
   const [overrideReport, setOverrideReport]   = useState<OverrideImportReport | null>(null);
+  const [statsOpen, setStatsOpen]             = useState(false);
 
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -181,7 +183,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
       stopPolling();
 
       try {
-        const [w, errs, students, agr, assignmentsData] = await Promise.all([
+        const [wPage, errs, students, agr, assignmentsData] = await Promise.all([
           getWishesByYear(yearId),
           getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE, year_id: yearId }),
           getStudentSelectOptions(yearId),
@@ -189,7 +191,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
           getAssignmentsForYear(yearId),
         ]);
         if (cancelled) return;
-        setWishes(w);
+        setWishes(wPage.results);
         setWishImportErrors(errs.results);
         setWishErrorsTotalCount(errs.count);
         setWishErrorsPage(1);
@@ -363,11 +365,11 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   }
 
   async function reloadWishes(yearId: number) {
-    const [w, errs] = await Promise.all([
+    const [wPage, errs] = await Promise.all([
       getWishesByYear(yearId),
       getWishImportErrors({ page: 1, page_size: WISH_ERRORS_PAGE_SIZE, year_id: yearId }),
     ]);
-    setWishes(w);
+    setWishes(wPage.results);
     setWishImportErrors(errs.results);
     setWishErrorsTotalCount(errs.count);
     setWishErrorsPage(1);
@@ -805,13 +807,11 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
         </div>
       )}
 
-      {/* Taux de remplissage des quotas */}
+      {/* Statistiques (collapsible) */}
       {stats && !polling && (stats.by_agreement.length > 0 || deptWithFillRate.length > 0) && (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        <CollapsibleStatsPanel isOpen={statsOpen} onToggle={() => setStatsOpen((o) => !o)}>
           <div className="border-b border-gray-100 px-6 py-4">
-            <h2 className="text-base font-semibold text-gray-900">
-              Taux de remplissage des quotas
-            </h2>
+            <h2 className="text-base font-semibold text-gray-900">Taux de remplissage des quotas</h2>
             <p className="mt-0.5 text-xs text-gray-500">
               Répartition des affectations par accord de mobilité et par département.
             </p>
@@ -836,8 +836,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {stats.by_agreement.map((row) => (
-                      <React.Fragment key={row.agreement_year_id}>
-                        {/* Ligne accord */}
+                      <Fragment key={row.agreement_year_id}>
                         <tr className="bg-white hover:bg-gray-50/80">
                           <td className="px-6 py-2.5 font-semibold text-gray-900">{row.agreement_name}</td>
                           <td className="px-6 py-2.5 text-gray-600">{row.university_name}</td>
@@ -847,12 +846,8 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                             <FillRateCell rate={row.fill_rate} />
                           </td>
                         </tr>
-                        {/* Sous-lignes par département */}
                         {row.by_department.map((dept) => (
-                          <tr
-                            key={`${row.agreement_year_id}-${dept.dept_code}`}
-                            className="bg-gray-50/50 text-xs"
-                          >
+                          <tr key={`${row.agreement_year_id}-${dept.dept_code}`} className="bg-gray-50/50 text-xs">
                             <td className="py-1.5 pl-10 pr-6 text-gray-500">
                               <span className="inline-flex items-center gap-1.5">
                                 <span className="text-gray-300">└</span>
@@ -880,7 +875,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                             </td>
                           </tr>
                         ))}
-                      </React.Fragment>
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -949,7 +944,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                         <td className="px-6 py-3 font-medium text-gray-900">{row.country_name_fr}</td>
                         <td className="px-6 py-3 text-right font-mono text-gray-700">{row.count}</td>
                         <td className="px-6 py-3 text-right">
-                          <FillRateCell rate={stats.assigned_count > 0 ? Math.round(row.count / stats.assigned_count * 100) : 0} />
+                          <FillRateCell rate={stats.assigned_count > 0 ? Math.round((row.count / stats.assigned_count) * 100) : 0} />
                         </td>
                       </tr>
                     ))}
@@ -981,7 +976,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                         const deptName = rows[0]?.department_name ?? "";
                         const deptTotal = rows.reduce((s, r) => s + r.count, 0);
                         return (
-                          <React.Fragment key={deptCode}>
+                          <Fragment key={deptCode}>
                             <tr className="bg-white">
                               <td className="px-6 py-2.5 font-semibold text-gray-900">
                                 <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700 mr-2">{deptCode}</span>
@@ -1000,7 +995,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
                                 <td className="px-6 py-1.5 text-right font-mono text-gray-600">{row.count}</td>
                               </tr>
                             ))}
-                          </React.Fragment>
+                          </Fragment>
                         );
                       })}
                     </tbody>
@@ -1009,7 +1004,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
               </>
             );
           })()}
-        </div>
+        </CollapsibleStatsPanel>
       )}
 
       {/* Erreurs d'import vœux — lecture seule si affectation déjà calculée */}

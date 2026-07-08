@@ -524,3 +524,61 @@ export type InternshipImportError = {
   status: string;
   created_at: string;
 };
+
+export type IncomingStudent = {
+  id: number;
+  academic_year_id: number;
+  academic_year_label: string;
+  department_id: number | null;
+  department_code: string | null;
+  department_name: string | null;
+  civility: string;
+  last_name: string;
+  first_name: string;
+  country_id: number | null;
+  country_name_fr: string | null;
+  origin_university_id: number | null;
+  origin_university_name: string;
+  birth_date: string | null;
+  mobility_category_id: number | null;
+  mobility_category_name: string | null;
+  personal_email: string;
+  n7_email: string;
+  duration: string;
+  level_id: number | null;
+  level_code: string | null;
+  level_name: string | null;
+  parcours_id: number | null;
+  parcours_code: string | null;
+  remarks: string;
+  internship_info: string;
+  diploma_info: string;
+  doctoral_continuation: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type IncomingImportError = {
+  id: number;
+  external_id: string;
+  payload: Record<string, unknown>;
+  error_message: string;
+  status: string;
+  created_at: string;
+};
+
+export type IncomingStatUniv = {
+  university: string;
+  department_code: string | null;
+  department_name: string | null;
+  academic_year_label: string;
+  count: number;
+};
+
+export type IncomingStatCountry = {
+  country: string;
+  department_code: string | null;
+  department_name: string | null;
+  academic_year_label: string;
+  count: number;
+};
