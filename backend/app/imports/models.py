@@ -20,6 +20,7 @@ class RawImportEntity(models.TextChoices):
     AGREEMENT = "agreement", "Accord"
     STUDENT = "student", "Étudiant"
     INTERNSHIP = "internship", "Stage"
+    INCOMING_STUDENT = "incoming_student", "Étudiant entrant"
 
 
 class RawImport(TimeStampedModel):

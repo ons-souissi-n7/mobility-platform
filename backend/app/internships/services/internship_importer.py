@@ -158,7 +158,6 @@ def import_internships_from_excel(
                     "weeks_in_company": weeks,
                     "school_tutor": _get(row, "Tuteur pédagogique") or "",
                     "company_tutor": _get(row, "Tuteur entreprise") or "",
-                    "last_sync_eudonet": timezone.now(),
                 },
             )
             raw.status = RawImportStatus.IMPORTED

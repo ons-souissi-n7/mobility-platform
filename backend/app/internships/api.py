@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.db.models import Max, Q
 from django.db.models.deletion import ProtectedError
 from django.http import HttpResponse
-from ninja import File, Query, Router
+from ninja import File, Query, Router, Schema
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
 
@@ -23,6 +23,11 @@ from .schemas import InternshipImportErrorOut, InternshipIn, InternshipOut
 from .tasks import enqueue_import_excel_internships, enqueue_sync_eudonet_internships
 
 router = Router()
+
+
+class InternshipForcePayload(Schema):
+    payload: dict
+
 
 PROTECTED_DELETE_MSG = (
     "Impossible de supprimer ce stage : des données y sont rattachées. "
@@ -352,10 +357,10 @@ def ignore_import_error(request, raw_import_id: int):
     response=InternshipImportErrorOut,
     summary="Forcer l'import avec payload corrigé",
 )
-def force_import_error(request, raw_import_id: int, corrected_payload: dict):
+def force_import_error(request, raw_import_id: int, body: InternshipForcePayload):
     raw = get_or_404(RawImport, raw_import_id, "Erreur d'import introuvable.")
 
-    raw.payload = {**raw.payload, **corrected_payload}
+    raw.payload = {**raw.payload, **body.payload}
     raw.save(update_fields=["payload", "updated_at"])
 
     from app.integrations.eudonet import EudonetInternship

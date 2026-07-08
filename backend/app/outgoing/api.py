@@ -3,7 +3,18 @@ import logging
 import openpyxl
 import openpyxl.worksheet.datavalidation
 from django.db import transaction
-from django.db.models import Case, CharField, Count, F, IntegerField, Max, Q, When
+from django.db.models import (
+    Case,
+    CharField,
+    Count,
+    Exists,
+    F,
+    IntegerField,
+    Max,
+    OuterRef,
+    Q,
+    When,
+)
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django_fsm import TransitionNotAllowed
@@ -1225,20 +1236,43 @@ def sync_wishes_from_moveon(request, year_id: int):
 
 @router.get(
     "/wishes/by-year/{year_id}/",
-    response=list[StudentWishesOut],
+    response=PagedResponse[StudentWishesOut],
     summary="Vœux ordonnés par étudiant pour une année",
 )
-def list_wishes_by_year(request, year_id: int):
+def list_wishes_by_year(request, year_id: int, pagination: PaginationQuery = Query()):
     academic_year = get_academic_year(year_id)
 
-    wishes = (
-        StudentWish.objects.filter(annual_enrollment__academic_year=academic_year)
+    # Paginate on enrolled students who have at least one wish
+    enrollment_qs = (
+        AnnualEnrollment.objects.filter(
+            academic_year=academic_year,
+        )
+        .filter(Exists(StudentWish.objects.filter(annual_enrollment_id=OuterRef("pk"))))
         .select_related(
-            "annual_enrollment__student",
-            "annual_enrollment__student__nationality",
-            "annual_enrollment__department",
-            "annual_enrollment__parcours",
-            "annual_enrollment__level",
+            "student",
+            "student__nationality",
+            "department",
+            "parcours",
+            "level",
+        )
+        .order_by("student__last_name", "student__first_name")
+    )
+    count, enrollments = paginate(enrollment_qs, pagination.page, pagination.page_size)
+
+    if not enrollments:
+        return PagedResponse(
+            count=count,
+            page=pagination.page,
+            page_size=pagination.page_size,
+            results=[],
+        )
+
+    enrollment_ids = [e.id for e in enrollments]
+    enrollment_by_id = {e.id: e for e in enrollments}
+
+    wishes_qs = (
+        StudentWish.objects.filter(annual_enrollment_id__in=enrollment_ids)
+        .select_related(
             "agreement_year__agreement__partner_university__country",
         )
         .order_by(
@@ -1249,8 +1283,8 @@ def list_wishes_by_year(request, year_id: int):
     )
 
     grouped: dict[int, StudentWishesOut] = {}
-    for w in wishes:
-        enrollment = w.annual_enrollment
+    for w in wishes_qs:
+        enrollment = enrollment_by_id[w.annual_enrollment_id]
         student = enrollment.student
         sid = student.id
         if sid not in grouped:
@@ -1259,7 +1293,9 @@ def list_wishes_by_year(request, year_id: int):
                 ine=student.ine,
                 first_name=student.first_name,
                 last_name=student.last_name,
-                department_code=enrollment.department.code,
+                department_code=enrollment.department.code
+                if enrollment.department_id
+                else None,
                 parcours_code=enrollment.parcours.code
                 if enrollment.parcours_id
                 else None,
@@ -1289,7 +1325,12 @@ def list_wishes_by_year(request, year_id: int):
             )
         )
 
-    return list(grouped.values())
+    return PagedResponse(
+        count=count,
+        page=pagination.page,
+        page_size=pagination.page_size,
+        results=list(grouped.values()),
+    )
 
 
 @router.get(
