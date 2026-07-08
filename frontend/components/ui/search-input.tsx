@@ -4,11 +4,12 @@ type SearchInputProps = {
   placeholder: string;
   value?: string;
   onChange?: (value: string) => void;
+  className?: string;
 };
 
-export function SearchInput({ placeholder, value, onChange }: SearchInputProps) {
+export function SearchInput({ placeholder, value, onChange, className = "w-56 shrink-0" }: SearchInputProps) {
   return (
-    <div className="relative w-56 shrink-0">
+    <div className={`relative ${className}`}>
       <Search
         className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
         aria-hidden="true"

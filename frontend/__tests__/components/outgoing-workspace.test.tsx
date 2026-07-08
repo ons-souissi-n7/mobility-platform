@@ -12,7 +12,7 @@ vi.mock("@/lib/api/outgoing-mutations", () => ({
   getAssignmentStats: vi.fn().mockResolvedValue(null),
   getAssignmentsForYear: vi.fn().mockResolvedValue([]),
   getWishImportErrors: vi.fn().mockResolvedValue({ count: 0, results: [], page: 1, page_size: 25 }),
-  getWishesByYear: vi.fn().mockResolvedValue([]),
+  getWishesByYear: vi.fn().mockResolvedValue({ count: 0, results: [], page: 1, page_size: 500 }),
   importOverridesFromExcel: vi.fn(),
   importWishesFromExcel: vi.fn(),
   publishAssignment: vi.fn(),

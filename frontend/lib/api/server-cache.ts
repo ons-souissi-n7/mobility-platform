@@ -8,6 +8,7 @@ import type {
   Level,
   MobilityCategory,
   Parcours,
+  SelectOption,
 } from "@/lib/api/types";
 
 // TTL constants (seconds)
@@ -43,4 +44,10 @@ export const getCachedMobilityCategories = unstable_cache(
   () => getApi<MobilityCategory[]>("/mobility/agreement-categories/"),
   ["ref-mobility-categories"],
   { revalidate: TTL_MED, tags: ["ref-mobility-categories"] },
+);
+
+export const getCachedPartnerUniversities = unstable_cache(
+  () => getApi<SelectOption[]>("/institutions/universities/select/"),
+  ["ref-partner-universities"],
+  { revalidate: TTL_MED, tags: ["ref-partner-universities"] },
 );

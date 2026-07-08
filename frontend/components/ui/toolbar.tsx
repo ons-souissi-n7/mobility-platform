@@ -10,10 +10,12 @@ export function Toolbar({
   search,
   actions,
   filters,
+  searchClassName,
 }: {
   search?: { value: string; onChange: (v: string) => void; placeholder?: string };
   actions?: ReactNode;
   filters?: ReactNode;
+  searchClassName?: string;
 }) {
   const hasBottomRow = search || filters;
   return (
@@ -30,6 +32,7 @@ export function Toolbar({
               value={search.value}
               onChange={search.onChange}
               placeholder={search.placeholder ?? ""}
+              className={searchClassName ?? "w-56 shrink-0"}
             />
           )}
           {filters}

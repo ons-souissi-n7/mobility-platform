@@ -465,12 +465,14 @@ class TestListWishesByYearAPI:
         response = self.client.get(f"/api/v1/outgoing/wishes/by-year/{self.year.id}/")
 
         assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 1
-        assert data[0]["ine"] == "22010000001"
-        assert len(data[0]["wishes"]) == 1
-        assert data[0]["wishes"][0]["rank"] == 1
-        assert data[0]["wishes"][0]["agreement_name"] == "Accord REL-001"
+        body = response.json()
+        assert body["count"] == 1
+        results = body["results"]
+        assert len(results) == 1
+        assert results[0]["ine"] == "22010000001"
+        assert len(results[0]["wishes"]) == 1
+        assert results[0]["wishes"][0]["rank"] == 1
+        assert results[0]["wishes"][0]["agreement_name"] == "Accord REL-001"
 
     def test_list_by_year_ordered_by_rank(self):
         agreement2 = make_agreement("REL-002")
@@ -483,8 +485,8 @@ class TestListWishesByYearAPI:
 
         response = self.client.get(f"/api/v1/outgoing/wishes/by-year/{self.year.id}/")
 
-        data = response.json()
-        wishes = data[0]["wishes"]
+        results = response.json()["results"]
+        wishes = results[0]["wishes"]
         assert wishes[0]["rank"] == 1
         assert wishes[1]["rank"] == 2
 
@@ -496,7 +498,9 @@ class TestListWishesByYearAPI:
         response = self.client.get(f"/api/v1/outgoing/wishes/by-year/{year2.id}/")
 
         assert response.status_code == 200
-        assert response.json() == []
+        body = response.json()
+        assert body["count"] == 0
+        assert body["results"] == []
 
 
 @pytest.mark.django_db
