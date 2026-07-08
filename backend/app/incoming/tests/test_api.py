@@ -12,7 +12,7 @@ from django.test import Client
 from app.academic.models import AcademicYear
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.incoming.models import IncomingStudent
-from app.reference.models import CTIRegion, Country, Department
+from app.reference.models import Country, CTIRegion, Department
 
 # ---------------------------------------------------------------------------
 # Helpers
