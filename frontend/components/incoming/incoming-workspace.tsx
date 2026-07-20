@@ -39,7 +39,6 @@ import type {
   IncomingStudent,
   Level,
   MobilityCategory,
-  PagedResponse,
   Parcours,
   SelectOption,
 } from "@/lib/api/types";

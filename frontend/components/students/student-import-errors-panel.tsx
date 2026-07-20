@@ -1,15 +1,11 @@
 "use client";
 
-import { AlertTriangle, Check, ChevronDown, ChevronRight, RotateCw, Search } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, RotateCw } from "lucide-react";
 import { useState } from "react";
 
 import { Pagination } from "@/components/ui/pagination";
 import type { Country, Department, Level, Parcours, RawImport } from "@/lib/api/types";
-import {
-  getReconciliationCandidates,
-  type ReconciliationCandidate,
-  type StudentImportCorrection,
-} from "@/lib/api/student-mutations";
+import { type StudentImportCorrection } from "@/lib/api/student-mutations";
 
 const STUDENT_FIELD_LABELS: Record<string, string> = {
   ine: "INE",
@@ -128,8 +124,6 @@ export function StudentImportErrorsPanel({
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [forms, setForms] = useState<Record<number, CorrectionForm>>({});
-  const [candidatesByError, setCandidatesByError] = useState<Record<number, ReconciliationCandidate[]>>({});
-  const [loadingCandidates, setLoadingCandidates] = useState<number | null>(null);
 
   if (errors.length === 0) return null;
 
@@ -160,18 +154,6 @@ export function StudentImportErrorsPanel({
 
   function toggleExpand(id: number) {
     setExpandedId((prev) => (prev === id ? null : id));
-  }
-
-  async function loadCandidates(id: number) {
-    setLoadingCandidates(id);
-    try {
-      const result = await getReconciliationCandidates(id);
-      setCandidatesByError((prev) => ({ ...prev, [id]: result }));
-    } catch {
-      setCandidatesByError((prev) => ({ ...prev, [id]: [] }));
-    } finally {
-      setLoadingCandidates(null);
-    }
   }
 
   const sortedDepts = [...departments].sort((a, b) => a.code.localeCompare(b.code));
@@ -245,70 +227,8 @@ export function StudentImportErrorsPanel({
                     </div>
                   </div>
 
-                  {/* Right: reconciliation candidates + correction form */}
+                  {/* Right: correction form */}
                   <div>
-                    <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-blue-800">
-                          Réconciliation — étudiant similaire
-                        </p>
-                        <button
-                          type="button"
-                          className="inline-flex h-7 items-center gap-1 rounded-md border border-blue-300 bg-white px-2 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-60"
-                          disabled={loadingCandidates === error.id}
-                          onClick={() => void loadCandidates(error.id)}
-                        >
-                          <Search className="h-3 w-3" />
-                          {error.id in candidatesByError ? "Actualiser" : "Chercher"}
-                        </button>
-                      </div>
-                      {loadingCandidates === error.id && (
-                        <p className="mt-2 text-xs text-blue-500">Recherche en cours…</p>
-                      )}
-                      {loadingCandidates !== error.id && error.id in candidatesByError && (
-                        candidatesByError[error.id].length === 0 ? (
-                          <p className="mt-2 text-xs italic text-blue-500">
-                            Aucun étudiant similaire trouvé.
-                          </p>
-                        ) : (
-                          <ul className="mt-2 space-y-1.5">
-                            {candidatesByError[error.id].map((c) => (
-                              <li key={c.ine} className="flex items-center gap-2">
-                                <div className="min-w-0 flex-1 text-xs">
-                                  <span className="font-mono font-medium text-gray-800">
-                                    {c.last_name} {c.first_name}
-                                  </span>
-                                  <span className="ml-1.5 text-[10px] text-gray-500">
-                                    ({c.ine}){c.department_code ? ` · ${c.department_code}` : ""}
-                                  </span>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-1.5">
-                                  <span
-                                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                      c.confidence === "high"
-                                        ? "bg-green-100 text-green-800"
-                                        : c.confidence === "medium"
-                                          ? "bg-amber-100 text-amber-800"
-                                          : "bg-gray-100 text-gray-600"
-                                    }`}
-                                  >
-                                    {Math.round(c.score * 100)}%
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="h-6 rounded px-2 text-[10px] font-medium bg-blue-600 text-white hover:bg-blue-700"
-                                    onClick={() => updateForm(error.id, { ine: c.ine })}
-                                  >
-                                    Utiliser
-                                  </button>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )
-                      )}
-                    </div>
-
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Corriger et relancer
                     </h4>
