@@ -796,3 +796,97 @@ class TestGetStudentAssignment:
         assert "UPM Madrid" in data["university_name"]
         assert data["country_name"] == "Espagne"
         assert data["override_reason"] == "Meilleure adéquation pédagogique"
+
+
+# ---------------------------------------------------------------------------
+# GET /students/students/import-errors/{id}/candidates/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestReconciliationCandidates:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+
+    def _make_ine_error(self, **kwargs) -> RawImport:
+        defaults = {
+            "source": "pegase",
+            "entity": RawImportEntity.STUDENT,
+            "external_id": "NO_INE",
+            "payload": {
+                "last_name": "Martin",
+                "first_name": "Jean",
+                "email": "",
+                "department_code": "SN",
+            },
+            "status": RawImportStatus.FAILED,
+            "error_message": "L'INE est requis.",
+            "academic_year": self.year,
+        }
+        defaults.update(kwargs)
+        return RawImport.objects.create(**defaults)
+
+    def test_returns_empty_list_when_no_similar_student(self):
+        raw = self._make_ine_error()
+
+        response = self.client.get(
+            f"/api/v1/students/students/import-errors/{raw.id}/candidates/"
+        )
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_returns_matching_student_with_expected_fields(self):
+        Student.objects.create(ine="12345678901", first_name="Jean", last_name="Martin")
+        raw = self._make_ine_error()
+
+        response = self.client.get(
+            f"/api/v1/students/students/import-errors/{raw.id}/candidates/"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        candidate = data[0]
+        assert candidate["ine"] == "12345678901"
+        assert candidate["first_name"] == "Jean"
+        assert candidate["last_name"] == "Martin"
+        assert "score" in candidate
+        assert candidate["confidence"] in ("high", "medium", "low")
+        assert "department_code" in candidate
+
+    def test_returns_404_for_nonexistent_id(self):
+        response = self.client.get(
+            "/api/v1/students/students/import-errors/99999/candidates/"
+        )
+
+        assert response.status_code == 404
+
+    def test_returns_404_for_non_failed_status(self):
+        raw = RawImport.objects.create(
+            source="pegase",
+            entity=RawImportEntity.STUDENT,
+            external_id="12345678901",
+            payload={"ine": "12345678901"},
+            status=RawImportStatus.IMPORTED,
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/import-errors/{raw.id}/candidates/"
+        )
+
+        assert response.status_code == 404
+
+    def test_candidates_ordered_by_score_descending(self):
+        Student.objects.create(ine="10000000001", first_name="Jean", last_name="Martin")
+        Student.objects.create(ine="10000000002", first_name="Zzz", last_name="Marti")
+        raw = self._make_ine_error()
+
+        response = self.client.get(
+            f"/api/v1/students/students/import-errors/{raw.id}/candidates/"
+        )
+
+        data = response.json()
+        scores = [d["score"] for d in data]
+        assert scores == sorted(scores, reverse=True)

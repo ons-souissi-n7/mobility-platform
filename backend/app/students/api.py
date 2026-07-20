@@ -1,8 +1,10 @@
+import dataclasses
 from io import BytesIO
 
 import openpyxl
 from django.db.models import Count, Max, Prefetch, Q
 from django.http import HttpResponse
+from django.utils import timezone
 from ninja import File, Query, Router
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
@@ -31,6 +33,7 @@ from .schemas import (
     DepartmentStatOut,
     LevelStatOut,
     ParcoursStatOut,
+    ReconciliationCandidateOut,
     StudentDetailOut,
     StudentEnrollmentOut,
     StudentImportRetryIn,
@@ -38,6 +41,7 @@ from .schemas import (
     StudentRawImportOut,
     StudentStatsOut,
 )
+from .services.reconciliation import find_reconciliation_candidates
 from .services.student_importer import StudentRow, import_students
 from .services.student_transformer import transform_student
 from .services.student_validator import validate_student
@@ -470,12 +474,15 @@ def ignore_student_import_error(request, raw_import_id: int):
         )
     except RawImport.DoesNotExist as exc:
         raise HttpError(404, "Erreur d'import étudiant introuvable.") from exc
-
-    raw_import.status = RawImportStatus.IGNORED
-    raw_import.error_message = (
-        f"{raw_import.error_message}\nTraité manuellement par l'administrateur."
-    ).strip()
-    raw_import.save(update_fields=["status", "error_message", "updated_at"])
+    now = timezone.now()
+    RawImport.objects.filter(
+        source=raw_import.source,
+        external_id=raw_import.external_id,
+    ).exclude(status=RawImportStatus.IGNORED).update(
+        status=RawImportStatus.IGNORED,
+        updated_at=now,
+    )
+    raw_import.refresh_from_db()
     return raw_import
 
 
@@ -579,6 +586,41 @@ def retry_student_import_error(
         ]
     )
     return raw_import
+
+
+@router.get(
+    "/students/import-errors/{raw_import_id}/candidates/",
+    response=list[ReconciliationCandidateOut],
+    summary="Propositions de réconciliation pour un import étudiant sans INE",
+)
+def get_reconciliation_candidates(request, raw_import_id: int):
+    try:
+        raw_import = RawImport.objects.get(
+            pk=raw_import_id,
+            entity=RawImportEntity.STUDENT,
+            status=RawImportStatus.FAILED,
+        )
+    except RawImport.DoesNotExist as exc:
+        raise HttpError(404, "Erreur d'import étudiant introuvable.") from exc
+
+    payload = raw_import.payload
+    last_name = str(payload.get("last_name", ""))
+    first_name = str(payload.get("first_name", ""))
+
+    # Fallback pour les imports vœux MoveOn dont le nom est dans le champ "individu"
+    # au format "NOM Prénom" (nom de famille en majuscules en premier)
+    if not last_name and payload.get("individu"):
+        parts = str(payload["individu"]).strip().split(None, 1)
+        last_name = parts[0] if parts else ""
+        first_name = parts[1] if len(parts) > 1 else ""
+
+    candidates = find_reconciliation_candidates(
+        last_name=last_name,
+        first_name=first_name,
+        email=str(payload.get("email", "")),
+        year_id=raw_import.academic_year_id,
+    )
+    return [dataclasses.asdict(c) for c in candidates]
 
 
 @router.get(
