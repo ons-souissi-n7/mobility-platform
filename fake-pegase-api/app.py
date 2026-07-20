@@ -1,7 +1,7 @@
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
@@ -50,7 +50,6 @@ class FakePegaseHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-
 
 
 def load_json(filename):

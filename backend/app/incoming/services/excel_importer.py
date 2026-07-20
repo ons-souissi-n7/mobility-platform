@@ -105,6 +105,14 @@ def import_incoming_from_excel(
     level_cache: dict[str, Level | None] = {}
     parcours_cache: dict[str, Parcours | None] = {}
 
+    done_external_ids = frozenset(
+        RawImport.objects.filter(
+            source="excel_incoming",
+            academic_year=academic_year,
+            status__in=[RawImportStatus.IGNORED, RawImportStatus.IMPORTED],
+        ).values_list("external_id", flat=True)
+    )
+
     for row_number, row in enumerate(rows[1:], start=2):
         if all(v is None or str(v).strip() == "" for v in row):
             continue
@@ -112,6 +120,10 @@ def import_incoming_from_excel(
         last_name = _get(row, "NOM")
         first_name = _get(row, "PRENOM")
         external_id = f"row_{row_number}_{last_name[:20]}_{first_name[:20]}"
+
+        if external_id in done_external_ids:
+            result.updated += 1
+            continue
 
         if not last_name or not first_name:
             result.failed += 1
@@ -129,19 +141,56 @@ def import_incoming_from_excel(
         birth_date = _parse_date(_get_raw(row, "DATE NAISSANCE"))
 
         # Check duplicate
-        if IncomingStudent.objects.filter(
-            academic_year=academic_year,
-            last_name__iexact=last_name,
-            first_name__iexact=first_name,
-            birth_date=birth_date,
-        ).exists():
+        existing_student = (
+            IncomingStudent.objects.filter(
+                academic_year=academic_year,
+                last_name__iexact=last_name,
+                first_name__iexact=first_name,
+                birth_date=birth_date,
+            )
+            .select_related(
+                "country", "department", "mobility_category", "level", "parcours"
+            )
+            .first()
+        )
+        if existing_student:
             result.duplicates += 1
             error_msg = (
                 f"Doublon : {last_name} {first_name} déjà présent pour cette année."
             )
+            raw.payload = {
+                **raw.payload,
+                "_existing": {
+                    "NOM": existing_student.last_name,
+                    "PRENOM": existing_student.first_name,
+                    "CIVILITE": existing_student.civility or "",
+                    "PAYS": existing_student.country.name_fr
+                    if existing_student.country
+                    else "",
+                    "DEPARTEMENT": existing_student.department.code
+                    if existing_student.department
+                    else "",
+                    "DATE NAISSANCE": str(existing_student.birth_date)
+                    if existing_student.birth_date
+                    else "",
+                    "UNIV ORIGINE": existing_student.origin_university_name or "",
+                    "MAIL": existing_student.personal_email or "",
+                    "MAIL ENSEEIHT": existing_student.n7_email or "",
+                    "DUREE": existing_student.duration or "",
+                    "CADRE": existing_student.mobility_category.name
+                    if existing_student.mobility_category
+                    else "",
+                    "ANNEE": existing_student.level.code
+                    if existing_student.level
+                    else "",
+                    "PARCOURS": existing_student.parcours.code
+                    if existing_student.parcours
+                    else "",
+                },
+            }
             raw.status = RawImportStatus.CONFLICT
             raw.error_message = error_msg
-            raw.save(update_fields=["status", "error_message", "updated_at"])
+            raw.save(update_fields=["status", "error_message", "payload", "updated_at"])
             report.record_conflict(external_id, error_msg, raw.id)
             continue
 
@@ -221,9 +270,46 @@ def import_incoming_from_excel(
             error_msg = (
                 f"Doublon : {last_name} {first_name} déjà présent pour cette année."
             )
+            existing = (
+                IncomingStudent.objects.filter(
+                    academic_year=academic_year,
+                    last_name=last_name,
+                    first_name=first_name,
+                    birth_date=birth_date,
+                )
+                .select_related(
+                    "country", "department", "mobility_category", "level", "parcours"
+                )
+                .first()
+            )
+            if existing:
+                raw.payload = {
+                    **raw.payload,
+                    "_existing": {
+                        "NOM": existing.last_name,
+                        "PRENOM": existing.first_name,
+                        "CIVILITE": existing.civility or "",
+                        "PAYS": existing.country.name_fr if existing.country else "",
+                        "DEPARTEMENT": existing.department.code
+                        if existing.department
+                        else "",
+                        "DATE NAISSANCE": str(existing.birth_date)
+                        if existing.birth_date
+                        else "",
+                        "UNIV ORIGINE": existing.origin_university_name or "",
+                        "MAIL": existing.personal_email or "",
+                        "MAIL ENSEEIHT": existing.n7_email or "",
+                        "DUREE": existing.duration or "",
+                        "CADRE": existing.mobility_category.name
+                        if existing.mobility_category
+                        else "",
+                        "ANNEE": existing.level.code if existing.level else "",
+                        "PARCOURS": existing.parcours.code if existing.parcours else "",
+                    },
+                }
             raw.status = RawImportStatus.CONFLICT
             raw.error_message = error_msg
-            raw.save(update_fields=["status", "error_message", "updated_at"])
+            raw.save(update_fields=["status", "error_message", "payload", "updated_at"])
             report.record_conflict(external_id, error_msg, raw.id)
         except Exception as exc:
             result.failed += 1

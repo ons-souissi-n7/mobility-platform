@@ -16,7 +16,9 @@
     "discipline": "Engineering",
     "isced": "071",
     "level": "Master",
-    "formation": "SN"
+    "formation": "SN",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "moveon_relation_id": "REL-002",
@@ -35,7 +37,9 @@
     "discipline": "Computer Science",
     "isced": "061",
     "level": "Bachelor",
-    "formation": "CS"
+    "formation": "CS",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "moveon_relation_id": "REL-003",
@@ -54,7 +58,9 @@
     "discipline": "Mechanical Engineering",
     "isced": "0715",
     "level": "Master",
-    "formation": "ME"
+    "formation": "ME",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "moveon_relation_id": "REL-004",
@@ -73,7 +79,9 @@
     "discipline": "Electrical Engineering",
     "isced": "0713",
     "level": "Master",
-    "formation": "EE"
+    "formation": "EE",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "moveon_relation_id": "REL-005",
@@ -92,6 +100,8 @@
     "discipline": "Humanities",
     "isced": "",
     "level": "",
-    "formation": ""
+    "formation": "",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   }
 ]
