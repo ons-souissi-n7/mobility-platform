@@ -1,6 +1,9 @@
 import { browserApi, browserApiUpload } from "@/lib/api/browser-client";
 import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
+import type { ReconciliationCandidate } from "@/lib/api/student-mutations";
 import type { Internship, InternshipImportError, PagedResponse } from "@/lib/api/types";
+
+export type { ReconciliationCandidate };
 
 // ── Payload types ──────────────────────────────────────────────────────────────
 
@@ -22,13 +25,13 @@ export type InternshipPayload = {
 };
 
 export type InternshipForcePayload = {
-  payload: {
+  payload: Partial<{
     ine: string;
     company_name: string;
     start_date: string;
     end_date: string;
     country_name: string;
-  };
+  }>;
 };
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────
@@ -117,5 +120,21 @@ export function forceInternshipImport(id: number, payload: InternshipForcePayloa
   return browserApi<InternshipImportError>(
     `/internships/import-errors/${id}/force/`,
     { method: "POST", body: payload },
+  );
+}
+
+export function addInternshipImportAsNew(id: number) {
+  return browserApi<InternshipImportError>(
+    `/internships/import-errors/${id}/add/`,
+    { method: "POST" },
+  );
+}
+
+export function getInternshipReconciliationCandidates(
+  rawImportId: number,
+): Promise<ReconciliationCandidate[]> {
+  return browserApi<ReconciliationCandidate[]>(
+    `/internships/import-errors/${rawImportId}/candidates/`,
+    { method: "GET" },
   );
 }
