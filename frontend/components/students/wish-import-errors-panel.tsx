@@ -1,11 +1,14 @@
 "use client";
 
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Info, RotateCw } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Info, RotateCw, Search } from "lucide-react";
 import { useState } from "react";
 
+import { ExistingComparisonView } from "@/components/ui/existing-comparison";
 import { Pagination } from "@/components/ui/pagination";
 import type { Agreement, RawImport, SelectOption } from "@/lib/api/types";
 import type { WishImportCorrection } from "@/lib/api/outgoing-mutations";
+import type { ReconciliationCandidate } from "@/lib/api/student-mutations";
+import { getReconciliationCandidates } from "@/lib/api/student-mutations";
 
 const WISH_FIELD_LABELS: Record<string, string> = {
   ine: "INE",
@@ -13,6 +16,81 @@ const WISH_FIELD_LABELS: Record<string, string> = {
   offre_de_sejour: "Offre de séjour",
   rank: "Rang",
 };
+
+function ConfidenceBadge({ confidence, score }: { confidence: string; score: number }) {
+  const styles: Record<string, string> = {
+    high: "bg-green-100 text-green-800",
+    medium: "bg-amber-100 text-amber-800",
+    low: "bg-gray-100 text-gray-600",
+  };
+  return (
+    <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${styles[confidence] ?? styles.low}`}>
+      {Math.round(score * 100)}%
+    </span>
+  );
+}
+
+function WishCandidatesPanel({
+  candidates,
+  loading,
+  onSearch,
+  onSelect,
+}: {
+  candidates: ReconciliationCandidate[] | undefined;
+  loading: boolean;
+  onSearch: () => void;
+  onSelect: (studentId: number) => void;
+}) {
+  return (
+    <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-blue-800">Réconciliation — étudiant similaire</p>
+        <button
+          type="button"
+          className="inline-flex h-7 items-center gap-1 rounded-md border border-blue-300 bg-white px-2 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+          disabled={loading}
+          onClick={onSearch}
+        >
+          <Search className="h-3 w-3" />
+          {candidates !== undefined ? "Actualiser" : "Chercher"}
+        </button>
+      </div>
+
+      {loading && <p className="mt-2 text-xs text-blue-500">Recherche en cours…</p>}
+
+      {!loading && candidates !== undefined && (
+        candidates.length === 0 ? (
+          <p className="mt-2 text-xs italic text-blue-500">Aucun étudiant similaire trouvé.</p>
+        ) : (
+          <ul className="mt-2 space-y-1.5">
+            {candidates.map((c) => (
+              <li key={c.ine} className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <span className="font-mono text-xs font-medium text-gray-800">
+                    {c.last_name} {c.first_name}
+                  </span>
+                  <span className="ml-1.5 text-[10px] text-gray-500">
+                    ({c.ine}){c.department_code ? ` · ${c.department_code}` : ""}
+                  </span>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <ConfidenceBadge confidence={c.confidence} score={c.score} />
+                  <button
+                    type="button"
+                    className="h-6 rounded px-2 text-[10px] font-medium bg-blue-600 text-white hover:bg-blue-700"
+                    onClick={() => onSelect(c.student_id)}
+                  >
+                    Utiliser
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )
+      )}
+    </div>
+  );
+}
 
 function PayloadGrid({ payload }: { payload: Record<string, unknown> }) {
   const entries = Object.entries(payload).filter(([, v]) => v !== null && v !== undefined && v !== "");
@@ -97,6 +175,8 @@ export function WishImportErrorsPanel({
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [forms, setForms] = useState<Record<number, CorrectionForm>>({});
+  const [candidatesByError, setCandidatesByError] = useState<Record<number, ReconciliationCandidate[]>>({});
+  const [loadingCandidates, setLoadingCandidates] = useState<number | null>(null);;
 
   if (errors.length === 0) return null;
 
@@ -132,6 +212,18 @@ export function WishImportErrorsPanel({
     setExpandedId((prev) => (prev === id ? null : id));
   }
 
+  async function loadCandidates(id: number) {
+    setLoadingCandidates(id);
+    try {
+      const result = await getReconciliationCandidates(id);
+      setCandidatesByError((prev) => ({ ...prev, [id]: result }));
+    } catch {
+      setCandidatesByError((prev) => ({ ...prev, [id]: [] }));
+    } finally {
+      setLoadingCandidates(null);
+    }
+  }
+
   const sortedAgreements = [...agreements].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
@@ -154,7 +246,19 @@ export function WishImportErrorsPanel({
           const busy = isBusy || activeId === error.id;
           const kind = classifyWishError(error);
           const isExpanded = expandedId === error.id;
-          const form = isExpanded ? getForm(error) : null;
+          const existing = isExpanded
+            ? (error.payload?._existing as Record<string, unknown> | undefined)
+            : undefined;
+          const sourceData = existing
+            ? (Object.fromEntries(Object.entries(error.payload).filter(([k]) => k !== "_existing")) as Record<string, unknown>)
+            : null;
+          const form = isExpanded && !existing ? getForm(error) : null;
+          // For rank conflicts: pre-compute the agreement matching the source payload
+          const matchedAgreementForRetry = existing
+            ? agreements.find(
+                (a) => a.name.toLowerCase() === String(error.payload.offre_de_sejour ?? "").toLowerCase()
+              )
+            : undefined;
 
           return (
             <div
@@ -182,120 +286,184 @@ export function WishImportErrorsPanel({
                 </span>
               </button>
 
-              {isExpanded && form && (
-                <div className="border-t border-amber-100 px-4 py-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Enregistrement complet
-                    </h4>
-                    <div className="rounded-md border border-gray-100 bg-gray-50 p-3">
-                      <PayloadGrid payload={error.payload} />
+              {isExpanded && (
+                <div className="border-t border-amber-100 px-4 py-4">
+                  {existing && sourceData ? (
+                    <div>
+                      <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Comparaison — données source vs. base actuelle
+                      </h4>
+                      <ExistingComparisonView
+                        newData={sourceData}
+                        existingData={existing}
+                        labels={WISH_FIELD_LABELS}
+                      />
+                      <div className="mt-3 rounded-md border border-red-100 bg-red-50 px-3 py-2">
+                        <p className="text-xs font-semibold text-red-700">Motif d&apos;échec</p>
+                        <p className="mt-0.5 text-xs text-red-600">{error.error_message || "Erreur inconnue"}</p>
+                      </div>
+                      {(onIgnore || onRetry) && (
+                        <div className="mt-4 flex gap-2">
+                          {onRetry && (
+                            <button
+                              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={busy}
+                              onClick={() =>
+                                runAction(
+                                  () =>
+                                    onRetry(error, {
+                                      agreement_id: matchedAgreementForRetry?.id,
+                                      rank: typeof error.payload.rank === "number"
+                                        ? error.payload.rank
+                                        : undefined,
+                                    }),
+                                  error.id,
+                                )
+                              }
+                              type="button"
+                            >
+                              <RotateCw className="h-3 w-3" />
+                              Utiliser les données sources
+                            </button>
+                          )}
+                          {onIgnore && (
+                            <button
+                              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={busy}
+                              onClick={() => runAction(() => onIgnore(error), error.id)}
+                              type="button"
+                            >
+                              <Check className="h-3 w-3" />
+                              Ignorer
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="mt-3 rounded-md border border-red-100 bg-red-50 px-3 py-2">
-                      <p className="text-xs font-semibold text-red-700">Motif d&apos;échec</p>
-                      <p className="mt-0.5 text-xs text-red-600">{error.error_message || "Erreur inconnue"}</p>
+                  ) : form ? (
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                      <div>
+                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Enregistrement complet
+                        </h4>
+                        <div className="rounded-md border border-gray-100 bg-gray-50 p-3">
+                          <PayloadGrid payload={error.payload} />
+                        </div>
+                        <div className="mt-3 rounded-md border border-red-100 bg-red-50 px-3 py-2">
+                          <p className="text-xs font-semibold text-red-700">Motif d&apos;échec</p>
+                          <p className="mt-0.5 text-xs text-red-600">{error.error_message || "Erreur inconnue"}</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Corriger et relancer
+                        </h4>
+
+                        {kind === "no_enrollment" ? (
+                          <div className="flex items-start gap-2 rounded-md border border-blue-100 bg-blue-50 px-3 py-2">
+                            <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
+                            <p className="text-xs text-blue-700">
+                              Synchronisez d&apos;abord les inscriptions Pégase pour cet étudiant.
+                            </p>
+                          </div>
+                        ) : kind === "no_correction" ? (
+                          <p className="text-xs italic text-gray-400">
+                            Ce type d&apos;erreur nécessite une correction manuelle dans la source de données.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-2">
+                            {kind === "student_not_found" && (
+                              <WishCandidatesPanel
+                                candidates={candidatesByError[error.id]}
+                                loading={loadingCandidates === error.id}
+                                onSearch={() => void loadCandidates(error.id)}
+                                onSelect={(studentId) => updateForm(error.id, { student_id: studentId })}
+                              />
+                            )}
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Étudiant</span>
+                              <select
+                                className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                                value={form.student_id}
+                                onChange={(e) => updateForm(error.id, { student_id: e.target.value ? Number(e.target.value) : "" })}
+                              >
+                                <option value="">— Sélectionner un étudiant —</option>
+                                {students.map((s) => (
+                                  <option key={s.id} value={s.id}>{s.label}</option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Offre de séjour (accord)</span>
+                              <select
+                                className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                                value={form.agreement_id}
+                                onChange={(e) => updateForm(error.id, { agreement_id: e.target.value ? Number(e.target.value) : "" })}
+                              >
+                                <option value="">— Sélectionner un accord —</option>
+                                {sortedAgreements.map((a) => (
+                                  <option key={a.id} value={a.id}>
+                                    {a.name}
+                                    {a.valid_until ? ` — jusqu'au ${new Date(a.valid_until).toLocaleDateString("fr-FR")}` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Rang</span>
+                              <input
+                                className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
+                                type="number"
+                                min="1"
+                                value={form.rank}
+                                onChange={(e) => updateForm(error.id, { rank: e.target.value })}
+                              />
+                            </label>
+                          </div>
+                        )}
+
+                        {(onIgnore || onRetry) && (
+                          <div className="mt-4 flex gap-2">
+                            {onRetry && kind !== "no_enrollment" && kind !== "no_correction" && (
+                              <button
+                                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={busy || (form.student_id === "" && form.agreement_id === "")}
+                                onClick={() =>
+                                  runAction(
+                                    () =>
+                                      onRetry(error, {
+                                        student_id: form.student_id !== "" ? form.student_id : undefined,
+                                        agreement_id: form.agreement_id !== "" ? form.agreement_id : undefined,
+                                        rank: form.rank ? Number(form.rank) : undefined,
+                                      }),
+                                    error.id,
+                                  )
+                                }
+                                type="button"
+                              >
+                                <RotateCw className="h-3 w-3" />
+                                Relancer
+                              </button>
+                            )}
+                            {onIgnore && (
+                              <button
+                                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={busy}
+                                onClick={() => runAction(() => onIgnore(error), error.id)}
+                                type="button"
+                              >
+                                <Check className="h-3 w-3" />
+                                Ignorer
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  <div>
-                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Corriger et relancer
-                    </h4>
-
-                    {kind === "no_enrollment" ? (
-                      <div className="flex items-start gap-2 rounded-md border border-blue-100 bg-blue-50 px-3 py-2">
-                        <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" aria-hidden="true" />
-                        <p className="text-xs text-blue-700">
-                          Synchronisez d&apos;abord les inscriptions Pégase pour cet étudiant.
-                        </p>
-                      </div>
-                    ) : kind === "no_correction" ? (
-                      <p className="text-xs italic text-gray-400">
-                        Ce type d&apos;erreur nécessite une correction manuelle dans la source de données.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-2">
-                        <label className="block">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Étudiant</span>
-                          <select
-                            className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
-                            value={form.student_id}
-                            onChange={(e) => updateForm(error.id, { student_id: e.target.value ? Number(e.target.value) : "" })}
-                          >
-                            <option value="">— Sélectionner un étudiant —</option>
-                            {students.map((s) => (
-                              <option key={s.id} value={s.id}>{s.label}</option>
-                            ))}
-                          </select>
-                        </label>
-
-                        <label className="block">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Offre de séjour (accord)</span>
-                          <select
-                            className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
-                            value={form.agreement_id}
-                            onChange={(e) => updateForm(error.id, { agreement_id: e.target.value ? Number(e.target.value) : "" })}
-                          >
-                            <option value="">— Sélectionner un accord —</option>
-                            {sortedAgreements.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.name}
-                                {a.valid_until ? ` — jusqu'au ${new Date(a.valid_until).toLocaleDateString("fr-FR")}` : ""}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-
-                        <label className="block">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Rang</span>
-                          <input
-                            className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
-                            type="number"
-                            min="1"
-                            value={form.rank}
-                            onChange={(e) => updateForm(error.id, { rank: e.target.value })}
-                          />
-                        </label>
-                      </div>
-                    )}
-
-                    {(onIgnore || onRetry) && (
-                      <div className="mt-4 flex gap-2">
-                        {onRetry && kind !== "no_enrollment" && kind !== "no_correction" && (
-                          <button
-                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled={busy || (form.student_id === "" && form.agreement_id === "")}
-                            onClick={() =>
-                              runAction(
-                                () =>
-                                  onRetry(error, {
-                                    student_id: form.student_id !== "" ? form.student_id : undefined,
-                                    agreement_id: form.agreement_id !== "" ? form.agreement_id : undefined,
-                                    rank: form.rank ? Number(form.rank) : undefined,
-                                  }),
-                                error.id,
-                              )
-                            }
-                            type="button"
-                          >
-                            <RotateCw className="h-3 w-3" />
-                            Relancer
-                          </button>
-                        )}
-                        {onIgnore && (
-                          <button
-                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled={busy}
-                            onClick={() => runAction(() => onIgnore(error), error.id)}
-                            type="button"
-                          >
-                            <Check className="h-3 w-3" />
-                            Ignorer
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  ) : null}
                 </div>
               )}
             </div>

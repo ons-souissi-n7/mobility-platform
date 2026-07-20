@@ -1,5 +1,5 @@
 # ── Build stage — full install + Next.js build ────────────────────────────────
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 RUN mkdir -p /app/public && npm run build
 
 # ── Runtime stage — production deps only, no root ─────────────────────────────
-FROM node:20-slim
+FROM node:22-slim
 
 WORKDIR /app
 

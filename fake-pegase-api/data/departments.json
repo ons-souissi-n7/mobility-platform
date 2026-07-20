@@ -2,21 +2,29 @@
   {
     "pegase_id": 101,
     "code": "SN",
-    "name": "Sciences du Numerique"
+    "name": "Sciences du Numerique",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "pegase_id": 102,
     "code": "3EA",
-    "name": "Electronique Energie Electrique Automatique"
+    "name": "Electronique Energie Electrique Automatique",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "pegase_id": 103,
     "code": "MF2E",
-    "name": "Mecanique des Fluides, Energetique & Environnement"
+    "name": "Mecanique des Fluides, Energetique & Environnement",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "pegase_id": 104,
     "code": "",
-    "name": "Departement invalide sans code"
+    "name": "Departement invalide sans code",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   }
 ]

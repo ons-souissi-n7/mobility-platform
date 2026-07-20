@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import dataclasses
+
 from django.db.models import Max, Q
 from django.db.models.deletion import ProtectedError
 from django.http import HttpResponse
+from django.utils import timezone
 from ninja import File, Query, Router, Schema
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
@@ -17,6 +20,8 @@ from app.shared.api_helpers import (
     paginate,
     save_validated,
 )
+from app.students.schemas import ReconciliationCandidateOut
+from app.students.services.reconciliation import find_reconciliation_candidates
 
 from .models import Internship
 from .schemas import InternshipImportErrorOut, InternshipIn, InternshipOut
@@ -27,6 +32,44 @@ router = Router()
 
 class InternshipForcePayload(Schema):
     payload: dict
+
+
+def _upsert_internship(student, row, country, internship_year) -> None:
+    """Update in place the existing internship for this student+year, or create it.
+
+    The student INE is the sole business key — company name and start date can both
+    change between syncs and must be updated on the existing record rather than
+    creating a duplicate.
+    """
+    from django.utils import timezone
+
+    field_values = {
+        "academic_year": internship_year,
+        "company_name": row.company_name,
+        "country": country,
+        "city": row.city,
+        "title": row.title,
+        "internship_type": row.internship_type,
+        "status_code": row.status_code,
+        "status_label": row.status,
+        "start_date": row.start_date,
+        "end_date": row.end_date,
+        "weeks_in_company": row.weeks,
+        "school_tutor": row.school_tutor,
+        "company_tutor": row.company_tutor,
+        "eudonet_label": row.libelle,
+        "last_sync_eudonet": timezone.now(),
+    }
+    existing = Internship.objects.filter(
+        student=student,
+        academic_year=internship_year,
+    ).first()
+    if existing:
+        for attr, value in field_values.items():
+            setattr(existing, attr, value)
+        existing.save()
+    else:
+        Internship.objects.create(student=student, **field_values)
 
 
 PROTECTED_DELETE_MSG = (
@@ -307,28 +350,78 @@ def retry_import_error(request, raw_import_id: int):
     country = _resolve_country(row.country_name, {})
     internship_year = _resolve_academic_year(row.start_date, academic_year)
 
-    from django.utils import timezone
+    _upsert_internship(student, row, country, internship_year)
 
-    Internship.objects.update_or_create(
-        student=student,
-        company_name=row.company_name,
-        start_date=row.start_date,
-        defaults={
-            "academic_year": internship_year,
-            "country": country,
-            "city": row.city,
-            "title": row.title,
-            "internship_type": row.internship_type,
-            "status_code": row.status_code,
-            "status_label": row.status,
-            "end_date": row.end_date,
-            "weeks_in_company": row.weeks,
-            "school_tutor": row.school_tutor,
-            "company_tutor": row.company_tutor,
-            "eudonet_label": row.libelle,
-            "last_sync_eudonet": timezone.now(),
-        },
+    raw.status = RawImportStatus.IMPORTED
+    raw.error_message = ""
+    raw.imported_at = timezone.now()
+    raw.save(update_fields=["status", "error_message", "imported_at", "updated_at"])
+    return raw
+
+
+@router.post(
+    "/import-errors/{raw_import_id}/add/",
+    response=InternshipImportErrorOut,
+    summary="Ajouter comme nouvel enregistrement sans modifier l'existant",
+)
+def add_import_error_as_new(request, raw_import_id: int):
+    raw = get_or_404(RawImport, raw_import_id, "Erreur d'import introuvable.")
+
+    from app.integrations.eudonet import EudonetInternship
+    from app.shared.validators import DomainValidationError
+
+    from .services.eudonet_validator import validate_internship_row
+    from .services.sync_eudonet import (
+        _resolve_academic_year,
+        _resolve_country,
+        _resolve_student,
     )
+
+    row = EudonetInternship(payload=raw.payload)
+    academic_year = raw.academic_year
+
+    try:
+        validate_internship_row(row)
+    except DomainValidationError as exc:
+        raw.error_message = str(exc)
+        raw.save(update_fields=["error_message", "updated_at"])
+        raise HttpError(400, str(exc)) from exc
+
+    student = _resolve_student(row.ine, {})
+    if student is None:
+        msg = f"Étudiant introuvable (INE : {row.ine!r})."
+        raw.error_message = msg
+        raw.save(update_fields=["error_message", "updated_at"])
+        raise HttpError(400, msg)
+
+    country = _resolve_country(row.country_name, {})
+    internship_year = _resolve_academic_year(row.start_date, academic_year)
+
+    from django.db import IntegrityError
+
+    try:
+        Internship.objects.create(
+            student=student,
+            academic_year=internship_year,
+            company_name=row.company_name,
+            country=country,
+            city=row.city,
+            title=row.title,
+            internship_type=row.internship_type,
+            status_code=row.status_code,
+            status_label=row.status,
+            start_date=row.start_date,
+            end_date=row.end_date,
+            weeks_in_company=row.weeks,
+            school_tutor=row.school_tutor,
+            company_tutor=row.company_tutor,
+            eudonet_label=row.libelle,
+            last_sync_eudonet=timezone.now(),
+        )
+    except IntegrityError as exc:
+        raise HttpError(
+            409, f"Un stage identique existe déjà pour cet étudiant : {exc}"
+        ) from exc
 
     raw.status = RawImportStatus.IMPORTED
     raw.error_message = ""
@@ -344,11 +437,15 @@ def retry_import_error(request, raw_import_id: int):
 )
 def ignore_import_error(request, raw_import_id: int):
     raw = get_or_404(RawImport, raw_import_id, "Erreur d'import introuvable.")
-    raw.status = RawImportStatus.IGNORED
-    raw.error_message = (
-        f"{raw.error_message}\nTraité manuellement par l'administrateur."
-    ).strip()
-    raw.save(update_fields=["status", "error_message", "updated_at"])
+    now = timezone.now()
+    RawImport.objects.filter(
+        source=raw.source,
+        external_id=raw.external_id,
+    ).exclude(status=RawImportStatus.IGNORED).update(
+        status=RawImportStatus.IGNORED,
+        updated_at=now,
+    )
+    raw.refresh_from_db()
     return raw
 
 
@@ -393,34 +490,62 @@ def force_import_error(request, raw_import_id: int, body: InternshipForcePayload
     country = _resolve_country(row.country_name, {})
     internship_year = _resolve_academic_year(row.start_date, academic_year)
 
-    from django.utils import timezone
-
-    Internship.objects.update_or_create(
-        student=student,
-        company_name=row.company_name,
-        start_date=row.start_date,
-        defaults={
-            "academic_year": internship_year,
-            "country": country,
-            "city": row.city,
-            "title": row.title,
-            "internship_type": row.internship_type,
-            "status_code": row.status_code,
-            "status_label": row.status,
-            "end_date": row.end_date,
-            "weeks_in_company": row.weeks,
-            "school_tutor": row.school_tutor,
-            "company_tutor": row.company_tutor,
-            "eudonet_label": row.libelle,
-            "last_sync_eudonet": timezone.now(),
-        },
-    )
+    _upsert_internship(student, row, country, internship_year)
 
     raw.status = RawImportStatus.IMPORTED
     raw.error_message = ""
     raw.imported_at = timezone.now()
     raw.save(update_fields=["status", "error_message", "imported_at", "updated_at"])
     return raw
+
+
+@router.get(
+    "/import-errors/{raw_import_id}/candidates/",
+    response=list[ReconciliationCandidateOut],
+    summary="Propositions de réconciliation pour un import stage sans étudiant trouvé",
+)
+def get_internship_reconciliation_candidates(request, raw_import_id: int):
+    try:
+        raw = RawImport.objects.get(
+            pk=raw_import_id,
+            entity=RawImportEntity.INTERNSHIP,
+            status=RawImportStatus.FAILED,
+        )
+    except RawImport.DoesNotExist as exc:
+        raise HttpError(404, "Erreur d'import stage introuvable.") from exc
+
+    payload = raw.payload
+    last_name = ""
+    first_name = ""
+
+    # Format Excel : "Étudiant (INE – Nom Prénom)" = "INE – NOM Prénom"
+    student_field = str(payload.get("Étudiant (INE – Nom Prénom)", "")).strip()
+    for sep in (" – ", " - "):
+        if sep in student_field:
+            name_part = student_field.split(sep, 1)[1].strip()
+            parts = name_part.split(None, 1)
+            last_name = parts[0] if parts else ""
+            first_name = parts[1] if len(parts) > 1 else ""
+            break
+
+    # Format Eudonet : libelle = "NOM Prénom - Raison sociale (date)"
+    if not last_name:
+        libelle = str(payload.get("libelle", "")).strip()
+        if " - " in libelle:
+            name_part = libelle.split(" - ", 1)[0].strip()
+            parts = name_part.split(None, 1)
+            last_name = parts[0] if parts else ""
+            first_name = parts[1] if len(parts) > 1 else ""
+
+    if not last_name:
+        return []
+
+    candidates = find_reconciliation_candidates(
+        last_name=last_name,
+        first_name=first_name,
+        year_id=raw.academic_year_id,
+    )
+    return [dataclasses.asdict(c) for c in candidates]
 
 
 # ──────────────────────────────────────────────

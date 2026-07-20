@@ -110,6 +110,24 @@ export function retryStudentImportError(
   );
 }
 
+export type ReconciliationCandidate = {
+  student_id: number;
+  ine: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  department_code: string | null;
+  score: number;
+  confidence: "high" | "medium" | "low";
+};
+
+export function getReconciliationCandidates(rawImportId: number): Promise<ReconciliationCandidate[]> {
+  return browserApi<ReconciliationCandidate[]>(
+    `/students/students/import-errors/${rawImportId}/candidates/`,
+    { method: "GET" },
+  );
+}
+
 export async function downloadStudentTemplate(): Promise<void> {
   await downloadBlob(
     `${publicApiBaseUrl}/students/students/template/`,

@@ -33,9 +33,20 @@ def sync_pegase_levels(
         triggered_by=triggered_by,
     )
 
+    ignored_external_ids = frozenset(
+        RawImport.objects.filter(
+            entity=RawImportEntity.LEVEL,
+            status=RawImportStatus.IGNORED,
+        ).values_list("external_id", flat=True)
+    )
+
     for level in client.fetch_levels():
         result.total += 1
         payload = level.payload
+        external_id = str(payload.get("pegase_id") or "")
+        if external_id in ignored_external_ids:
+            result.ignored += 1
+            continue
         raw_import = _create_raw_import(payload, import_report=report)
 
         try:
@@ -43,6 +54,19 @@ def sync_pegase_levels(
             created = upsert_level(payload)
         except SyncConflictError as exc:
             result.conflicted += 1
+            pegase_id = str(payload.get("pegase_id") or "")
+            if pegase_id:
+                existing_level = Level.objects.filter(pegase_id=pegase_id).first()
+                if existing_level:
+                    raw_import.payload = {
+                        **raw_import.payload,
+                        "_existing": {
+                            "pegase_id": existing_level.pegase_id or "",
+                            "code": existing_level.code,
+                            "name": existing_level.name,
+                        },
+                    }
+                    raw_import.save(update_fields=["payload"])
             mark_raw_import(raw_import, RawImportStatus.CONFLICT, str(exc))
             report.record_conflict(raw_import.external_id, str(exc), raw_import.id)
             continue

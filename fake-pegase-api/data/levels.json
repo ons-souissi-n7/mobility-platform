@@ -2,26 +2,36 @@
   {
     "pegase_id": 201,
     "code": "L3",
-    "name": "Licence 3 (Bac+3)"
+    "name": "Licence 3 (Bac+3)",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "pegase_id": 202,
     "code": "M1",
-    "name": "Master 1 (Bac+4)"
+    "name": "Master 1 (Bac+4)",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "pegase_id": 203,
     "code": "M2",
-    "name": "Master 2 (Bac+5)"
+    "name": "Master 2 (Bac+5)",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "pegase_id": 204,
     "code": "ING",
-    "name": "Ingenieur (Bac+5)"
+    "name": "Ingenieur (Bac+5)",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   },
   {
     "pegase_id": 205,
     "code": "DOC",
-    "name": "Doctorat (Bac+8)"
+    "name": "Doctorat (Bac+8)",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   }
 ]

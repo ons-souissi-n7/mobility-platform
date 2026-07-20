@@ -24,6 +24,7 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { StatCard } from "@/components/ui/stat-card";
 import {
+  addInternshipImportAsNew,
   createInternship,
   deleteInternship,
   downloadInternshipTemplate,
@@ -32,7 +33,6 @@ import {
   getInternshipImportErrors,
   ignoreInternshipImport,
   importInternshipsFromExcel,
-  retryInternshipImport,
   syncInternshipsFromEudonet,
   updateInternship,
   type InternshipForcePayload,
@@ -260,11 +260,6 @@ export function InternshipsWorkspace({
 
   // ── Import error handlers ──────────────────────────────────────────────────
 
-  async function handleRetryError(error: InternshipImportError) {
-    await retryInternshipImport(error.id);
-    await Promise.all([loadErrors(importErrorsPage), fetchInternships(filters, page)]);
-  }
-
   async function handleIgnoreError(error: InternshipImportError) {
     await ignoreInternshipImport(error.id);
     await loadErrors(importErrorsPage);
@@ -275,6 +270,11 @@ export function InternshipsWorkspace({
     payload: InternshipForcePayload,
   ) {
     await forceInternshipImport(error.id, payload);
+    await Promise.all([loadErrors(importErrorsPage), fetchInternships(filters, page)]);
+  }
+
+  async function handleAddError(error: InternshipImportError) {
+    await addInternshipImportAsNew(error.id);
     await Promise.all([loadErrors(importErrorsPage), fetchInternships(filters, page)]);
   }
 
@@ -416,9 +416,9 @@ export function InternshipsWorkspace({
               <InternshipImportErrorsPanel
                 errors={importErrors}
                 isBusy={syncInProgress || importInProgress || isReadOnly}
-                onRetry={handleRetryError}
                 onIgnore={handleIgnoreError}
                 onForce={handleForceError}
+                onAdd={handleAddError}
                 countries={countries}
                 selectedYearId={selectedYearId ?? undefined}
                 totalCount={importErrorsTotalCount}

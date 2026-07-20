@@ -37,9 +37,20 @@ def sync_pegase_departments(
         triggered_by=triggered_by,
     )
 
+    ignored_external_ids = frozenset(
+        RawImport.objects.filter(
+            entity=RawImportEntity.DEPARTMENT,
+            status=RawImportStatus.IGNORED,
+        ).values_list("external_id", flat=True)
+    )
+
     for department in client.fetch_departments():
         result.total += 1
         payload = department.payload
+        external_id = str(payload.get("pegase_id") or "")
+        if external_id in ignored_external_ids:
+            result.ignored += 1
+            continue
         raw_import = _create_raw_import(payload, import_report=report)
 
         try:
@@ -48,6 +59,19 @@ def sync_pegase_departments(
             created = upsert_department(transformed)
         except SyncConflictError as exc:
             result.conflicted += 1
+            pegase_id = str(payload.get("pegase_id") or "")
+            if pegase_id:
+                existing_dept = Department.objects.filter(pegase_id=pegase_id).first()
+                if existing_dept:
+                    raw_import.payload = {
+                        **raw_import.payload,
+                        "_existing": {
+                            "pegase_id": existing_dept.pegase_id or "",
+                            "code": existing_dept.code,
+                            "name": existing_dept.name,
+                        },
+                    }
+                    raw_import.save(update_fields=["payload"])
             mark_raw_import(raw_import, RawImportStatus.CONFLICT, str(exc))
             report.record_conflict(raw_import.external_id, str(exc), raw_import.id)
             continue

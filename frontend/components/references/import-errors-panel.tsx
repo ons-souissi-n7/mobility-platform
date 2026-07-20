@@ -3,6 +3,7 @@
 import { AlertTriangle, Check, ChevronDown, ChevronRight, RefreshCw, RotateCw } from "lucide-react";
 import { useState } from "react";
 
+import { ExistingComparisonView } from "@/components/ui/existing-comparison";
 import { Pagination } from "@/components/ui/pagination";
 import type { Country, RawImport } from "@/lib/api/types";
 import type { DepartmentImportCorrection, UniversityImportCorrection } from "@/lib/api/reference-mutations";
@@ -226,9 +227,16 @@ export function ImportErrorsPanel({
           const isUniversity = error.entity === "partner_university";
           const isDeptOrLevel = error.entity === "department" || error.entity === "level";
 
+          const existing = isExpanded
+            ? (error.payload?._existing as Record<string, unknown> | undefined)
+            : undefined;
+          const sourceData = existing
+            ? (Object.fromEntries(Object.entries(error.payload).filter(([k]) => k !== "_existing")) as Record<string, unknown>)
+            : null;
+
           let univForm: UniversityForm | null = null;
           let deptForm: DeptLevelForm | null = null;
-          if (isExpanded) {
+          if (isExpanded && !existing) {
             if (isUniversity) univForm = getUnivForm(error);
             else if (isDeptOrLevel) deptForm = getDeptForm(error);
           }
@@ -263,108 +271,153 @@ export function ImportErrorsPanel({
               </button>
 
               {isExpanded && (
-                <div className="border-t border-amber-100 px-4 py-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Enregistrement complet
-                    </h4>
-                    <div className="rounded-md border border-gray-100 bg-gray-50 p-3">
-                      <PayloadGrid entity={error.entity} payload={error.payload} />
-                    </div>
-                    <div className="mt-3 rounded-md border border-red-100 bg-red-50 px-3 py-2">
-                      <p className="text-xs font-semibold text-red-700">Motif d&apos;échec</p>
-                      <p className="mt-0.5 text-xs text-red-600">
-                        {error.error_message || "Erreur inconnue"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      {isConflict ? "Action requise" : "Corriger et relancer"}
-                    </h4>
-
-                    {isConflict ? (
-                      <p className="text-xs text-amber-700">
-                        Cet enregistrement a été modifié localement depuis la dernière synchronisation.
-                        Cliquez sur <strong>Forcer</strong> pour écraser avec les données source.
-                      </p>
-                    ) : isUniversity && univForm ? (
-                      <div className="grid grid-cols-1 gap-2">
-                        <TextField label="Nom" value={univForm.name} onChange={(v) => updateUnivForm(error.id, { name: v })} />
-                        <TextField label="Nom court" value={univForm.short_name} onChange={(v) => updateUnivForm(error.id, { short_name: v })} />
-                        <TextField label="Nom traduit" value={univForm.translated_name} onChange={(v) => updateUnivForm(error.id, { translated_name: v })} />
-                        <TextField label="Code Erasmus" value={univForm.erasmus_code} onChange={(v) => updateUnivForm(error.id, { erasmus_code: v })} />
-                        <TextField label="Ville" value={univForm.city} onChange={(v) => updateUnivForm(error.id, { city: v })} />
-                        <TextField label="Site web" value={univForm.url} onChange={(v) => updateUnivForm(error.id, { url: v })} />
-                        <TextField label="Email" value={univForm.email} onChange={(v) => updateUnivForm(error.id, { email: v })} />
-                        <label className="block">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Pays</span>
-                          <select
-                            className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
-                            value={univForm.country_id}
-                            onChange={(e) => updateUnivForm(error.id, { country_id: e.target.value ? Number(e.target.value) : "" })}
+                <div className="border-t border-amber-100 px-4 py-4">
+                  {existing && sourceData ? (
+                    <div>
+                      <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Comparaison — données source vs. base actuelle
+                      </h4>
+                      <ExistingComparisonView
+                        newData={sourceData}
+                        existingData={existing}
+                        labels={getLabels(error.entity)}
+                      />
+                      <div className={`mt-3 rounded-md border px-3 py-2 ${isConflict ? "border-amber-200 bg-amber-50" : "border-red-100 bg-red-50"}`}>
+                        <p className={`text-xs font-semibold ${isConflict ? "text-amber-800" : "text-red-700"}`}>
+                          {isConflict ? "Motif du conflit" : "Motif d'échec"}
+                        </p>
+                        <p className={`mt-0.5 text-xs ${isConflict ? "text-amber-700" : "text-red-600"}`}>
+                          {error.error_message || "Erreur inconnue"}
+                        </p>
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        {isConflict && onForce && (
+                          <button
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-amber-600 px-3 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={busy}
+                            onClick={() => runAction(() => onForce(error), error.id)}
+                            type="button"
                           >
-                            <option value="">— Sélectionner un pays —</option>
-                            {sortedCountries.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name_fr} ({c.iso2})</option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                    ) : isDeptOrLevel && deptForm ? (
-                      <div className="grid grid-cols-1 gap-2">
-                        <TextField label="Code" value={deptForm.code} onChange={(v) => updateDeptForm(error.id, { code: v })} />
-                        <TextField label="Nom" value={deptForm.name} onChange={(v) => updateDeptForm(error.id, { name: v })} />
-                        <TextField label="ID Pégase" value={deptForm.pegase_id} onChange={(v) => updateDeptForm(error.id, { pegase_id: v })} />
-                      </div>
-                    ) : (
-                      <p className="text-xs italic text-gray-400">
-                        Ce type d&apos;erreur nécessite une correction manuelle dans la source de données.
-                      </p>
-                    )}
-
-                    <div className="mt-4 flex gap-2">
-                      {isConflict && onForce && (
+                            <RefreshCw className="h-3 w-3" />
+                            Remplacer par les données sources
+                          </button>
+                        )}
                         <button
-                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-amber-600 px-3 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                           disabled={busy}
-                          onClick={() => runAction(() => onForce(error), error.id)}
+                          onClick={() => runAction(() => onIgnore(error), error.id)}
                           type="button"
                         >
-                          <RefreshCw className="h-3 w-3" />
-                          Forcer la mise à jour
+                          <Check className="h-3 w-3" />
+                          Ignorer
                         </button>
-                      )}
-                      {!isConflict && onRetry && (isUniversity || isDeptOrLevel) && (
-                        <button
-                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={busy}
-                          onClick={() => {
-                            const correction = isUniversity && univForm
-                              ? buildUniversityCorrection(univForm)
-                              : deptForm
-                                ? buildDeptCorrection(deptForm)
-                                : {};
-                            return runAction(() => onRetry(error, correction), error.id);
-                          }}
-                          type="button"
-                        >
-                          <RotateCw className="h-3 w-3" />
-                          Relancer
-                        </button>
-                      )}
-                      <button
-                        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={busy}
-                        onClick={() => runAction(() => onIgnore(error), error.id)}
-                        type="button"
-                      >
-                        <Check className="h-3 w-3" />
-                        Ignorer
-                      </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                      <div>
+                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Enregistrement complet
+                        </h4>
+                        <div className="rounded-md border border-gray-100 bg-gray-50 p-3">
+                          <PayloadGrid entity={error.entity} payload={error.payload} />
+                        </div>
+                        <div className="mt-3 rounded-md border border-red-100 bg-red-50 px-3 py-2">
+                          <p className="text-xs font-semibold text-red-700">Motif d&apos;échec</p>
+                          <p className="mt-0.5 text-xs text-red-600">
+                            {error.error_message || "Erreur inconnue"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          {isConflict ? "Action requise" : "Corriger et relancer"}
+                        </h4>
+
+                        {isConflict ? (
+                          <p className="text-xs text-amber-700">
+                            Cet enregistrement a été modifié localement depuis la dernière synchronisation.
+                            Cliquez sur <strong>Forcer</strong> pour écraser avec les données source.
+                          </p>
+                        ) : isUniversity && univForm ? (
+                          <div className="grid grid-cols-1 gap-2">
+                            <TextField label="Nom" value={univForm.name} onChange={(v) => updateUnivForm(error.id, { name: v })} />
+                            <TextField label="Nom court" value={univForm.short_name} onChange={(v) => updateUnivForm(error.id, { short_name: v })} />
+                            <TextField label="Nom traduit" value={univForm.translated_name} onChange={(v) => updateUnivForm(error.id, { translated_name: v })} />
+                            <TextField label="Code Erasmus" value={univForm.erasmus_code} onChange={(v) => updateUnivForm(error.id, { erasmus_code: v })} />
+                            <TextField label="Ville" value={univForm.city} onChange={(v) => updateUnivForm(error.id, { city: v })} />
+                            <TextField label="Site web" value={univForm.url} onChange={(v) => updateUnivForm(error.id, { url: v })} />
+                            <TextField label="Email" value={univForm.email} onChange={(v) => updateUnivForm(error.id, { email: v })} />
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Pays</span>
+                              <select
+                                className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                                value={univForm.country_id}
+                                onChange={(e) => updateUnivForm(error.id, { country_id: e.target.value ? Number(e.target.value) : "" })}
+                              >
+                                <option value="">— Sélectionner un pays —</option>
+                                {sortedCountries.map((c) => (
+                                  <option key={c.id} value={c.id}>{c.name_fr} ({c.iso2})</option>
+                                ))}
+                              </select>
+                            </label>
+                          </div>
+                        ) : isDeptOrLevel && deptForm ? (
+                          <div className="grid grid-cols-1 gap-2">
+                            <TextField label="Code" value={deptForm.code} onChange={(v) => updateDeptForm(error.id, { code: v })} />
+                            <TextField label="Nom" value={deptForm.name} onChange={(v) => updateDeptForm(error.id, { name: v })} />
+                            <TextField label="ID Pégase" value={deptForm.pegase_id} onChange={(v) => updateDeptForm(error.id, { pegase_id: v })} />
+                          </div>
+                        ) : (
+                          <p className="text-xs italic text-gray-400">
+                            Ce type d&apos;erreur nécessite une correction manuelle dans la source de données.
+                          </p>
+                        )}
+
+                        <div className="mt-4 flex gap-2">
+                          {isConflict && onForce && (
+                            <button
+                              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-amber-600 px-3 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={busy}
+                              onClick={() => runAction(() => onForce(error), error.id)}
+                              type="button"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              Forcer la mise à jour
+                            </button>
+                          )}
+                          {!isConflict && onRetry && (isUniversity || isDeptOrLevel) && (
+                            <button
+                              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={busy}
+                              onClick={() => {
+                                const correction = isUniversity && univForm
+                                  ? buildUniversityCorrection(univForm)
+                                  : deptForm
+                                    ? buildDeptCorrection(deptForm)
+                                    : {};
+                                return runAction(() => onRetry(error, correction), error.id);
+                              }}
+                              type="button"
+                            >
+                              <RotateCw className="h-3 w-3" />
+                              Relancer
+                            </button>
+                          )}
+                          <button
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={busy}
+                            onClick={() => runAction(() => onIgnore(error), error.id)}
+                            type="button"
+                          >
+                            <Check className="h-3 w-3" />
+                            Ignorer
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

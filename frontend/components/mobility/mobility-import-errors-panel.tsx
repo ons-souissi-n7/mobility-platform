@@ -3,6 +3,7 @@
 import { AlertTriangle, Check, ChevronDown, ChevronRight, RefreshCw, RotateCw } from "lucide-react";
 import { useState } from "react";
 
+import { ExistingComparisonView } from "@/components/ui/existing-comparison";
 import { Pagination } from "@/components/ui/pagination";
 import type { PartnerUniversity, RawImport } from "@/lib/api/types";
 import type { MobilityImportRetryPayload } from "@/lib/api/mobility-mutations";
@@ -187,7 +188,13 @@ export function MobilityImportErrorsPanel({
           const kind = classifyError(error);
           const isConflict = kind === "conflict";
           const isExpanded = expandedId === error.id;
-          const form = isExpanded ? getForm(error) : null;
+          const existing = isExpanded
+            ? (error.payload?._existing as Record<string, unknown> | undefined)
+            : undefined;
+          const sourceData = existing
+            ? (Object.fromEntries(Object.entries(error.payload).filter(([k]) => k !== "_existing")) as Record<string, unknown>)
+            : null;
+          const form = isExpanded && !existing ? getForm(error) : null;
           const entityName = String(error.payload?.name ?? error.payload?.reference ?? error.external_id ?? "—");
           const partnerUniversityName =
             typeof error.payload?.partner_university_name === "string"
@@ -227,128 +234,173 @@ export function MobilityImportErrorsPanel({
                 </span>
               </button>
 
-              {isExpanded && form && (
-                <div className="border-t border-amber-100 px-4 py-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Enregistrement complet
-                    </h4>
-                    <div className="rounded-md border border-gray-100 bg-gray-50 p-3">
-                      <PayloadGrid entity={error.entity} payload={error.payload} />
-                    </div>
-                    <div className={`mt-3 rounded-md border px-3 py-2 ${isConflict ? "border-amber-200 bg-amber-50" : "border-red-100 bg-red-50"}`}>
-                      <p className={`text-xs font-semibold ${isConflict ? "text-amber-800" : "text-red-700"}`}>
-                        {isConflict ? "Détail du conflit" : "Motif d'échec"}
-                      </p>
-                      <p className={`mt-0.5 text-xs ${isConflict ? "text-amber-700" : "text-red-600"}`}>
-                        {error.error_message || "Erreur inconnue"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      {isConflict ? "Action requise" : "Corriger et relancer"}
-                    </h4>
-
-                    {isConflict ? (
-                      <p className="text-xs text-amber-800">
-                        Cet enregistrement a été modifié localement. Cliquez sur{" "}
-                        <strong>Forcer</strong> pour écraser la version locale avec les données source.
-                      </p>
-                    ) : kind === "no_correction" ? (
-                      <p className="text-xs italic text-gray-400">
-                        Ce type d&apos;erreur nécessite une correction manuelle dans MoveON avant de relancer.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-2">
-                        <label className="block">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Nom de l&apos;accord</span>
-                          <input
-                            className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
-                            type="text"
-                            value={form.name}
-                            onChange={(e) => updateForm(error.id, { name: e.target.value })}
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Référence</span>
-                          <input
-                            className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
-                            type="text"
-                            value={form.reference}
-                            onChange={(e) => updateForm(error.id, { reference: e.target.value })}
-                          />
-                        </label>
-
-                        {(kind === "missing_university" || kind === "category_error") && (
-                          <label className="block">
-                            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Université partenaire</span>
-                            {partnerUniversityName && (
-                              <p className="mt-0.5 text-xs text-gray-400">
-                                Source : <span className="font-mono">{partnerUniversityName}</span>
-                              </p>
-                            )}
-                            <select
-                              className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
-                              value={form.partner_university_id}
-                              onChange={(e) => updateForm(error.id, { partner_university_id: e.target.value ? Number(e.target.value) : "" })}
-                            >
-                              <option value="">— Sélectionner —</option>
-                              {sortedUniversities.map((u) => (
-                                <option key={u.id} value={u.id}>{u.name}</option>
-                              ))}
-                            </select>
-                          </label>
-                        )}
+              {isExpanded && (
+                <div className="border-t border-amber-100 px-4 py-4">
+                  {existing && sourceData ? (
+                    <div>
+                      <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Comparaison — données source vs. base actuelle
+                      </h4>
+                      <ExistingComparisonView
+                        newData={sourceData}
+                        existingData={existing}
+                        labels={getLabels(error.entity)}
+                      />
+                      <div className={`mt-3 rounded-md border px-3 py-2 ${isConflict ? "border-amber-200 bg-amber-50" : "border-red-100 bg-red-50"}`}>
+                        <p className={`text-xs font-semibold ${isConflict ? "text-amber-800" : "text-red-700"}`}>
+                          {isConflict ? "Motif du conflit" : "Motif d'échec"}
+                        </p>
+                        <p className={`mt-0.5 text-xs ${isConflict ? "text-amber-700" : "text-red-600"}`}>
+                          {error.error_message || "Erreur inconnue"}
+                        </p>
                       </div>
-                    )}
-
-                    <div className="mt-4 flex gap-2">
-                      {isConflict && onForce && (
+                      <div className="mt-4 flex gap-2">
+                        {isConflict && onForce && (
+                          <button
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-amber-600 px-3 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={busy}
+                            onClick={() => runAction(() => onForce(error), error.id)}
+                            type="button"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            Remplacer par les données sources
+                          </button>
+                        )}
                         <button
-                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-amber-600 px-3 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
                           disabled={busy}
-                          onClick={() => runAction(() => onForce(error), error.id)}
+                          onClick={() => runAction(() => onIgnore(error), error.id)}
                           type="button"
                         >
-                          <RefreshCw className="h-3 w-3" />
-                          Forcer
+                          <Check className="h-3 w-3" />
+                          Ignorer
                         </button>
-                      )}
-                      {!isConflict && kind !== "no_correction" && (
-                        <button
-                          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={busy}
-                          onClick={() =>
-                            runAction(
-                              () =>
-                                onRetry(error, {
-                                  ...(form.partner_university_id !== "" ? { partner_university_id: form.partner_university_id } : {}),
-                                  ...(form.name ? { name: form.name } : {}),
-                                  ...(form.reference ? { reference: form.reference } : {}),
-                                }),
-                              error.id,
-                            )
-                          }
-                          type="button"
-                        >
-                          <RotateCw className="h-3 w-3" />
-                          Relancer
-                        </button>
-                      )}
-                      <button
-                        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={busy}
-                        onClick={() => runAction(() => onIgnore(error), error.id)}
-                        type="button"
-                      >
-                        <Check className="h-3 w-3" />
-                        Ignorer
-                      </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : form ? (
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                      <div>
+                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Enregistrement complet
+                        </h4>
+                        <div className="rounded-md border border-gray-100 bg-gray-50 p-3">
+                          <PayloadGrid entity={error.entity} payload={error.payload} />
+                        </div>
+                        <div className={`mt-3 rounded-md border px-3 py-2 ${isConflict ? "border-amber-200 bg-amber-50" : "border-red-100 bg-red-50"}`}>
+                          <p className={`text-xs font-semibold ${isConflict ? "text-amber-800" : "text-red-700"}`}>
+                            {isConflict ? "Détail du conflit" : "Motif d'échec"}
+                          </p>
+                          <p className={`mt-0.5 text-xs ${isConflict ? "text-amber-700" : "text-red-600"}`}>
+                            {error.error_message || "Erreur inconnue"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          {isConflict ? "Action requise" : "Corriger et relancer"}
+                        </h4>
+
+                        {isConflict ? (
+                          <p className="text-xs text-amber-800">
+                            Cet enregistrement a été modifié localement. Cliquez sur{" "}
+                            <strong>Forcer</strong> pour écraser la version locale avec les données source.
+                          </p>
+                        ) : kind === "no_correction" ? (
+                          <p className="text-xs italic text-gray-400">
+                            Ce type d&apos;erreur nécessite une correction manuelle dans MoveON avant de relancer.
+                          </p>
+                        ) : (
+                          <div className="grid grid-cols-1 gap-2">
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Nom de l&apos;accord</span>
+                              <input
+                                className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
+                                type="text"
+                                value={form.name}
+                                onChange={(e) => updateForm(error.id, { name: e.target.value })}
+                              />
+                            </label>
+
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Référence</span>
+                              <input
+                                className="mt-0.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-900 font-mono focus:border-transparent focus:ring-1 focus:ring-[#1E3A8A]"
+                                type="text"
+                                value={form.reference}
+                                onChange={(e) => updateForm(error.id, { reference: e.target.value })}
+                              />
+                            </label>
+
+                            {(kind === "missing_university" || kind === "category_error") && (
+                              <label className="block">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Université partenaire</span>
+                                {partnerUniversityName && (
+                                  <p className="mt-0.5 text-xs text-gray-400">
+                                    Source : <span className="font-mono">{partnerUniversityName}</span>
+                                  </p>
+                                )}
+                                <select
+                                  className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                                  value={form.partner_university_id}
+                                  onChange={(e) => updateForm(error.id, { partner_university_id: e.target.value ? Number(e.target.value) : "" })}
+                                >
+                                  <option value="">— Sélectionner —</option>
+                                  {sortedUniversities.map((u) => (
+                                    <option key={u.id} value={u.id}>{u.name}</option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="mt-4 flex gap-2">
+                          {isConflict && onForce && (
+                            <button
+                              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-amber-600 px-3 text-xs font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={busy}
+                              onClick={() => runAction(() => onForce(error), error.id)}
+                              type="button"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              Forcer
+                            </button>
+                          )}
+                          {!isConflict && kind !== "no_correction" && (
+                            <button
+                              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#1E3A8A] px-3 text-xs font-medium text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={busy}
+                              onClick={() =>
+                                runAction(
+                                  () =>
+                                    onRetry(error, {
+                                      ...(form.partner_university_id !== "" ? { partner_university_id: form.partner_university_id } : {}),
+                                      ...(form.name ? { name: form.name } : {}),
+                                      ...(form.reference ? { reference: form.reference } : {}),
+                                    }),
+                                  error.id,
+                                )
+                              }
+                              type="button"
+                            >
+                              <RotateCw className="h-3 w-3" />
+                              Relancer
+                            </button>
+                          )}
+                          <button
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={busy}
+                            onClick={() => runAction(() => onIgnore(error), error.id)}
+                            type="button"
+                          >
+                            <Check className="h-3 w-3" />
+                            Ignorer
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               )}
             </div>

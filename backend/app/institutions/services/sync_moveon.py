@@ -28,9 +28,19 @@ def sync_moveon_institutions(client: MoveOnClient | None = None) -> SyncResult:
     client = client or MoveOnClient()
     result = SyncResult()
 
+    ignored_external_ids = frozenset(
+        PartnerUniversityRawImport.objects.filter(
+            status=PartnerUniversityRawImportStatus.IGNORED,
+        ).values_list("external_id", flat=True)
+    )
+
     for institution in client.fetch_institutions():
         result.total += 1
         payload = institution.payload
+        external_id = str(payload.get("moveon_id") or "")
+        if external_id in ignored_external_ids:
+            result.ignored += 1
+            continue
         raw_import = create_raw_import(payload)
 
         try:
@@ -39,6 +49,31 @@ def sync_moveon_institutions(client: MoveOnClient | None = None) -> SyncResult:
             created = upsert_partner_university(transformed)
         except SyncConflictError as exc:
             result.conflicted += 1
+            moveon_id = str(payload.get("moveon_id") or "")
+            if moveon_id:
+                existing_u = (
+                    PartnerUniversity.objects.filter(moveon_id=moveon_id)
+                    .select_related("country")
+                    .first()
+                )
+                if existing_u:
+                    raw_import.payload = {
+                        **raw_import.payload,
+                        "_existing": {
+                            "moveon_id": str(existing_u.moveon_id or ""),
+                            "name": existing_u.name or "",
+                            "short_name": existing_u.short_name or "",
+                            "translated_name": existing_u.translated_name or "",
+                            "erasmus_code": existing_u.erasmus_code or "",
+                            "city": existing_u.city or "",
+                            "url": existing_u.url or "",
+                            "email": existing_u.email or "",
+                            "country_name": existing_u.country.name_fr
+                            if existing_u.country
+                            else "",
+                        },
+                    }
+                    raw_import.save(update_fields=["payload"])
             mark_raw_import(
                 raw_import,
                 PartnerUniversityRawImportStatus.CONFLICT,

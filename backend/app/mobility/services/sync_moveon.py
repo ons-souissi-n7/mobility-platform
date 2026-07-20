@@ -141,6 +141,22 @@ def sync_moveon_mobility_categories(
             created = upsert_mobility_category(transformed)
         except SyncConflictError as exc:
             result.conflicted += 1
+            moveon_id = str(
+                payload.get("moveon_id") or payload.get("moveon_framework_id") or ""
+            )
+            if moveon_id:
+                existing_cat = MobilityCategory.objects.filter(
+                    moveon_id=moveon_id
+                ).first()
+                if existing_cat:
+                    raw_import.payload = {
+                        **raw_import.payload,
+                        "_existing": {
+                            "moveon_id": str(existing_cat.moveon_id or ""),
+                            "name": existing_cat.name,
+                        },
+                    }
+                    raw_import.save(update_fields=["payload"])
             mark_raw_import(raw_import, RawImportStatus.CONFLICT, str(exc))
             report.record_conflict(raw_import.external_id, str(exc), raw_import.id)
             continue
@@ -232,6 +248,35 @@ def sync_moveon_agreements(
             created = upsert_agreement(transformed)
         except SyncConflictError as exc:
             result.conflicted += 1
+            moveon_id = str(payload.get("moveon_id") or "")
+            if moveon_id:
+                existing_agr = (
+                    Agreement.objects.filter(moveon_id=moveon_id)
+                    .select_related("partner_university", "category")
+                    .first()
+                )
+                if existing_agr:
+                    raw_import.payload = {
+                        **raw_import.payload,
+                        "_existing": {
+                            "moveon_id": str(existing_agr.moveon_id or ""),
+                            "name": existing_agr.name or "",
+                            "partner_university_name": (
+                                existing_agr.partner_university.name
+                                if existing_agr.partner_university
+                                else ""
+                            ),
+                            "direction": existing_agr.direction or "",
+                            "valid_from": str(existing_agr.valid_from)
+                            if existing_agr.valid_from
+                            else None,
+                            "valid_until": str(existing_agr.valid_until)
+                            if existing_agr.valid_until
+                            else None,
+                            "inp_institutions": existing_agr.inp_institutions or "",
+                        },
+                    }
+                    raw_import.save(update_fields=["payload"])
             mark_raw_import(raw_import, RawImportStatus.CONFLICT, str(exc))
             report.record_conflict(raw_import.external_id, str(exc), raw_import.id)
             continue

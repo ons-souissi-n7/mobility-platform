@@ -116,13 +116,24 @@ def import_wish_rows(
     ).values_list("annual_enrollment_id", "rank"):
         existing_ranks.setdefault(eid, set()).add(rank)
 
+    ignored_external_ids = frozenset(
+        RawImport.objects.filter(
+            entity=RawImportEntity.STUDENT,
+            status=RawImportStatus.IGNORED,
+        ).values_list("external_id", flat=True)
+    )
+
     for row in rows:
         identifier = row.ine or row.individu
+        external_id = f"{identifier}#rank{row.rank}"
+        if external_id in ignored_external_ids:
+            report.skipped += 1
+            continue
         raw = RawImport(
             source="moveon_student_wishes",
             source_file="",
             entity=RawImportEntity.STUDENT,
-            external_id=f"{identifier}#rank{row.rank}",
+            external_id=external_id,
             payload={
                 "ine": row.ine,
                 "individu": row.individu,
@@ -217,6 +228,25 @@ def import_wish_rows(
         except IntegrityError as exc:
             reason = f"Conflit de vœu ({identifier!r}, rang {row.rank}) : {exc}"
             report.errors.append(reason)
+            existing_wish = (
+                StudentWish.objects.filter(annual_enrollment=enrollment, rank=row.rank)
+                .select_related("agreement_year__agreement")
+                .first()
+            )
+            if existing_wish:
+                raw.payload = {
+                    **raw.payload,
+                    "_existing": {
+                        "ine": identifier,
+                        "rank": existing_wish.rank,
+                        "offre_de_sejour": (
+                            existing_wish.agreement_year.agreement.name
+                            if existing_wish.agreement_year
+                            and existing_wish.agreement_year.agreement
+                            else ""
+                        ),
+                    },
+                }
             raw.status = RawImportStatus.FAILED
             raw.error_message = reason
             raw.save()

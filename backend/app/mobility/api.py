@@ -811,11 +811,16 @@ def retry_raw_import(request, raw_import_id: int, payload: RawImportRetryIn):
 @router.put("/raw-imports/{raw_import_id}/ignore/", response=RawImportOut)
 def ignore_raw_import(request, raw_import_id: int):
     raw_import = get_or_404(RawImport, raw_import_id, "Import brut introuvable.")
-    raw_import.status = RawImportStatus.IGNORED
-    raw_import.error_message = (
-        f"{raw_import.error_message}\nTraité manuellement par l'administrateur."
-    ).strip()
-    raw_import.save(update_fields=["status", "error_message", "updated_at"])
+    now = timezone.now()
+    RawImport.objects.filter(
+        source=raw_import.source,
+        external_id=raw_import.external_id,
+    ).exclude(status=RawImportStatus.IGNORED).update(
+        status=RawImportStatus.IGNORED,
+        error_message="Traité manuellement",
+        updated_at=now,
+    )
+    raw_import.refresh_from_db()
     return raw_import
 
 

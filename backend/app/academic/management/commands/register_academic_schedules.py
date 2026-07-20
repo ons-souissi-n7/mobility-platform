@@ -1,5 +1,9 @@
+import logging
+
 from django.core.management.base import BaseCommand
 from django_q.models import Schedule
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -33,6 +37,7 @@ class Command(BaseCommand):
     ]
 
     def sync_schedules(self) -> None:
+        known_names = {s["name"] for s in self.SCHEDULES}
         for s in self.SCHEDULES:
             Schedule.objects.update_or_create(
                 name=s["name"],
@@ -42,6 +47,13 @@ class Command(BaseCommand):
                     "cron": s["cron"],
                 },
             )
+        deleted, _ = (
+            Schedule.objects.filter(name__startswith="academic_")
+            .exclude(name__in=known_names)
+            .delete()
+        )
+        if deleted:
+            logger.info("Supprimé %d schedule(s) académique(s) orphelin(s)", deleted)
 
     def handle(self, *_args, **_options):
         self.sync_schedules()

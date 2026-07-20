@@ -161,6 +161,17 @@ class StudentEnrollmentOut(Schema):
     is_scholarship: bool
 
 
+class ReconciliationCandidateOut(Schema):
+    student_id: int
+    ine: str
+    first_name: str
+    last_name: str
+    email: str
+    department_code: str | None
+    score: float
+    confidence: str
+
+
 class StudentImportRetryIn(Schema):
     department_id: int | None = None
     level_id: int | None = None

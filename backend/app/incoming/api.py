@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.db.models import Count, Max, Q
 from django.http import HttpResponse
+from django.utils import timezone
 from ninja import File, Query, Router, Schema
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
@@ -349,11 +350,15 @@ def list_incoming_import_errors(
 )
 def ignore_incoming_import_error(request, raw_import_id: int):
     raw = get_or_404(RawImport, raw_import_id, "Erreur d'import introuvable.")
-    raw.status = RawImportStatus.IGNORED
-    raw.error_message = (
-        f"{raw.error_message}\nTraité manuellement par l'administrateur."
-    ).strip()
-    raw.save(update_fields=["status", "error_message", "updated_at"])
+    now = timezone.now()
+    RawImport.objects.filter(
+        source=raw.source,
+        external_id=raw.external_id,
+    ).exclude(status=RawImportStatus.IGNORED).update(
+        status=RawImportStatus.IGNORED,
+        updated_at=now,
+    )
+    raw.refresh_from_db()
     return raw
 
 
@@ -422,28 +427,32 @@ def force_incoming_import_error(
         else None
     )
 
+    birth_date = _parse_date(_str("DATE NAISSANCE"))
+    doctoral_continuation = doctoral_raw in ("o", "oui", "yes", "1", "true", "vrai")
+    defaults = {
+        "department": department,
+        "civility": _str("CIVILITE"),
+        "country": country,
+        "origin_university": origin_university,
+        "origin_university_name": univ_name,
+        "mobility_category": mobility_category,
+        "personal_email": _str("MAIL"),
+        "n7_email": _str("MAIL ENSEEIHT"),
+        "duration": _str("DUREE"),
+        "level": level,
+        "parcours": parcours,
+        "remarks": _str("REMARQUES"),
+        "internship_info": _str("STAGE"),
+        "diploma_info": _str("DIPLOME"),
+        "doctoral_continuation": doctoral_continuation,
+    }
     try:
-        IncomingStudent.objects.create(
+        IncomingStudent.objects.update_or_create(
             academic_year=academic_year,
-            department=department,
-            civility=_str("CIVILITE"),
             last_name=last_name,
             first_name=first_name,
-            country=country,
-            origin_university=origin_university,
-            origin_university_name=univ_name,
-            birth_date=_parse_date(_str("DATE NAISSANCE")),
-            mobility_category=mobility_category,
-            personal_email=_str("MAIL"),
-            n7_email=_str("MAIL ENSEEIHT"),
-            duration=_str("DUREE"),
-            level=level,
-            parcours=parcours,
-            remarks=_str("REMARQUES"),
-            internship_info=_str("STAGE"),
-            diploma_info=_str("DIPLOME"),
-            doctoral_continuation=doctoral_raw
-            in ("o", "oui", "yes", "1", "true", "vrai"),
+            birth_date=birth_date,
+            defaults=defaults,
         )
     except Exception as exc:
         raise HttpError(400, str(exc)) from exc

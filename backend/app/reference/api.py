@@ -188,11 +188,16 @@ def ignore_department_import(request, raw_import_id: int):
         )
     except RawImport.DoesNotExist as exc:
         raise HttpError(404, "Erreur d'import departement introuvable.") from exc
-    raw_import.status = RawImportStatus.IGNORED
-    raw_import.error_message = (
-        f"{raw_import.error_message}\nTraite manuellement par l'administrateur."
-    ).strip()
-    raw_import.save(update_fields=["status", "error_message", "updated_at"])
+    now = timezone.now()
+    RawImport.objects.filter(
+        source=raw_import.source,
+        external_id=raw_import.external_id,
+    ).exclude(status=RawImportStatus.IGNORED).update(
+        status=RawImportStatus.IGNORED,
+        error_message="Traite manuellement",
+        updated_at=now,
+    )
+    raw_import.refresh_from_db()
     return raw_import
 
 
@@ -424,12 +429,16 @@ def ignore_level_import(request, raw_import_id: int):
         )
     except RawImport.DoesNotExist as exc:
         raise HttpError(404, "Erreur d'import niveau introuvable.") from exc
-
-    raw_import.status = RawImportStatus.IGNORED
-    raw_import.error_message = (
-        f"{raw_import.error_message}\nTraite manuellement par l'administrateur."
-    ).strip()
-    raw_import.save(update_fields=["status", "error_message", "updated_at"])
+    now = timezone.now()
+    RawImport.objects.filter(
+        source=raw_import.source,
+        external_id=raw_import.external_id,
+    ).exclude(status=RawImportStatus.IGNORED).update(
+        status=RawImportStatus.IGNORED,
+        error_message="Traite manuellement",
+        updated_at=now,
+    )
+    raw_import.refresh_from_db()
     return raw_import
 
 

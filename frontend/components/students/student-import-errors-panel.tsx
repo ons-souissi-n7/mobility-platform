@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { Pagination } from "@/components/ui/pagination";
 import type { Country, Department, Level, Parcours, RawImport } from "@/lib/api/types";
-import type { StudentImportCorrection } from "@/lib/api/student-mutations";
+import { type StudentImportCorrection } from "@/lib/api/student-mutations";
 
 const STUDENT_FIELD_LABELS: Record<string, string> = {
   ine: "INE",
@@ -227,11 +227,12 @@ export function StudentImportErrorsPanel({
                     </div>
                   </div>
 
-                  {/* Right: full correction form */}
+                  {/* Right: correction form */}
                   <div>
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                       Corriger et relancer
                     </h4>
+
                     <div className="grid grid-cols-1 gap-2">
                       <CorrField label="N°INE" value={form.ine} onChange={(v) => updateForm(error.id, { ine: v })} />
                       <CorrField label="Prénom" value={form.first_name} onChange={(v) => updateForm(error.id, { first_name: v })} />

@@ -69,49 +69,68 @@ class EudonetRecord:
 class EudonetInternship(EudonetRecord):
     @property
     def ine(self) -> str:
-        return str(self.payload.get("N°INE", "") or "").strip()
+        return str(self.payload.get("N°INE") or self.payload.get("ine") or "").strip()
 
     @property
     def libelle(self) -> str:
-        return str(self.payload.get("Libellé", "") or "").strip()
+        return str(
+            self.payload.get("Libellé") or self.payload.get("libelle") or ""
+        ).strip()
 
     @property
     def company_name(self) -> str:
-        return str(self.payload.get("Raison sociale", "") or "").strip()
+        return str(
+            self.payload.get("Raison sociale") or self.payload.get("company_name") or ""
+        ).strip()
 
     @property
     def country_name(self) -> str:
-        return str(self.payload.get("Pays", "") or "").strip()
+        return str(
+            self.payload.get("Pays") or self.payload.get("country_name") or ""
+        ).strip()
 
     @property
     def city(self) -> str:
-        return str(self.payload.get("Ville", "") or "").strip()
+        return str(self.payload.get("Ville") or self.payload.get("city") or "").strip()
 
     @property
     def internship_type(self) -> str:
-        return str(self.payload.get("Type", "") or "").strip()
+        return str(
+            self.payload.get("Type") or self.payload.get("internship_type") or ""
+        ).strip()
 
     @property
     def status(self) -> str:
-        return str(self.payload.get("Statut", "") or "").strip()
+        return str(
+            self.payload.get("Statut") or self.payload.get("status") or ""
+        ).strip()
 
     @property
     def status_code(self) -> str:
+        stored = str(self.payload.get("status_code") or "").strip()
+        if stored.isdigit():
+            return stored
         parts = self.status.split(" ", 1)
         code = parts[0] if parts else ""
         return code if code.isdigit() else ""
 
     @property
     def start_date(self) -> date | None:
-        return _parse_eudonet_date(self.payload.get("Date de début"))
+        return _parse_eudonet_date(
+            self.payload.get("Date de début") or self.payload.get("start_date")
+        )
 
     @property
     def end_date(self) -> date | None:
-        return _parse_eudonet_date(self.payload.get("Date de fin"))
+        return _parse_eudonet_date(
+            self.payload.get("Date de fin") or self.payload.get("end_date")
+        )
 
     @property
     def weeks(self) -> int | None:
-        val = self.payload.get("Nb semaines dans l'entreprise")
+        val = self.payload.get("Nb semaines dans l'entreprise") or self.payload.get(
+            "weeks"
+        )
         if val is None or str(val).strip() == "":
             return None
         try:
@@ -121,15 +140,23 @@ class EudonetInternship(EudonetRecord):
 
     @property
     def school_tutor(self) -> str:
-        return str(self.payload.get("Tuteur pédagogique Ecole", "") or "").strip()
+        return str(
+            self.payload.get("Tuteur pédagogique Ecole")
+            or self.payload.get("school_tutor")
+            or ""
+        ).strip()
 
     @property
     def company_tutor(self) -> str:
-        return str(self.payload.get("Tuteur technique entreprise", "") or "").strip()
+        return str(
+            self.payload.get("Tuteur technique entreprise")
+            or self.payload.get("company_tutor")
+            or ""
+        ).strip()
 
     @property
     def title(self) -> str:
-        return str(self.payload.get("Titre", "") or "").strip()
+        return str(self.payload.get("Titre") or self.payload.get("title") or "").strip()
 
     @property
     def modified_at(self) -> datetime | None:
