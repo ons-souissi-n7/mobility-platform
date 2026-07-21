@@ -133,6 +133,7 @@ Q_CLUSTER = {
 AUDITLOG_INCLUDE_ALL_MODELS = False
 
 MINIO_ENDPOINT = config("MINIO_ENDPOINT", default="minio:9000")
+MINIO_PUBLIC_ENDPOINT = config("MINIO_PUBLIC_ENDPOINT", default="localhost:9000")
 MINIO_ACCESS_KEY = config("MINIO_ROOT_USER", default="minio_admin")
 MINIO_SECRET_KEY = config("MINIO_ROOT_PASSWORD", default="minio_secret")
 MINIO_BUCKET_NAME = "mobility-documents"

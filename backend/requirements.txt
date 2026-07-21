@@ -14,3 +14,4 @@ whitenoise==6.7.0
 sentry-sdk[django]==2.14.0
 Pillow==12.2.0
 openpyxl==3.1.5
+minio==7.2.15
