@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, Globe, LayoutDashboard, Star, X } from "lucide-react";
+import { Award, Globe, LayoutDashboard, PlusCircle, Star, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 
@@ -12,7 +12,8 @@ const NAV_ITEMS = [
   { key: "tableau-de-bord",  label: "Tableau de bord",    icon: LayoutDashboard },
   { key: "accords",          label: "Accords disponibles", icon: Globe           },
   { key: "recommandations",  label: "Recommandations",     icon: Star            },
-  { key: "mobilite",         label: "Ma mobilité",          icon: Award           },
+  { key: "mobilite",                 label: "Ma mobilité",                    icon: Award       },
+  { key: "mobilite-complementaire", label: "Mobilité complémentaire",        icon: PlusCircle  },
 ];
 
 type Props = { isOpen?: boolean; onClose?: () => void };
