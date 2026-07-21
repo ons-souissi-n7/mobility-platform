@@ -582,3 +582,21 @@ export type IncomingStatCountry = {
   academic_year_label: string;
   count: number;
 };
+
+export type ComplementaryMobility = {
+  id: number;
+  academic_year_id: number;
+  academic_year_label: string;
+  experience_type: string;
+  destination_country_id: number;
+  destination_country_name: string;
+  destination_institution: string;
+  start_date: string;
+  end_date: string;
+  document_name: string;
+  document_url: string | null;
+  status: "pending" | "validated" | "rejected";
+  status_label: string;
+  rejection_reason: string;
+  created_at: string;
+};
