@@ -4,11 +4,12 @@
 # Exploitability: negligible — npm never opens a WebSocket in this deployment context.
 CVE-2026-12151
 
-# CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591
+# GHSA-f88m-g3jw-g9cj (CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591)
 # libvips vulnerabilities inherited by sharp, bundled as an optionalDependency of next@16.2.x.
 # next@16.2.x pins sharp@^0.34.5 — npm overrides do not apply to optionalDependencies and
 # no updated Next.js release is available. sharp is used for static image optimisation only
 # (not processing user-supplied data), so the attack surface is minimal.
+GHSA-f88m-g3jw-g9cj
 CVE-2026-33327
 CVE-2026-33328
 CVE-2026-35590
