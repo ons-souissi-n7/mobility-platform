@@ -513,12 +513,15 @@ export function IncomingWorkspace({
                 <th className="whitespace-nowrap px-3 py-3">Stage</th>
                 <th className="whitespace-nowrap px-3 py-3">Diplôme</th>
                 <th className="whitespace-nowrap px-3 py-3">Doctorat</th>
+                {selectedYearId === null && (
+                  <th className="whitespace-nowrap px-3 py-3">Année</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {students.length === 0 ? (
                 <tr>
-                  <td colSpan={17} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={selectedYearId === null ? 18 : 17} className="px-4 py-8 text-center text-gray-400">
                     Aucun étudiant entrant pour cette sélection.
                   </td>
                 </tr>
@@ -559,6 +562,11 @@ export function IncomingWorkspace({
                           <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">Oui</span>
                         ) : "Non"}
                       </td>
+                      {selectedYearId === null && (
+                        <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                          {s.academic_year_label}
+                        </td>
+                      )}
                     </tr>
                   );
                 })

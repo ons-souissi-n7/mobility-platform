@@ -9,34 +9,8 @@ import {
   fetchStudentProfile,
 } from "@/lib/api/student";
 import type { ComplementaryMobility, Country, StudentProfile } from "@/lib/api/types";
-
-const STATUS_STYLES: Record<
-  ComplementaryMobility["status"],
-  { bg: string; text: string; label: string }
-> = {
-  pending: { bg: "bg-amber-100", text: "text-amber-800", label: "En attente" },
-  validated: { bg: "bg-green-100", text: "text-green-800", label: "Validée" },
-  rejected: { bg: "bg-red-100", text: "text-red-800", label: "Rejetée" },
-};
-
-function StatusBadge({ status }: { status: ComplementaryMobility["status"] }) {
-  const s = STATUS_STYLES[status] ?? STATUS_STYLES.pending;
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${s.bg} ${s.text}`}
-    >
-      {s.label}
-    </span>
-  );
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
+import { formatDateShort } from "@/lib/utils";
+import { MobilityStatusBadge } from "@/components/complementary/status-badge";
 
 const EMPTY_FORM = {
   experience_type: "",
@@ -156,6 +130,11 @@ export default function MobiliteComplementairePage() {
     profile?.enrolled_years.find((y) => y.academic_year_id === currentYearId)
       ?.academic_year_label ?? "";
 
+  const selectedYear = profile?.enrolled_years.find(
+    (y) => y.academic_year_id === selectedYearId,
+  );
+  const isSelectedYearClosed = selectedYear?.academic_year_status === "closed";
+
   return (
     <div className="space-y-8">
       {/* ── Header with year selector (consultation only) ── */}
@@ -211,10 +190,10 @@ export default function MobiliteComplementairePage() {
                       {m.destination_institution ? ` — ${m.destination_institution}` : ""}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {formatDate(m.start_date)} → {formatDate(m.end_date)}
+                      {formatDateShort(m.start_date)} → {formatDateShort(m.end_date)}
                     </p>
                   </div>
-                  <StatusBadge status={m.status} />
+                  <MobilityStatusBadge status={m.status} />
                 </div>
 
                 {m.status === "rejected" && m.rejection_reason && (
@@ -236,7 +215,7 @@ export default function MobiliteComplementairePage() {
                 )}
 
                 <p className="mt-3 text-xs text-gray-300">
-                  Déposée le {formatDate(m.created_at)}
+                  Déposée le {formatDateShort(m.created_at)}
                 </p>
               </div>
             ))}
@@ -244,8 +223,17 @@ export default function MobiliteComplementairePage() {
         )}
       </section>
 
-      {/* ── Declaration form (always for current year) ───── */}
-      <section>
+      {/* Bannière année clôturée */}
+      {isSelectedYearClosed && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          <span className="font-semibold">Année clôturée</span> — l&apos;historique est en
+          lecture seule, les nouvelles déclarations sont désactivées.
+        </div>
+      )}
+
+      {/* ── Declaration form (hidden for closed years) ────── */}
+      {!isSelectedYearClosed && (
+        <section>
         <h2 className="mb-1 text-base font-semibold text-gray-800">
           Déclarer une nouvelle expérience
         </h2>
@@ -407,7 +395,8 @@ export default function MobiliteComplementairePage() {
             {submitting ? "Envoi en cours…" : "Soumettre la déclaration"}
           </button>
         </form>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

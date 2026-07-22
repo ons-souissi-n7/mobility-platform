@@ -77,5 +77,5 @@ class ComplementaryMobility(TimeStampedModel):
         source=MobilityStatus.PENDING,
         target=MobilityStatus.REJECTED,
     )
-    def reject(self, reason: str = "") -> None:
+    def reject(self, reason: str) -> None:
         self.rejection_reason = reason

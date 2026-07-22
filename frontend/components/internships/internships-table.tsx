@@ -19,6 +19,7 @@ export function InternshipsTable({
   pageSize,
   countries,
   readOnly = false,
+  showYear = false,
   onPageChange,
   onEdit,
   onDelete,
@@ -30,6 +31,7 @@ export function InternshipsTable({
   pageSize: number;
   countries: Country[];
   readOnly?: boolean;
+  showYear?: boolean;
   onPageChange: (page: number) => void;
   onEdit: (item: Internship) => void;
   onDelete: (item: Internship) => void;
@@ -111,6 +113,19 @@ export function InternshipsTable({
         </p>
       ),
     },
+    ...(showYear
+      ? [
+          {
+            key: "annee",
+            header: "Année",
+            render: (item: Internship) => (
+              <p className="whitespace-nowrap text-sm text-gray-600">
+                {item.academic_year_label ?? "—"}
+              </p>
+            ),
+          },
+        ]
+      : []),
     {
       key: "semaines",
       header: "Semaines",

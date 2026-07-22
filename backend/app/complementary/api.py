@@ -1,11 +1,14 @@
 import datetime
 
+from django.db.models import Q
 from ninja import File, Router, Schema
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
+from pydantic import field_validator
 
 from app.academic.models import AcademicYear
 from app.alerts.models import AlertLevel, SystemAlert
+from app.audit.logger import log_action
 from app.reference.models import Country
 from app.students.models import Student
 
@@ -34,6 +37,9 @@ class CountryOut(Schema):
 
 class ComplementaryMobilityOut(Schema):
     id: int
+    student_ine: str
+    student_first_name: str
+    student_last_name: str
     academic_year_id: int
     academic_year_label: str
     experience_type: str
@@ -59,6 +65,9 @@ class ComplementaryMobilityOut(Schema):
                 pass
         return ComplementaryMobilityOut(
             id=obj.id,
+            student_ine=obj.student.ine,
+            student_first_name=obj.student.first_name,
+            student_last_name=obj.student.last_name,
             academic_year_id=obj.academic_year_id,
             academic_year_label=obj.academic_year.label,
             experience_type=obj.experience_type,
@@ -77,7 +86,32 @@ class ComplementaryMobilityOut(Schema):
 
 
 class RejectIn(Schema):
-    reason: str = ""
+    reason: str
+
+    @field_validator("reason")
+    @classmethod
+    def reason_not_empty(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Le motif de rejet est obligatoire.")
+        return stripped
+
+
+class PagedOut(Schema):
+    count: int
+    page: int
+    page_size: int
+    results: list[ComplementaryMobilityOut]
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+
+def _get_student(ine: str) -> Student:
+    try:
+        return Student.objects.get(ine=ine)
+    except Student.DoesNotExist as exc:
+        raise HttpError(404, "Étudiant introuvable.") from exc
 
 
 # ── Reference data ───────────────────────────────────────────────────────────
@@ -104,13 +138,9 @@ def list_countries(request):
     summary="Lister les mobilités complémentaires d'un étudiant",
 )
 def list_student_mobilities(request, ine: str, year_id: int | None = None):
-    try:
-        student = Student.objects.get(ine=ine)
-    except Student.DoesNotExist as exc:
-        raise HttpError(404, "Étudiant introuvable.") from exc
-
+    student = _get_student(ine)
     qs = ComplementaryMobility.objects.filter(student=student).select_related(
-        "academic_year", "destination_country"
+        "student", "academic_year", "destination_country"
     )
     if year_id is not None:
         qs = qs.filter(academic_year_id=year_id)
@@ -133,10 +163,8 @@ def declare_mobility(
     end_date: datetime.date,
     document: UploadedFile = File(...),
 ):
-    try:
-        student = Student.objects.get(ine=ine)
-    except Student.DoesNotExist as exc:
-        raise HttpError(404, "Étudiant introuvable.") from exc
+    student = _get_student(ine)
+    exp_type = experience_type.strip()
 
     try:
         academic_year = AcademicYear.objects.get(pk=academic_year_id)
@@ -148,7 +176,7 @@ def declare_mobility(
     except Country.DoesNotExist as exc:
         raise HttpError(404, "Pays introuvable.") from exc
 
-    if not experience_type.strip():
+    if not exp_type:
         raise HttpError(400, "Le type d'expérience est obligatoire.")
 
     if start_date >= end_date:
@@ -165,18 +193,19 @@ def declare_mobility(
     if len(file_bytes) > MAX_FILE_SIZE:
         raise HttpError(400, "Fichier trop volumineux (max 10 Mo).")
 
-    key = upload_document(file_bytes, document.name or "document", content_type)
+    doc_name = document.name or "document"
+    key = upload_document(file_bytes, doc_name, content_type)
 
     mobility = ComplementaryMobility.objects.create(
         student=student,
         academic_year=academic_year,
-        experience_type=experience_type.strip(),
+        experience_type=exp_type,
         destination_country=country,
         destination_institution=destination_institution,
         start_date=start_date,
         end_date=end_date,
         document_key=key,
-        document_name=document.name or "document",
+        document_name=doc_name,
     )
 
     SystemAlert.objects.create(
@@ -185,7 +214,7 @@ def declare_mobility(
         message=(
             f"L'étudiant {student.first_name} {student.last_name} (INE : {ine}) "
             f"a déclaré une mobilité complémentaire "
-            f"({experience_type.strip()}, {country.name_fr}, {academic_year.label})."
+            f"({exp_type}, {country.name_fr}, {academic_year.label})."
         ),
     )
 
@@ -198,7 +227,7 @@ def declare_mobility(
 def _get_pending_mobility(mobility_id: int) -> ComplementaryMobility:
     try:
         mob = ComplementaryMobility.objects.select_related(
-            "academic_year", "destination_country"
+            "student", "academic_year", "destination_country"
         ).get(pk=mobility_id)
     except ComplementaryMobility.DoesNotExist as exc:
         raise HttpError(404, "Mobilité introuvable.") from exc
@@ -209,16 +238,39 @@ def _get_pending_mobility(mobility_id: int) -> ComplementaryMobility:
 
 @router.get(
     "/",
-    response=list[ComplementaryMobilityOut],
+    response=PagedOut,
     summary="Lister toutes les mobilités complémentaires (admin)",
 )
-def list_all_mobilities(request, status: str | None = None):
+def list_all_mobilities(
+    request,
+    status: str | None = None,
+    student_search: str | None = None,
+    experience_type: str | None = None,
+    year_id: int | None = None,
+    page: int = 1,
+    page_size: int = 25,
+):
     qs = ComplementaryMobility.objects.select_related(
         "student", "academic_year", "destination_country"
     ).order_by("-created_at")
     if status:
         qs = qs.filter(status=status)
-    return [ComplementaryMobilityOut.from_obj(m) for m in qs]
+    if student_search:
+        qs = qs.filter(
+            Q(student__ine__icontains=student_search)
+            | Q(student__last_name__icontains=student_search)
+            | Q(student__first_name__icontains=student_search)
+        )
+    if experience_type:
+        qs = qs.filter(experience_type__icontains=experience_type)
+    if year_id:
+        qs = qs.filter(academic_year_id=year_id)
+    count = qs.count()
+    offset = (page - 1) * page_size
+    results = [
+        ComplementaryMobilityOut.from_obj(m) for m in qs[offset : offset + page_size]
+    ]
+    return PagedOut(count=count, page=page, page_size=page_size, results=results)
 
 
 @router.post(
@@ -230,6 +282,14 @@ def validate_mobility(request, mobility_id: int):
     mob = _get_pending_mobility(mobility_id)
     mob.validate()
     mob.save()
+    log_action(
+        request,
+        action="validate_complementary_mobility",
+        detail=(
+            f"Mobilité #{mob.id} validée — "
+            f"{mob.student.last_name} {mob.student.first_name} ({mob.student.ine})"
+        ),
+    )
     return ComplementaryMobilityOut.from_obj(mob)
 
 
@@ -242,4 +302,13 @@ def reject_mobility(request, mobility_id: int, payload: RejectIn):
     mob = _get_pending_mobility(mobility_id)
     mob.reject(reason=payload.reason)
     mob.save()
+    log_action(
+        request,
+        action="reject_complementary_mobility",
+        detail=(
+            f"Mobilité #{mob.id} rejetée — "
+            f"{mob.student.last_name} {mob.student.first_name} ({mob.student.ine}) "
+            f"— Motif : {payload.reason}"
+        ),
+    )
     return ComplementaryMobilityOut.from_obj(mob)

@@ -388,6 +388,7 @@ export function InternshipsWorkspace({
         pageSize={PAGE_SIZE}
         countries={countries}
         readOnly={isReadOnly}
+        showYear={selectedYearId === null}
         onPageChange={handlePageChange}
         onEdit={(item) => setModal({ item })}
         onDelete={handleDelete}
