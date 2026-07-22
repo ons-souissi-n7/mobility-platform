@@ -585,6 +585,9 @@ export type IncomingStatCountry = {
 
 export type ComplementaryMobility = {
   id: number;
+  student_ine: string;
+  student_first_name: string;
+  student_last_name: string;
   academic_year_id: number;
   academic_year_label: string;
   experience_type: string;

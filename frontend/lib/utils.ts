@@ -2,6 +2,15 @@ export function createIdMap<T extends { id: number }>(items: T[]): Map<number, T
   return new Map(items.map((item) => [item.id, item]));
 }
 
+export function formatDateShort(value: string | null | undefined): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   return new Intl.DateTimeFormat("fr-FR").format(new Date(value));
