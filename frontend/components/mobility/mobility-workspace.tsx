@@ -249,6 +249,7 @@ export function MobilityWorkspace({
       is_active: yi.is_active,
       inp_total_places: yi.inp_total_places,
       n7_places: n7Places,
+      duration_weeks: yi.duration_weeks,
     });
     setAgreementYears((items) => items.map((y) => (y.id === updated.id ? updated : y)));
     // Rafraîchir les quotas département recalculés par Hamilton
@@ -265,6 +266,19 @@ export function MobilityWorkspace({
     const { getMobilityData } = await import("@/lib/api/mobility");
     const fresh = await getMobilityData();
     setAgreementYearDepartments(fresh.agreementYearDepartments);
+  }
+
+  async function handleEditYearDuration(yi: AgreementYear, durationMonths: number | null) {
+    setSyncError("");
+    const updated = await updateAgreementYear(yi.id, {
+      agreement_id: yi.agreement_id,
+      academic_year_id: yi.academic_year_id,
+      is_active: yi.is_active,
+      inp_total_places: yi.inp_total_places,
+      n7_places: yi.n7_places,
+      duration_weeks: durationMonths,
+    });
+    setAgreementYears((items) => items.map((y) => (y.id === updated.id ? updated : y)));
   }
 
   async function handleValidateYear(yi: AgreementYear) {
@@ -574,6 +588,7 @@ export function MobilityWorkspace({
           onToggleYearActive={handleToggleYearActive}
           onEditYear={handleEditYear}
           onEditYearInp={handleEditYearInp}
+          onEditYearDuration={handleEditYearDuration}
           onValidateYear={handleValidateYear}
           onSaveDeptQuota={handleSaveDeptQuota}
         />

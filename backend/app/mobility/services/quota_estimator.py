@@ -203,7 +203,7 @@ def _hamilton(total: int, weights: dict[int, int]) -> dict[int, int]:
     """
     keys = list(weights.keys())
     if not keys or total <= 0:
-        return {k: 0 for k in keys}
+        return dict.fromkeys(keys, 0)
 
     weight_total = sum(weights.values())
     if weight_total == 0:

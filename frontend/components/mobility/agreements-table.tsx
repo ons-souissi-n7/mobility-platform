@@ -38,6 +38,7 @@ export function AgreementsTable({
   onEditYearInp,
   onValidateYear,
   onSaveDeptQuota,
+  onEditYearDuration,
 }: {
   agreements: Agreement[];
   agreementYears: AgreementYear[];
@@ -54,6 +55,7 @@ export function AgreementsTable({
   onEditYearInp: (yi: AgreementYear, inpPlaces: number) => Promise<void>;
   onValidateYear: (yi: AgreementYear) => Promise<void>;
   onSaveDeptQuota: (dq: AgreementYearDepartment, places: number) => Promise<void>;
+  onEditYearDuration: (yi: AgreementYear, durationMonths: number | null) => Promise<void>;
 }) {
   const [editingN7ForId, setEditingN7ForId] = useState<number | null>(null);
   const [n7EditValue, setN7EditValue] = useState("");
@@ -64,6 +66,9 @@ export function AgreementsTable({
   const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
   const [deptEditValue, setDeptEditValue] = useState("");
   const [deptErrors, setDeptErrors] = useState<Record<number, string>>({});
+  const [editingDurationForId, setEditingDurationForId] = useState<number | null>(null);
+  const [durationEditValue, setDurationEditValue] = useState("");
+  const [durationErrors, setDurationErrors] = useState<Record<number, string>>({});
   const [viewingRow, setViewingRow] = useState<AgreementRow | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
 
@@ -140,6 +145,32 @@ export function AgreementsTable({
       }
     } else {
       setEditingN7ForId(null);
+    }
+  }
+
+  function startEditDuration(yi: AgreementYear) {
+    setEditingDurationForId(yi.id);
+    setDurationEditValue(yi.duration_weeks !== null ? String(yi.duration_weeks) : "");
+    setDurationErrors((prev) => ({ ...prev, [yi.id]: "" }));
+  }
+
+  async function saveDuration(yi: AgreementYear) {
+    const raw = durationEditValue.trim();
+    const val = raw === "" ? null : parseInt(raw, 10);
+    if (val !== null && isNaN(val)) { setEditingDurationForId(null); return; }
+    if (val !== yi.duration_weeks) {
+      setDurationErrors((prev) => ({ ...prev, [yi.id]: "" }));
+      try {
+        await onEditYearDuration(yi, val);
+        setEditingDurationForId(null);
+      } catch (err) {
+        setDurationErrors((prev) => ({
+          ...prev,
+          [yi.id]: err instanceof Error ? err.message : "Impossible de modifier.",
+        }));
+      }
+    } else {
+      setEditingDurationForId(null);
     }
   }
 
@@ -363,6 +394,48 @@ export function AgreementsTable({
                 >
                   N7 : {yearInstance.n7_places}
                   {locked && <Lock className="ml-1 inline" size={9} />}
+                </button>
+              )}
+            </div>
+
+            {/* Durée de la mobilité inline-editable */}
+            <div className="flex items-center gap-1.5">
+              {!locked && editingDurationForId === yearInstance.id ? (
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[10px] text-gray-500">Durée :</span>
+                    <input
+                      autoFocus
+                      className={`w-14 rounded border px-1 py-0.5 text-xs text-center focus:outline-none focus:ring-1 ${durationErrors[yearInstance.id] ? "border-red-400 focus:ring-red-400" : "border-green-300 focus:ring-green-400"}`}
+                      min="1"
+                      placeholder="sem."
+                      onBlur={() => saveDuration(yearInstance)}
+                      onChange={(e) => setDurationEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter")  { void saveDuration(yearInstance); }
+                        if (e.key === "Escape") { setEditingDurationForId(null); setDurationErrors((p) => ({ ...p, [yearInstance.id]: "" })); }
+                      }}
+                      type="number"
+                      value={durationEditValue}
+                    />
+                    <span className="text-[10px] text-gray-400">sem.</span>
+                  </div>
+                  {durationErrors[yearInstance.id] && (
+                    <p className="mt-0.5 max-w-32 text-[10px] text-red-600">{durationErrors[yearInstance.id]}</p>
+                  )}
+                </div>
+              ) : (
+                <button
+                  className={`rounded px-1.5 py-0.5 text-xs font-semibold ${
+                    locked ? "cursor-default text-gray-500" : "text-green-700 hover:bg-green-50 cursor-text"
+                  }`}
+                  disabled={locked}
+                  onClick={() => !locked && startEditDuration(yearInstance)}
+                  title={locked ? "Validé — non modifiable" : "Cliquer pour modifier la durée de la mobilité (en semaines)"}
+                  type="button"
+                >
+                  Durée : {yearInstance.duration_weeks !== null ? `${yearInstance.duration_weeks} sem.` : "—"}
+                  {locked && yearInstance.duration_weeks !== null && <Lock className="ml-1 inline" size={9} />}
                 </button>
               )}
             </div>

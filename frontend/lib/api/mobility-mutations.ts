@@ -31,6 +31,7 @@ export type AgreementYearPayload = {
   is_active: boolean;
   inp_total_places: number;
   n7_places: number;
+  duration_weeks: number | null;
 };
 
 export type AgreementYearDepartmentPayload = {

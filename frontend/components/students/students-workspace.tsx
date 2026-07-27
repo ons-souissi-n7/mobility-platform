@@ -12,7 +12,6 @@ import { Toolbar } from "@/components/ui/toolbar";
 import {
   downloadStudentTemplate,
   exportStudentsExcel,
-  getStudentDetail,
   getStudentImportErrors,
   getStudentStatsForYear,
   getStudentsByYear,
@@ -33,11 +32,11 @@ import type {
   PagedResponse,
   Parcours,
   RawImport,
-  StudentDetail,
   StudentStats,
   StudentWithEnrollment,
 } from "@/lib/api/types";
 import { StudentImportErrorsPanel } from "./student-import-errors-panel";
+import { StudentDetailPanel } from "./student-detail-panel";
 
 // ---------------------------------------------------------------------------
 // Workspace
@@ -629,171 +628,6 @@ function EnrollmentTable({
         onPageChange={onPageChange}
         emptyLabel="Aucun étudiant"
       />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Student detail panel
-// ---------------------------------------------------------------------------
-
-function StudentDetailPanel({
-  student,
-  onClose,
-}: {
-  student: StudentWithEnrollment;
-  onClose: () => void;
-}) {
-  const [detail, setDetail] = useState<StudentDetail | null>(null);
-  const [loadedId, setLoadedId] = useState<number | null>(null);
-  const [loadError, setLoadError] = useState("");
-  const loading = loadedId !== student.student_id && !loadError;
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoadError("");
-
-    getStudentDetail(student.student_id)
-      .then((data) => {
-        if (cancelled) return;
-        setDetail(data);
-        setLoadedId(student.student_id);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : "Impossible de charger le détail de l'étudiant.");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [student.student_id]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
-
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">
-              {student.last_name.toUpperCase()} {student.first_name}
-            </h2>
-            <p className="mt-1 font-mono text-sm text-gray-500">{student.ine}</p>
-          </div>
-          <button
-            className="rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-            onClick={onClose}
-            title="Fermer"
-            type="button"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="space-y-6 px-6 py-5">
-
-          {/* Informations personnelles */}
-          <DetailSection title="Informations personnelles">
-            <div className="space-y-2">
-              <InfoRow label="Email" value={student.email || "—"} />
-              <InfoRow
-                label="Genre"
-                value={student.gender === "M" ? "Homme" : student.gender === "F" ? "Femme" : "—"}
-              />
-              <InfoRow
-                label="Nationalité"
-                value={student.nationality_name_fr ?? "—"}
-              />
-            </div>
-          </DetailSection>
-
-          {/* Inscription courante */}
-          <DetailSection title="Inscription (année en cours)">
-            <div className="space-y-2">
-              <InfoRow label="Département" value={student.department_code} />
-              <InfoRow label="Niveau" value={student.level_code} />
-              <InfoRow label="Parcours" value={student.parcours_code ?? "—"} />
-              <InfoRow
-                label="GPA"
-                value={student.gpa != null ? <span className="font-mono">{student.gpa}</span> : "—"}
-              />
-            </div>
-          </DetailSection>
-
-          {/* Historique */}
-          <DetailSection title="Historique des inscriptions">
-            {loadError ? (
-              <p className="text-sm text-red-600">{loadError}</p>
-            ) : loading ? (
-              <div className="space-y-2">
-                {[1, 2].map((i) => (
-                  <div key={i} className="h-12 animate-pulse rounded-md bg-gray-100" />
-                ))}
-              </div>
-            ) : detail?.enrollments.length ? (
-              <div className="space-y-3">
-                {detail.enrollments.map((e) => (
-                  <div key={e.id} className="rounded-md border border-gray-100 bg-gray-50 px-4 py-3">
-                    <p className="mb-2 text-sm font-semibold text-gray-800">{e.academic_year_label}</p>
-                    <div className="space-y-1.5">
-                      <InfoRow
-                        label="Département"
-                        value={
-                          <span className="rounded bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
-                            {e.department_code}
-                          </span>
-                        }
-                      />
-                      <InfoRow
-                        label="Niveau"
-                        value={
-                          <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                            {e.level_code}
-                          </span>
-                        }
-                      />
-                      <InfoRow
-                        label="Parcours"
-                        value={e.parcours_code ?? "—"}
-                      />
-                      <InfoRow
-                        label="GPA"
-                        value={
-                          e.gpa != null
-                            ? <span className="font-mono">{parseFloat(e.gpa).toFixed(2)}</span>
-                            : "—"
-                        }
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm italic text-gray-400">Aucune inscription enregistrée.</p>
-            )}
-          </DetailSection>
-
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DetailSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex gap-3">
-      <span className="w-28 shrink-0 text-xs text-gray-500">{label}</span>
-      <span className="text-sm text-gray-900">{value ?? "—"}</span>
     </div>
   );
 }
