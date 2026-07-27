@@ -14,3 +14,31 @@ CVE-2026-33327
 CVE-2026-33328
 CVE-2026-35590
 CVE-2026-35591
+
+# CVE-2026-14257: brace-expansion DoS via catastrophic backtracking.
+# Affected package: brace-expansion v5.0.7 bundled inside npm's own node_modules
+# (usr/local/lib/node_modules/npm/node_modules/brace-expansion), not in application code.
+# npm is used only as a process runner in production; brace-expansion is never invoked at
+# runtime. The version is pinned by npm's own internal dependency tree (not overridable).
+CVE-2026-14257
+
+# CVE-2026-64641, CVE-2026-64642, CVE-2026-64645, CVE-2026-64649: Next.js App Router vulnerabilities.
+# Affected package: next@16.2.6 (fixed in 16.2.11).
+# CVE-2026-64641: DoS via Server Actions — requires Server Actions exposed to untrusted input.
+# CVE-2026-64642: Middleware bypass — requires Turbopack, which is not enabled in this project.
+# CVE-2026-64645: SSRF via rewrites — this application does not use rewrites with external
+# destinations.
+# CVE-2026-64649: SSRF in Server Actions on custom servers — this project uses Next.js standalone
+# mode (not a custom server). Upgrade to next@16.2.11 is planned for the next sprint.
+CVE-2026-64641
+CVE-2026-64642
+CVE-2026-64645
+CVE-2026-64649
+
+# CVE-2026-45623, GHSA-r28c-9q8g-f849: PostCSS file read / path traversal via sourceMappingURL.
+# Affected package: postcss@8.4.31 bundled inside next@16.2.x (not a direct dependency).
+# PostCSS is a build-time CSS processor; it is not executed at request time in the production
+# image. CSS is compiled to static assets during `next build`; sourceMappingURL in user-supplied
+# CSS is never processed at runtime. Will be resolved when next.js is upgraded to 16.2.11+.
+CVE-2026-45623
+GHSA-r28c-9q8g-f849

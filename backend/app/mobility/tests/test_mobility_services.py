@@ -312,7 +312,7 @@ class TestHamilton:
 
     def test_more_depts_than_places(self):
         # 5 places pour 8 depts → 5 depts reçoivent 1, 3 depts reçoivent 0
-        result = self._hamilton(5, {i: 1 for i in range(8)})
+        result = self._hamilton(5, dict.fromkeys(range(8), 1))
         assert sum(result.values()) == 5
         assert list(result.values()).count(1) == 5
         assert list(result.values()).count(0) == 3
