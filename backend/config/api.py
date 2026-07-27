@@ -4,6 +4,7 @@ from app.academic.api import router as academic_router
 from app.alerts.api import router as alerts_router
 from app.audit.api import router as audit_router
 from app.complementary.api import router as complementary_router
+from app.cti.api import router as cti_router
 from app.imports.api import router as imports_router
 from app.incoming.api import router as incoming_router
 from app.institutions.api import router as institutions_router
@@ -34,3 +35,4 @@ api.add_router("/student/", student_portal_router, tags=["Student Portal"])
 api.add_router("/internships/", internships_router, tags=["Internships"])
 api.add_router("/incoming/", incoming_router, tags=["Incoming"])
 api.add_router("/complementary/", complementary_router, tags=["Complementary Mobility"])
+api.add_router("/cti/", cti_router, tags=["CTI"])

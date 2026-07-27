@@ -82,6 +82,7 @@ class AgreementYearIn(Schema):
     is_active: bool = True
     inp_total_places: int = 0
     n7_places: int = 0
+    duration_weeks: int | None = None
 
 
 class AgreementYearOut(Schema):
@@ -92,6 +93,7 @@ class AgreementYearOut(Schema):
     is_active: bool
     inp_total_places: int
     n7_places: int
+    duration_weeks: int | None
     is_validated: bool
     validated_by: str
     validated_at: datetime | None

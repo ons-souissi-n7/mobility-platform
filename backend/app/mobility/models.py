@@ -147,6 +147,12 @@ class AgreementYear(TimeStampedModel):
     is_validated = models.BooleanField(default=False)
     validated_by = models.CharField(max_length=255, blank=True)
     validated_at = models.DateTimeField(null=True, blank=True)
+    duration_weeks = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Durée (semaines)",
+        help_text="Durée standard du séjour en semaines, utilisée pour le calcul CTI.",
+    )
 
     class Meta:
         verbose_name = "Agreement Year"

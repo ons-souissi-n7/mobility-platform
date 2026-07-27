@@ -1,0 +1,50 @@
+from django.shortcuts import get_object_or_404
+from ninja import Router
+
+from app.cti.schemas import MobilityDurationOut, MobilityHistoryOut
+from app.cti.services import (
+    compute_cti_duration,
+    get_student_mobility_history,
+    refresh_cti_duration,
+)
+from app.students.models import Student
+
+router = Router()
+
+
+@router.get(
+    "/students/{ine}/duration/",
+    response=MobilityDurationOut,
+    summary="Durée de mobilité d'un étudiant (calcul à la volée)",
+)
+def get_cti_duration(request, ine: str):
+    student = get_object_or_404(Student, ine=ine)
+    data = compute_cti_duration(student)
+    return {"ine": ine, **data}
+
+
+@router.post(
+    "/students/{ine}/duration/refresh/",
+    response=MobilityDurationOut,
+    summary="Recalculer et persister la durée de mobilité",
+)
+def refresh_student_cti_duration(request, ine: str):
+    student = get_object_or_404(Student, ine=ine)
+    obj = refresh_cti_duration(student)
+    return {
+        "ine": ine,
+        "exchange_weeks": float(obj.exchange_weeks),
+        "internship_weeks": float(obj.internship_weeks),
+        "complementary_weeks": float(obj.complementary_weeks),
+        "total_weeks": float(obj.total_weeks),
+    }
+
+
+@router.get(
+    "/students/{ine}/history/",
+    response=MobilityHistoryOut,
+    summary="Historique complet des mobilités d'un étudiant (admin)",
+)
+def get_student_history(request, ine: str):
+    student = get_object_or_404(Student, ine=ine)
+    return get_student_mobility_history(student)
