@@ -96,6 +96,7 @@ export type AgreementYear = {
   is_active: boolean;
   inp_total_places: number;
   n7_places: number;
+  duration_weeks: number | null;
   is_validated: boolean;
   validated_by: string;
   validated_at: string | null;
