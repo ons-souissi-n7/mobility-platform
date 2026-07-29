@@ -339,10 +339,17 @@ def reject_mobility(request, mobility_id: int, payload: RejectIn):
     summary="Modifier le statut / motif d'une mobilité complémentaire (admin)",
 )
 def update_mobility(request, mobility_id: int, payload: MobilityEditIn):
-    valid_statuses = {MobilityStatus.PENDING, MobilityStatus.VALIDATED, MobilityStatus.REJECTED}
+    valid_statuses = {
+        MobilityStatus.PENDING,
+        MobilityStatus.VALIDATED,
+        MobilityStatus.REJECTED,
+    }
     if payload.status not in valid_statuses:
         raise HttpError(400, f"Statut invalide : {payload.status}.")
-    if payload.status == MobilityStatus.REJECTED and not payload.rejection_reason.strip():
+    if (
+        payload.status == MobilityStatus.REJECTED
+        and not payload.rejection_reason.strip()
+    ):
         raise HttpError(400, "Le motif de rejet est obligatoire.")
     try:
         mob = ComplementaryMobility.objects.select_related(
@@ -351,7 +358,11 @@ def update_mobility(request, mobility_id: int, payload: MobilityEditIn):
     except ComplementaryMobility.DoesNotExist as exc:
         raise HttpError(404, "Mobilité introuvable.") from exc
     mob.status = payload.status
-    mob.rejection_reason = payload.rejection_reason.strip() if payload.status == MobilityStatus.REJECTED else ""
+    mob.rejection_reason = (
+        payload.rejection_reason.strip()
+        if payload.status == MobilityStatus.REJECTED
+        else ""
+    )
     mob.save(update_fields=["status", "rejection_reason"])
     if payload.status != MobilityStatus.PENDING:
         _resolve_mobility_alert(mob)
@@ -373,7 +384,9 @@ def update_mobility(request, mobility_id: int, payload: MobilityEditIn):
 )
 def delete_mobility(request, mobility_id: int):
     try:
-        mob = ComplementaryMobility.objects.select_related("student", "academic_year").get(pk=mobility_id)
+        mob = ComplementaryMobility.objects.select_related(
+            "student", "academic_year"
+        ).get(pk=mobility_id)
     except ComplementaryMobility.DoesNotExist as exc:
         raise HttpError(404, "Mobilité introuvable.") from exc
     log_action(

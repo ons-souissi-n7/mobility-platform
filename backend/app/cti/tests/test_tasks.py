@@ -10,7 +10,9 @@ import pytest
 
 class TestEnqueueRefreshCtiDurations:
     def test_returns_task_id(self):
-        with patch("app.cti.tasks.async_task", return_value="task-id-123") as mock_async:
+        with patch(
+            "app.cti.tasks.async_task", return_value="task-id-123"
+        ) as mock_async:
             from app.cti.tasks import enqueue_refresh_cti_durations
 
             result = enqueue_refresh_cti_durations(42, triggered_by="admin")
@@ -52,8 +54,10 @@ class TestRunRefreshCtiDurations:
             end_date=date(2025, 8, 31),
         )
 
-        with patch("app.cti.services.refresh_cti_duration") as mock_refresh, \
-             patch("app.cti.services_export._get_terminal_enrolled", return_value=[]):
+        with (
+            patch("app.cti.services.refresh_cti_duration") as mock_refresh,
+            patch("app.cti.services_export._get_terminal_enrolled", return_value=[]),
+        ):
             run_refresh_cti_durations(year.id, triggered_by="test")
             mock_refresh.assert_not_called()
 
@@ -71,7 +75,12 @@ class TestRunRefreshCtiDurations:
         mock_enrollment = MagicMock()
         mock_enrollment.student = MagicMock()
 
-        with patch("app.cti.services.refresh_cti_duration") as mock_refresh, \
-             patch("app.cti.services_export._get_terminal_enrolled", return_value=[mock_enrollment, mock_enrollment]):
+        with (
+            patch("app.cti.services.refresh_cti_duration") as mock_refresh,
+            patch(
+                "app.cti.services_export._get_terminal_enrolled",
+                return_value=[mock_enrollment, mock_enrollment],
+            ),
+        ):
             run_refresh_cti_durations(year.id)
             assert mock_refresh.call_count == 2

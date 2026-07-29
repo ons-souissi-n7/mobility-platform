@@ -166,6 +166,7 @@ class AcademicYear(TimeStampedModel):
         # Auto-resolve all open alerts linked to this year
         now = timezone.now()
         from app.alerts.models import SystemAlert  # noqa: PLC0415
+
         SystemAlert.objects.filter(academic_year=self, is_read=False).update(
             is_read=True, read_at=now
         )

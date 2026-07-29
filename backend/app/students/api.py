@@ -441,7 +441,9 @@ def list_students_by_year(
 )
 def delete_enrollment(request, enrollment_id: int):
     try:
-        enrollment = AnnualEnrollment.objects.select_related("student", "academic_year").get(pk=enrollment_id)
+        enrollment = AnnualEnrollment.objects.select_related(
+            "student", "academic_year"
+        ).get(pk=enrollment_id)
     except AnnualEnrollment.DoesNotExist as exc:
         raise HttpError(404, "Inscription introuvable.") from exc
     log_action(
@@ -510,8 +512,12 @@ def update_enrollment(request, enrollment_id: int, payload: EnrollmentPatchIn):
         last_name=enrollment.student.last_name,
         email=enrollment.student.email or "",
         gender=enrollment.student.gender or "",
-        nationality_iso2=enrollment.student.nationality.iso2 if enrollment.student.nationality_id else None,
-        nationality_name_fr=enrollment.student.nationality.name_fr if enrollment.student.nationality_id else None,
+        nationality_iso2=enrollment.student.nationality.iso2
+        if enrollment.student.nationality_id
+        else None,
+        nationality_name_fr=enrollment.student.nationality.name_fr
+        if enrollment.student.nationality_id
+        else None,
         department_id=dept.id,
         department_code=dept.code,
         department_name=dept.name,

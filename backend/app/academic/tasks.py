@@ -22,7 +22,9 @@ def _alert_transition_failed(
         f"mais l'année est actuellement en état « {year.status} ». "
         f"La transition a été annulée. Une intervention manuelle est nécessaire."
     )
-    SystemAlert.objects.create(level="error", title=title, message=message, academic_year=year)
+    SystemAlert.objects.create(
+        level="error", title=title, message=message, academic_year=year
+    )
 
 
 def _alert_transition_failed_close(year: AcademicYear) -> None:
@@ -51,7 +53,9 @@ def _alert_transition_failed_close(year: AcademicYear) -> None:
         f"mais la clôture automatique (finalization → closed) ne peut pas s'exécuter. "
         f"{hint}"
     )
-    SystemAlert.objects.create(level="error", title=title, message=message, academic_year=year)
+    SystemAlert.objects.create(
+        level="error", title=title, message=message, academic_year=year
+    )
 
 
 def _add_one_year(d: date) -> date:

@@ -91,10 +91,18 @@ class TestGetCtiStats:
         assert response.status_code == 200
         data = response.json()
         for field in (
-            "academic_year_label", "enrolled_fise", "enrolled_fisa",
-            "exchanges", "internships", "incoming",
-            "dd_outgoing", "dd_incoming",
-            "pct_fise", "pct_fisa", "avg_months_fise", "avg_months_fisa",
+            "academic_year_label",
+            "enrolled_fise",
+            "enrolled_fisa",
+            "exchanges",
+            "internships",
+            "incoming",
+            "dd_outgoing",
+            "dd_incoming",
+            "pct_fise",
+            "pct_fisa",
+            "avg_months_fise",
+            "avg_months_fisa",
         ):
             assert field in data, f"champ manquant : {field}"
 
@@ -128,7 +136,9 @@ class TestGetCtiStats:
         assert "femmes" in row
         assert "total" in row
 
-    def test_dd_outgoing_counts_dd_fise_exchange_by_region(self, client, academic_year, db):
+    def test_dd_outgoing_counts_dd_fise_exchange_by_region(
+        self, client, academic_year, db
+    ):
         from app.institutions.models import PartnerUniversity
         from app.mobility.models import Agreement, AgreementYear, MobilityCategory
         from app.outgoing.models import Assignment, AssignmentResult, SlotType
@@ -139,30 +149,51 @@ class TestGetCtiStats:
 
         level = Level.objects.create(code="3ING", name="3ème année", is_terminal=True)
         dept = Department.objects.create(code="SN", name="Sciences du Numérique")
-        parc = Parcours.objects.create(code="IA", label="Intelligence Artificielle", department=dept)
+        parc = Parcours.objects.create(
+            code="IA", label="Intelligence Artificielle", department=dept
+        )
         cat_dd = MobilityCategory.objects.create(name="DD")
         country_ca = Country.objects.create(
-            iso2="CA", name_fr="Canada", name_en="Canada",
+            iso2="CA",
+            name_fr="Canada",
+            name_en="Canada",
             cti_region=CTIRegion.CANADA_USA,
         )
-        pu = PartnerUniversity.objects.create(name="Univ. Laval", country=country_ca, city="Québec")
-        ag = Agreement.objects.create(name="DD Laval", partner_university=pu, category=cat_dd)
+        pu = PartnerUniversity.objects.create(
+            name="Univ. Laval", country=country_ca, city="Québec"
+        )
+        ag = Agreement.objects.create(
+            name="DD Laval", partner_university=pu, category=cat_dd
+        )
         ay = AgreementYear.objects.create(
-            agreement=ag, academic_year=year, duration_weeks=40,
-            is_active=True, n7_places=2, inp_total_places=2,
+            agreement=ag,
+            academic_year=year,
+            duration_weeks=40,
+            is_active=True,
+            n7_places=2,
+            inp_total_places=2,
         )
         student = Student.objects.create(
-            ine="CTIDDT0001B", first_name="Marc", last_name="Roux",
-            email="marc.roux@test.fr", gender="M",
+            ine="CTIDDT0001B",
+            first_name="Marc",
+            last_name="Roux",
+            email="marc.roux@test.fr",
+            gender="M",
         )
         enrollment = AnnualEnrollment.objects.create(
-            student=student, academic_year=year, level=level,
-            department=dept, parcours=parc, is_alternant=False,
+            student=student,
+            academic_year=year,
+            level=level,
+            department=dept,
+            parcours=parc,
+            is_alternant=False,
         )
         assignment = Assignment.objects.create(academic_year=year, status="published")
         AssignmentResult.objects.create(
-            assignment=assignment, annual_enrollment=enrollment,
-            agreement_year=ay, slot_type=SlotType.DEPT,
+            assignment=assignment,
+            annual_enrollment=enrollment,
+            agreement_year=ay,
+            slot_type=SlotType.DEPT,
         )
 
         response = client.get(f"/stats/?academic_year_id={year.id}")
@@ -173,21 +204,29 @@ class TestGetCtiStats:
         assert canada["femmes"] == 0
         assert canada["total"] == 1
 
-    def test_dd_incoming_counts_incoming_students_with_dd_category(self, client, academic_year, db):
+    def test_dd_incoming_counts_incoming_students_with_dd_category(
+        self, client, academic_year, db
+    ):
         from app.incoming.models import IncomingStudent
         from app.mobility.models import MobilityCategory
         from app.reference.models import Country, CTIRegion
 
         cat_dd = MobilityCategory.objects.create(name="DD_inc")
         country_sn = Country.objects.create(
-            iso2="SN", name_fr="Sénégal", name_en="Senegal",
+            iso2="SN",
+            name_fr="Sénégal",
+            name_en="Senegal",
             cti_region=CTIRegion.AFRIQUE,
         )
         IncomingStudent.objects.create(
-            first_name="Fatou", last_name="Diallo",
-            civility="Mme", personal_email="fatou@ext.test",
-            academic_year=academic_year, country=country_sn,
-            duration="2 semestres", mobility_category=cat_dd,
+            first_name="Fatou",
+            last_name="Diallo",
+            civility="Mme",
+            personal_email="fatou@ext.test",
+            academic_year=academic_year,
+            country=country_sn,
+            duration="2 semestres",
+            mobility_category=cat_dd,
         )
 
         response = client.get(f"/stats/?academic_year_id={academic_year.id}")
@@ -238,16 +277,24 @@ class TestExportCtiReport:
         from app.students.models import Student
 
         country = Country.objects.create(
-            iso2="DE", name_fr="Allemagne", name_en="Germany",
+            iso2="DE",
+            name_fr="Allemagne",
+            name_en="Germany",
             cti_region=CTIRegion.EUROPE_HORS_FRANCE,
         )
         student = Student.objects.create(
-            ine="EXPTEST01B", first_name="Ana", last_name="Müller",
-            email="a.muller@example.com", gender="F",
+            ine="EXPTEST01B",
+            first_name="Ana",
+            last_name="Müller",
+            email="a.muller@example.com",
+            gender="F",
         )
         Internship.objects.create(
-            student=student, academic_year=academic_year,
-            company_name="Siemens AG", country=country, weeks_in_company=24,
+            student=student,
+            academic_year=academic_year,
+            company_name="Siemens AG",
+            country=country,
+            weeks_in_company=24,
         )
 
         response = client.get(f"/export/?academic_year_id={academic_year.id}")
