@@ -5,7 +5,7 @@ from ninja import Router
 from ninja.errors import HttpError
 
 from app.audit.logger import log_action
-from app.mobility.models import AgreementYear, AgreementYearDepartment
+from app.mobility.models import AgreementYear
 from app.mobility.services.quota_estimator import (
     initialize_new_year_mobility,
     redistribute_department_quotas,
@@ -91,6 +91,7 @@ def update_academic_year(request, year_id: int, payload: AcademicYearIn):
         AcademicYear.CampaignStatus.PRE_ASSIGNMENT,
         AcademicYear.CampaignStatus.VALIDATION,
         AcademicYear.CampaignStatus.PUBLISHED,
+        AcademicYear.CampaignStatus.FINALIZATION,
     }
     if academic_year.status in locked_statuses:
         if (
@@ -186,9 +187,34 @@ def close_wishes(request, year_id: int):
 
 
 @router.post(
+    "/years/{year_id}/finalize-cti/",
+    response=AcademicYearOut,
+    summary="Finaliser les statistiques CTI (published → finalization)",
+)
+def finalize_cti(request, year_id: int):
+    from app.cti.tasks import enqueue_refresh_cti_durations
+
+    academic_year = get_academic_year(year_id)
+    result = apply_transition(academic_year, "finalize_cti")
+
+    triggered_by = getattr(request.user, "username", "")
+    enqueue_refresh_cti_durations(year_id, triggered_by=triggered_by)
+
+    log_action(
+        request,
+        action="finalize_cti",
+        detail=(
+            f"Année {academic_year.label} — finalisation CTI lancée, "
+            f"calcul des durées de mobilité en cours (tâche asynchrone)."
+        ),
+    )
+    return result
+
+
+@router.post(
     "/years/{year_id}/close/",
     response=AcademicYearOut,
-    summary="Clôturer l'année universitaire (published → closed)",
+    summary="Clôturer l'année universitaire (finalization → closed)",
 )
 def close_year(request, year_id: int):
     academic_year = get_academic_year(year_id)
@@ -234,6 +260,7 @@ def launch_assignment(request, year_id: int):
                 f"mais aucun vœu étudiant n'a été enregistré. "
                 f"Tous les étudiants seront marqués « non affectés »."
             ),
+            academic_year=academic_year,
         )
 
     triggered_by = getattr(request.user, "username", "")
@@ -296,8 +323,8 @@ def _auto_validate_agreement_years(academic_year: AcademicYear) -> None:
     now = timezone.now()
     for ay in AgreementYear.objects.filter(
         academic_year=academic_year, is_active=True, is_validated=False
-    ):
-        depts = list(AgreementYearDepartment.objects.filter(agreement_year=ay))
+    ).prefetch_related("department_quotas"):
+        depts = list(ay.department_quotas.all())
         dept_total = sum(dq.get_effective_quota() for dq in depts)
         if depts and dept_total != ay.n7_places:
             redistribute_department_quotas(ay)

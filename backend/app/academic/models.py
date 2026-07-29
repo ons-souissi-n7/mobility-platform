@@ -17,6 +17,7 @@ class AcademicYear(TimeStampedModel):
         PRE_ASSIGNMENT = "pre_assignment", "Pré-affectation"
         VALIDATION = "validation", "Validation"
         PUBLISHED = "published", "Publiée"
+        FINALIZATION = "finalization", "Finalisation CTI"
         CLOSED = "closed", "Clôturée"
 
     label = models.CharField(max_length=20, unique=True)
@@ -150,10 +151,24 @@ class AcademicYear(TimeStampedModel):
     @transition(
         field=status,
         source=CampaignStatus.PUBLISHED,
+        target=CampaignStatus.FINALIZATION,
+    )
+    def finalize_cti(self) -> None:
+        pass
+
+    @transition(
+        field=status,
+        source=CampaignStatus.FINALIZATION,
         target=CampaignStatus.CLOSED,
     )
     def close(self) -> None:
         self.closed_at = timezone.now()
+        # Auto-resolve all open alerts linked to this year
+        now = timezone.now()
+        from app.alerts.models import SystemAlert  # noqa: PLC0415
+        SystemAlert.objects.filter(academic_year=self, is_read=False).update(
+            is_read=True, read_at=now
+        )
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
