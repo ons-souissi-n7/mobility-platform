@@ -102,9 +102,9 @@ class TestAutoCloseWishes:
 
 @pytest.mark.django_db
 class TestAutoCloseAcademicYear:
-    def test_closes_published_year_when_end_date_reached(self):
+    def test_closes_finalization_year_when_end_date_reached(self):
         today = timezone.now().date()
-        year = _make_year("TEST-CLOSE", "published")
+        year = _make_year("TEST-CLOSE", "finalization")
         AcademicYear.objects.filter(pk=year.pk).update(end_date=today)
 
         auto_close_academic_year()
@@ -115,7 +115,7 @@ class TestAutoCloseAcademicYear:
 
     def test_does_not_close_when_end_date_in_future(self):
         today = timezone.now().date()
-        year = _make_year("TEST-FUTURE", "published")
+        year = _make_year("TEST-FUTURE", "finalization")
         AcademicYear.objects.filter(pk=year.pk).update(
             end_date=today + timedelta(days=1)
         )
@@ -123,9 +123,19 @@ class TestAutoCloseAcademicYear:
         auto_close_academic_year()
 
         year = AcademicYear.objects.get(pk=year.pk)
+        assert year.status == AcademicYear.CampaignStatus.FINALIZATION
+
+    def test_does_not_close_published_year_without_cti_finalization(self):
+        today = timezone.now().date()
+        year = _make_year("TEST-PUB", "published")
+        AcademicYear.objects.filter(pk=year.pk).update(end_date=today)
+
+        auto_close_academic_year()
+
+        year = AcademicYear.objects.get(pk=year.pk)
         assert year.status == AcademicYear.CampaignStatus.PUBLISHED
 
-    def test_does_not_close_year_not_in_published(self):
+    def test_does_not_close_year_not_in_finalization(self):
         today = timezone.now().date()
         year = _make_year("TEST-PRE", "pre_assignment")
         AcademicYear.objects.filter(pk=year.pk).update(end_date=today)
