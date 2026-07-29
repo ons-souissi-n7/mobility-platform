@@ -31,6 +31,7 @@ from .models import AnnualEnrollment, Student
 from .schemas import (
     CrossStatOut,
     DepartmentStatOut,
+    EnrollmentPatchIn,
     LevelStatOut,
     ParcoursStatOut,
     ReconciliationCandidateOut,
@@ -400,6 +401,7 @@ def list_students_by_year(
     count, enrollments = paginate(qs, pagination.page, pagination.page_size)
     items = [
         StudentEnrollmentOut(
+            enrollment_id=e.id,
             student_id=e.student.id,
             ine=e.student.ine,
             first_name=e.student.first_name,
@@ -429,6 +431,99 @@ def list_students_by_year(
     ]
     return PagedResponse(
         count=count, page=pagination.page, page_size=pagination.page_size, results=items
+    )
+
+
+@router.delete(
+    "/students/enrollments/{enrollment_id}/",
+    response={204: None},
+    summary="Supprimer une inscription étudiant",
+)
+def delete_enrollment(request, enrollment_id: int):
+    try:
+        enrollment = AnnualEnrollment.objects.select_related("student", "academic_year").get(pk=enrollment_id)
+    except AnnualEnrollment.DoesNotExist as exc:
+        raise HttpError(404, "Inscription introuvable.") from exc
+    log_action(
+        request,
+        action="delete_enrollment",
+        detail=(
+            f"Inscription #{enrollment_id} supprimée — "
+            f"{enrollment.student.last_name} {enrollment.student.first_name} "
+            f"({enrollment.student.ine}), {enrollment.academic_year.label}"
+        ),
+    )
+    enrollment.delete()
+    return 204, None
+
+
+@router.patch(
+    "/students/enrollments/{enrollment_id}/",
+    response=StudentEnrollmentOut,
+    summary="Modifier une inscription étudiant",
+)
+def update_enrollment(request, enrollment_id: int, payload: EnrollmentPatchIn):
+    try:
+        enrollment = AnnualEnrollment.objects.select_related(
+            "student", "academic_year", "department", "level", "parcours"
+        ).get(pk=enrollment_id)
+    except AnnualEnrollment.DoesNotExist as exc:
+        raise HttpError(404, "Inscription introuvable.") from exc
+
+    dept = Department.objects.filter(pk=payload.department_id).first()
+    if not dept:
+        raise HttpError(400, f"Département {payload.department_id} introuvable.")
+
+    level = Level.objects.filter(pk=payload.level_id).first()
+    if not level:
+        raise HttpError(400, f"Niveau {payload.level_id} introuvable.")
+
+    parcours = None
+    if payload.parcours_id is not None:
+        parcours = Parcours.objects.filter(pk=payload.parcours_id).first()
+        if not parcours:
+            raise HttpError(400, f"Parcours {payload.parcours_id} introuvable.")
+
+    enrollment.department = dept
+    enrollment.level = level
+    enrollment.parcours = parcours
+    enrollment.gpa = payload.gpa
+    enrollment.is_alternant = payload.is_alternant
+    enrollment.is_scholarship = payload.is_scholarship
+    enrollment.save()
+
+    log_action(
+        request,
+        action="update_enrollment",
+        detail=(
+            f"Inscription #{enrollment_id} modifiée — "
+            f"{enrollment.student.last_name} {enrollment.student.first_name} "
+            f"({enrollment.student.ine})"
+        ),
+    )
+
+    return StudentEnrollmentOut(
+        enrollment_id=enrollment.id,
+        student_id=enrollment.student.id,
+        ine=enrollment.student.ine,
+        first_name=enrollment.student.first_name,
+        last_name=enrollment.student.last_name,
+        email=enrollment.student.email or "",
+        gender=enrollment.student.gender or "",
+        nationality_iso2=enrollment.student.nationality.iso2 if enrollment.student.nationality_id else None,
+        nationality_name_fr=enrollment.student.nationality.name_fr if enrollment.student.nationality_id else None,
+        department_id=dept.id,
+        department_code=dept.code,
+        department_name=dept.name,
+        level_id=level.id,
+        level_code=level.code,
+        level_name=level.name,
+        parcours_id=parcours.id if parcours else None,
+        parcours_code=parcours.code if parcours else None,
+        parcours_label=parcours.label if parcours else None,
+        gpa=enrollment.gpa,
+        is_alternant=enrollment.is_alternant,
+        is_scholarship=enrollment.is_scholarship,
     )
 
 

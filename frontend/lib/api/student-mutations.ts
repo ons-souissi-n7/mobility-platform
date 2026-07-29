@@ -128,6 +128,29 @@ export function getReconciliationCandidates(rawImportId: number): Promise<Reconc
   );
 }
 
+export function deleteStudentEnrollment(enrollmentId: number): Promise<void> {
+  return browserApi<void>(`/students/students/enrollments/${enrollmentId}/`, { method: "DELETE" });
+}
+
+export type EnrollmentPatch = {
+  department_id: number;
+  level_id: number;
+  parcours_id: number | null;
+  gpa: string | null;
+  is_alternant: boolean;
+  is_scholarship: boolean;
+};
+
+export function updateStudentEnrollment(
+  enrollmentId: number,
+  payload: EnrollmentPatch,
+): Promise<StudentWithEnrollment> {
+  return browserApi<StudentWithEnrollment>(
+    `/students/students/enrollments/${enrollmentId}/`,
+    { method: "PATCH", body: payload },
+  );
+}
+
 export async function downloadStudentTemplate(): Promise<void> {
   await downloadBlob(
     `${publicApiBaseUrl}/students/students/template/`,

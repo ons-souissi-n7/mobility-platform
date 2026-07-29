@@ -139,6 +139,7 @@ class StudentStatsOut(Schema):
 
 
 class StudentEnrollmentOut(Schema):
+    enrollment_id: int
     student_id: int
     ine: str
     first_name: str
@@ -157,6 +158,15 @@ class StudentEnrollmentOut(Schema):
     parcours_code: str | None
     parcours_label: str | None
     gpa: Decimal | None
+    is_alternant: bool
+    is_scholarship: bool
+
+
+class EnrollmentPatchIn(Schema):
+    department_id: int
+    level_id: int
+    parcours_id: int | None = None
+    gpa: Decimal | None = None
     is_alternant: bool
     is_scholarship: bool
 

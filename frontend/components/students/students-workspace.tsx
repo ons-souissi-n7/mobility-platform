@@ -10,6 +10,7 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/config";
 import { StatCard } from "@/components/ui/stat-card";
 import { Toolbar } from "@/components/ui/toolbar";
 import {
+  deleteStudentEnrollment,
   downloadStudentTemplate,
   exportStudentsExcel,
   getStudentImportErrors,
@@ -19,9 +20,12 @@ import {
   importStudentsFromExcel,
   retryStudentImportError,
   syncStudentsFromPegase,
+  updateStudentEnrollment,
+  type EnrollmentPatch,
   type StudentByYearFilters,
   type StudentImportCorrection,
 } from "@/lib/api/student-mutations";
+import { ActionButtons } from "@/components/ui/action-buttons";
 
 const ERRORS_PAGE_SIZE = 25;
 import type {
@@ -35,6 +39,7 @@ import type {
   StudentStats,
   StudentWithEnrollment,
 } from "@/lib/api/types";
+import { Modal } from "@/components/ui/modal";
 import { StudentImportErrorsPanel } from "./student-import-errors-panel";
 import { StudentDetailPanel } from "./student-detail-panel";
 
@@ -79,6 +84,7 @@ export function StudentsWorkspace({
   const [errorsPage, setErrorsPage] = useState(1);
   const [error, setError] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<StudentWithEnrollment | null>(null);
+  const [editModal, setEditModal] = useState<{ item: StudentWithEnrollment } | null>(null);
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -283,9 +289,40 @@ export function StudentsWorkspace({
     }
   }
 
+  async function handleDeleteEnrollment(enrollment: StudentWithEnrollment) {
+    if (!window.confirm(`Supprimer l'inscription de ${enrollment.last_name} ${enrollment.first_name} (${enrollment.ine}) ? Cette action est irréversible.`)) return;
+    setError("");
+    try {
+      await deleteStudentEnrollment(enrollment.enrollment_id);
+      setPagedData((prev) => prev ? {
+        ...prev,
+        count: prev.count - 1,
+        results: prev.results.filter((e) => e.enrollment_id !== enrollment.enrollment_id),
+      } : prev);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de supprimer l'inscription.");
+    }
+  }
+
+  async function handleSubmitEdit(patch: EnrollmentPatch) {
+    if (!editModal) return;
+    setError("");
+    try {
+      const updated = await updateStudentEnrollment(editModal.item.enrollment_id, patch);
+      setPagedData((prev) => prev ? {
+        ...prev,
+        results: prev.results.map((e) => e.enrollment_id === updated.enrollment_id ? updated : e),
+      } : prev);
+      setEditModal(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de modifier l'inscription.");
+    }
+  }
+
   const hasFilter = !!(filterLevel || filterDept || filterParcours);
   const isBusy = importInProgress || syncInProgress || isLoading;
   const isLocked = !!selectedYear && selectedYear.status !== "initialization";
+  const canModify = !!selectedYear && !isLocked;
 
   const sortedLevels = useMemo(() => [...levels].sort((a, b) => a.code.localeCompare(b.code)), [levels]);
   const sortedDepts = useMemo(() => [...departments].sort((a, b) => a.code.localeCompare(b.code)), [departments]);
@@ -430,6 +467,23 @@ export function StudentsWorkspace({
 
       <ErrorBanner message={error} />
 
+      {editModal && (
+        <Modal
+          title="Modifier l'inscription"
+          description={`${editModal.item.last_name} ${editModal.item.first_name} — ${editModal.item.ine}`}
+          onClose={() => setEditModal(null)}
+        >
+          <EnrollmentEditForm
+            item={editModal.item}
+            departments={departments}
+            levels={levels}
+            parcourses={parcourses}
+            onCancel={() => setEditModal(null)}
+            onSubmit={handleSubmitEdit}
+          />
+        </Modal>
+      )}
+
       {selectedStudent && (
         <StudentDetailPanel student={selectedStudent} onClose={() => setSelectedStudent(null)} />
       )}
@@ -442,7 +496,11 @@ export function StudentsWorkspace({
             page={currentPage}
             pageSize={DEFAULT_PAGE_SIZE}
             isBusy={isBusy}
+            canEdit={canModify}
+            canDelete={canModify}
+            onEdit={(e) => setEditModal({ item: e })}
             onView={setSelectedStudent}
+            onDelete={handleDeleteEnrollment}
             onPageChange={handlePageChange}
           />
         ) : (
@@ -457,7 +515,7 @@ export function StudentsWorkspace({
           countries={countries}
           departments={departments}
           errors={importErrors}
-          isBusy={isBusy || isLocked}
+          isBusy={isBusy}
           levels={levels}
           onIgnore={handleIgnoreImportError}
           onRetry={handleRetryImportError}
@@ -531,7 +589,11 @@ function EnrollmentTable({
   page,
   pageSize,
   isBusy,
+  canEdit = true,
+  canDelete = true,
   onView,
+  onEdit,
+  onDelete,
   onPageChange,
 }: {
   items: StudentWithEnrollment[];
@@ -539,7 +601,11 @@ function EnrollmentTable({
   page: number;
   pageSize: number;
   isBusy: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
   onView: (s: StudentWithEnrollment) => void;
+  onEdit: (s: StudentWithEnrollment) => void;
+  onDelete: (s: StudentWithEnrollment) => void;
   onPageChange: (page: number) => void;
 }) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -605,14 +671,24 @@ function EnrollmentTable({
                     : <span className="text-xs italic text-gray-300">—</span>}
                 </Td>
                 <td className="px-4 py-3 text-right">
-                  <button
-                    className="rounded-md border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
-                    onClick={() => onView(e)}
-                    title="Voir le détail"
-                    type="button"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      className="rounded-md border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                      onClick={() => onView(e)}
+                      title="Voir le détail"
+                      type="button"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </button>
+                    <ActionButtons
+                      onEdit={() => onEdit(e)}
+                      editDisabled={!canEdit}
+                      editDisabledTitle="Non autorisé dans cette phase"
+                      onDelete={() => onDelete(e)}
+                      deleteDisabled={!canDelete}
+                      deleteDisabledTitle="Non autorisé dans cette phase"
+                    />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -672,5 +748,144 @@ function SyncButton({ isLoading, disabled, onClick }: { isLoading: boolean; disa
       <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
       {isLoading ? "Synchronisation..." : "Sync Pegase"}
     </Btn>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Enrollment edit form
+// ---------------------------------------------------------------------------
+
+function EnrollmentEditForm({
+  item,
+  departments,
+  levels,
+  parcourses,
+  onCancel,
+  onSubmit,
+}: {
+  item: StudentWithEnrollment;
+  departments: Department[];
+  levels: Level[];
+  parcourses: Parcours[];
+  onCancel: () => void;
+  onSubmit: (patch: EnrollmentPatch) => Promise<void>;
+}) {
+  const [deptId, setDeptId] = useState(String(item.department_id));
+  const [levelId, setLevelId] = useState(String(item.level_id));
+  const [parcoursId, setParcoursId] = useState(item.parcours_id ? String(item.parcours_id) : "");
+  const [gpa, setGpa] = useState(item.gpa ?? "");
+  const [isAlternant, setIsAlternant] = useState(item.is_alternant);
+  const [isScholarship, setIsScholarship] = useState(item.is_scholarship);
+  const [saving, setSaving] = useState(false);
+
+  const sortedDepts = useMemo(() => [...departments].sort((a, b) => a.code.localeCompare(b.code)), [departments]);
+  const sortedLevels = useMemo(() => [...levels].sort((a, b) => a.code.localeCompare(b.code)), [levels]);
+  const filteredParcourses = useMemo(
+    () => parcourses.filter((p) => p.department_id === Number(deptId)).sort((a, b) => a.code.localeCompare(b.code)),
+    [parcourses, deptId],
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSubmit({
+        department_id: Number(deptId),
+        level_id: Number(levelId),
+        parcours_id: parcoursId ? Number(parcoursId) : null,
+        gpa: gpa || null,
+        is_alternant: isAlternant,
+        is_scholarship: isScholarship,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Département *</label>
+          <select
+            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            value={deptId}
+            onChange={(e) => { setDeptId(e.target.value); setParcoursId(""); }}
+            required
+          >
+            {sortedDepts.map((d) => (
+              <option key={d.id} value={d.id}>{d.code} — {d.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Niveau *</label>
+          <select
+            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            value={levelId}
+            onChange={(e) => setLevelId(e.target.value)}
+            required
+          >
+            {sortedLevels.map((l) => (
+              <option key={l.id} value={l.id}>{l.code}{l.name && l.name !== l.code ? ` — ${l.name}` : ""}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Parcours</label>
+          <select
+            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            value={parcoursId}
+            onChange={(e) => setParcoursId(e.target.value)}
+          >
+            <option value="">— Aucun —</option>
+            {filteredParcourses.map((p) => (
+              <option key={p.id} value={p.id}>{p.code}{p.label && p.label !== p.code ? ` — ${p.label}` : ""}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">GPA</label>
+          <input
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            type="number"
+            step="0.01"
+            min="0"
+            max="20"
+            placeholder="Ex: 14.50"
+            value={gpa}
+            onChange={(e) => setGpa(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="flex gap-6">
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={isAlternant}
+            onChange={(e) => setIsAlternant(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          Alternant (FISA)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={isScholarship}
+            onChange={(e) => setIsScholarship(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          Boursier
+        </label>
+      </div>
+      <div className="flex justify-end gap-3 pt-2">
+        <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+          Annuler
+        </button>
+        <button type="submit" disabled={saving} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+          {saving ? "Enregistrement..." : "Enregistrer"}
+        </button>
+      </div>
+    </form>
   );
 }
