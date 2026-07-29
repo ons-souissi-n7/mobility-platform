@@ -1,55 +1,31 @@
 import { browserApi } from "@/lib/api/browser-client";
+import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
+import type {
+  ComplementaryHistoryItem,
+  CtiIncomingRow,
+  CtiInternshipRow,
+  CtiMobilityRow,
+  CtiRegionRow,
+  CtiStats,
+  ExchangeHistoryItem,
+  InternshipHistoryItem,
+  MobilityDuration,
+  MobilityHistory,
+  MobilityTotals,
+} from "@/lib/api/types";
 
-export type MobilityDuration = {
-  ine: string;
-  exchange_weeks: number;
-  internship_weeks: number;
-  complementary_weeks: number;
-  total_weeks: number;
-};
-
-export type MobilityTotals = {
-  exchange_weeks: number;
-  internship_weeks: number;
-  complementary_weeks: number;
-  total_weeks: number;
-};
-
-export type ExchangeHistoryItem = {
-  academic_year: string;
-  institution_name: string;
-  country_name: string;
-  duration_weeks: number | null;
-};
-
-export type InternshipHistoryItem = {
-  academic_year: string | null;
-  company_name: string;
-  country_name: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  weeks_in_company: number | null;
-  is_international: boolean;
-};
-
-export type ComplementaryHistoryItem = {
-  id: number;
-  academic_year: string;
-  experience_type: string;
-  destination_country: string;
-  destination_institution: string | null;
-  start_date: string;
-  end_date: string;
-  duration_weeks: number;
-  status: "pending" | "validated" | "rejected";
-};
-
-export type MobilityHistory = {
-  ine: string;
-  totals: MobilityTotals;
-  exchanges: ExchangeHistoryItem[];
-  internships: InternshipHistoryItem[];
-  complementary_mobilities: ComplementaryHistoryItem[];
+export type {
+  ComplementaryHistoryItem,
+  CtiIncomingRow,
+  CtiInternshipRow,
+  CtiMobilityRow,
+  CtiRegionRow,
+  CtiStats,
+  ExchangeHistoryItem,
+  InternshipHistoryItem,
+  MobilityDuration,
+  MobilityHistory,
+  MobilityTotals,
 };
 
 export function getCtiDuration(ine: string): Promise<MobilityDuration> {
@@ -62,4 +38,13 @@ export function refreshCtiDuration(ine: string): Promise<MobilityDuration> {
 
 export function getCtiHistory(ine: string): Promise<MobilityHistory> {
   return browserApi<MobilityHistory>(`/cti/students/${ine}/history/`, { method: "GET" });
+}
+
+export function downloadCtiExport(academicYearId: number): Promise<void> {
+  const url = `${publicApiBaseUrl}/cti/export/?academic_year_id=${academicYearId}`;
+  return downloadBlob(url, `rapport_cti_${academicYearId}.xlsx`);
+}
+
+export function getCtiStats(academicYearId: number): Promise<CtiStats> {
+  return browserApi<CtiStats>(`/cti/stats/?academic_year_id=${academicYearId}`, { method: "GET" });
 }
