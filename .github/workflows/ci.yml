@@ -178,6 +178,7 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           trivyignores: .trivyignore
+          timeout: 10m
 
       - name: Scan frontend image (Trivy)
         uses: aquasecurity/trivy-action@master
@@ -188,3 +189,4 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           trivyignores: .trivyignore
+          timeout: 10m

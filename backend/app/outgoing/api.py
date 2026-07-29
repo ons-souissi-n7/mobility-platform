@@ -73,6 +73,7 @@ from .schemas import (
     OverrideImportReportOut,
     StudentWishesOut,
     WishImportRetryIn,
+    WishPatchIn,
 )
 from .tasks import enqueue_import_excel_wishes, enqueue_sync_moveon_wishes
 
@@ -1289,6 +1290,7 @@ def list_wishes_by_year(request, year_id: int, pagination: PaginationQuery = Que
         sid = student.id
         if sid not in grouped:
             grouped[sid] = StudentWishesOut(
+                enrollment_id=enrollment.id,
                 student_id=sid,
                 ine=student.ine,
                 first_name=student.first_name,
@@ -1312,6 +1314,7 @@ def list_wishes_by_year(request, year_id: int, pagination: PaginationQuery = Que
         univ = agreement.partner_university
         grouped[sid].wishes.append(
             AgreementWishOut(
+                wish_id=w.id,
                 rank=w.rank,
                 agreement_id=agreement.id,
                 moveon_id=agreement.moveon_id,
@@ -1368,6 +1371,7 @@ def get_student_wishes(request, student_id: int, year_id: int):
         ag = w.agreement_year.agreement
         univ = ag.partner_university
         return AgreementWishOut(
+            wish_id=w.id,
             rank=w.rank,
             agreement_id=ag.id,
             moveon_id=ag.moveon_id,
@@ -1381,6 +1385,7 @@ def get_student_wishes(request, student_id: int, year_id: int):
         )
 
     return StudentWishesOut(
+        enrollment_id=enrollment.id if enrollment else 0,
         student_id=student.id,
         ine=student.ine,
         first_name=student.first_name,
@@ -1399,4 +1404,72 @@ def get_student_wishes(request, student_id: int, year_id: int):
         is_alternant=enrollment.is_alternant if enrollment else False,
         is_scholarship=enrollment.is_scholarship if enrollment else False,
         wishes=[_wish_out(w) for w in wishes],
+    )
+
+
+@router.delete(
+    "/wishes/{wish_id}/",
+    response={204: None},
+    summary="Supprimer un vœu étudiant",
+)
+def delete_student_wish(request, wish_id: int):
+    try:
+        wish = StudentWish.objects.select_related(
+            "annual_enrollment__student",
+            "annual_enrollment__academic_year",
+        ).get(pk=wish_id)
+    except StudentWish.DoesNotExist as exc:
+        raise HttpError(404, "Vœu introuvable.") from exc
+    log_action(
+        request,
+        action="delete_student_wish",
+        detail=(
+            f"Vœu #{wish_id} rang {wish.rank} — "
+            f"{wish.annual_enrollment.student.ine} — "
+            f"Année {wish.annual_enrollment.academic_year.label}"
+        ),
+    )
+    wish.delete()
+    return 204, None
+
+
+@router.patch(
+    "/wishes/{wish_id}/",
+    response=AgreementWishOut,
+    summary="Modifier le rang d'un vœu étudiant",
+)
+def update_student_wish(request, wish_id: int, payload: WishPatchIn):
+    try:
+        wish = StudentWish.objects.select_related(
+            "agreement_year__agreement__partner_university__country",
+            "annual_enrollment__student",
+            "annual_enrollment__academic_year",
+        ).get(pk=wish_id)
+    except StudentWish.DoesNotExist as exc:
+        raise HttpError(404, "Vœu introuvable.") from exc
+    wish.rank = payload.rank
+    wish.save(update_fields=["rank"])
+    log_action(
+        request,
+        action="update_student_wish",
+        detail=(
+            f"Vœu #{wish_id} rang → {payload.rank} — "
+            f"{wish.annual_enrollment.student.ine} — "
+            f"Année {wish.annual_enrollment.academic_year.label}"
+        ),
+    )
+    ag = wish.agreement_year.agreement
+    univ = ag.partner_university
+    return AgreementWishOut(
+        wish_id=wish.id,
+        rank=wish.rank,
+        agreement_id=ag.id,
+        moveon_id=ag.moveon_id,
+        agreement_name=ag.name,
+        university_name=format_university_label(
+            univ.name,
+            univ.short_name or "",
+            univ.country.name_fr if univ.country_id else "",
+        ),
+        direction=ag.direction,
     )

@@ -76,6 +76,10 @@ class TestAcademicYear:
         academic_year.save()
         assert academic_year.status == AcademicYear.CampaignStatus.PUBLISHED
 
+        academic_year.finalize_cti()
+        academic_year.save()
+        assert academic_year.status == AcademicYear.CampaignStatus.FINALIZATION
+
         academic_year.close()
         academic_year.save()
         assert academic_year.is_closed()

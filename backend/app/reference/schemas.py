@@ -58,6 +58,7 @@ class LevelIn(Schema):
     name: str
     pegase_id: str | None = None
     last_sync_pegase: datetime | None = None
+    is_terminal: bool = False
 
 
 class LevelOut(LevelIn):

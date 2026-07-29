@@ -8,9 +8,12 @@ type UniversityRow = PartnerUniversity & {
   countryName: string;
 };
 
+const LOCKED_TITLE = "Modifications disponibles en phase Initialisation uniquement";
+
 function getColumns(
   onEdit: (university: PartnerUniversity) => void,
   onDelete: (university: PartnerUniversity) => void,
+  readOnly: boolean,
 ): DataTableColumn<UniversityRow>[] {
   return [
     {
@@ -72,8 +75,12 @@ function getColumns(
       align: "right",
       render: (university) => (
         <ActionButtons
-          onDelete={() => onDelete(university)}
           onEdit={() => onEdit(university)}
+          editDisabled={readOnly}
+          editDisabledTitle={LOCKED_TITLE}
+          onDelete={() => onDelete(university)}
+          deleteDisabled={readOnly}
+          deleteDisabledTitle={LOCKED_TITLE}
         />
       ),
     },
@@ -84,6 +91,7 @@ type UniversitiesTableProps = {
   onDelete: (university: PartnerUniversity) => void;
   onEdit: (university: PartnerUniversity) => void;
   universities: PartnerUniversity[];
+  readOnly?: boolean;
   serverSidePagination?: ServerSidePagination;
 };
 
@@ -91,6 +99,7 @@ export function UniversitiesTable({
   onDelete,
   onEdit,
   universities,
+  readOnly = false,
   serverSidePagination,
 }: UniversitiesTableProps) {
   const rows = universities.map((university) => ({
@@ -100,7 +109,7 @@ export function UniversitiesTable({
 
   return (
     <DataTable
-      columns={getColumns(onEdit, onDelete)}
+      columns={getColumns(onEdit, onDelete, readOnly)}
       data={rows}
       emptyLabel="Aucune universite partenaire referencee"
       getRowKey={(university) => university.id}

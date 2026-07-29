@@ -28,6 +28,7 @@ export function LevelForm({
       name: String(formData.get("name") ?? "").trim(),
       pegase_id: item?.pegase_id ?? null,
       last_sync_pegase: item?.last_sync_pegase ?? null,
+      is_terminal: formData.get("is_terminal") === "on",
     };
 
     if (!payload.code) {
@@ -73,6 +74,22 @@ export function LevelForm({
           />
         </label>
       </div>
+
+      <label className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+        <input
+          className="mt-0.5 h-4 w-4 rounded accent-[#1E3A8A]"
+          defaultChecked={item?.is_terminal ?? false}
+          name="is_terminal"
+          type="checkbox"
+        />
+        <span className="text-sm text-gray-700">
+          <span className="font-medium">Niveau terminal (diplômant)</span>
+          <span className="mt-0.5 block text-xs text-gray-500">
+            Cocher si c&apos;est le dernier niveau du cursus.
+            Les étudiants inscrits à ce niveau servent de cohorte pour le rapport CTI.
+          </span>
+        </span>
+      </label>
 
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

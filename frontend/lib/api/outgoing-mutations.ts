@@ -174,6 +174,17 @@ export function patchAssignmentResult(
   );
 }
 
+export function deleteStudentWish(wishId: number): Promise<void> {
+  return browserApi<void>(`/outgoing/wishes/${wishId}/`, { method: "DELETE" });
+}
+
+export function updateStudentWish(wishId: number, rank: number): Promise<import("@/lib/api/types").AgreementWish> {
+  return browserApi<import("@/lib/api/types").AgreementWish>(
+    `/outgoing/wishes/${wishId}/`,
+    { method: "PATCH", body: { rank } },
+  );
+}
+
 export async function importOverridesFromExcel(
   assignmentId: number,
   file: File,

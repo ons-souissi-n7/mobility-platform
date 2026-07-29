@@ -15,7 +15,11 @@ router = Router()
 )
 def list_alerts(request):
     username = getattr(request.user, "username", None)
-    alerts = list(SystemAlert.objects.filter(is_read=False).order_by("-created_at"))
+    alerts = list(
+        SystemAlert.objects.filter(is_read=False)
+        .exclude(academic_year__status="closed")
+        .order_by("-created_at")
+    )
     if username:
         alerts = [a for a in alerts if username not in (a.acknowledged_usernames or [])]
     return alerts

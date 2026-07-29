@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   Heart,
   Loader2,
+  Pencil,
   Play,
   RefreshCw,
   ShieldCheck,
@@ -29,6 +30,8 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/config";
 import { applyAcademicYearTransition } from "@/lib/api/academic-year-mutations";
 import { getValidAgreements } from "@/lib/api/mobility-mutations";
 import {
+  deleteStudentWish,
+  updateStudentWish,
   downloadWishTemplate,
   exportWishesExcel,
   getAssignmentAgreementYears,
@@ -48,9 +51,14 @@ import {
   type WishImportCorrection,
 } from "@/lib/api/outgoing-mutations";
 import {
+  deleteStudentEnrollment,
   getStudentSelectOptions,
   ignoreStudentImportError,
+  updateStudentEnrollment,
+  type EnrollmentPatch,
 } from "@/lib/api/student-mutations";
+import { ActionButtons } from "@/components/ui/action-buttons";
+import { Modal } from "@/components/ui/modal";
 import type {
   AcademicYear,
   Agreement,
@@ -59,7 +67,10 @@ import type {
   Assignment,
   AssignmentResult,
   AssignmentStats,
+  Department,
+  Level,
   OverrideImportReport,
+  Parcours,
   RawImport,
   SelectOption,
   StudentWishes,
@@ -94,7 +105,17 @@ const POLL_TIMEOUT_MS              = 90_000;
 const ASSIGNMENT_RESULTS_PAGE_SIZE = 2_000;
 
 // ─── Main component ──────────────────────────────────────────────────────────
-export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYear[] }) {
+export function OutgoingWorkspace({
+  academicYears,
+  departments = [],
+  levels = [],
+  parcourses = [],
+}: {
+  academicYears: AcademicYear[];
+  departments?: Department[];
+  levels?: Level[];
+  parcourses?: Parcours[];
+}) {
   const defaultYear =
     academicYears.find((y) => y.status !== "closed") ?? academicYears[0] ?? null;
 
@@ -113,6 +134,7 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   const [query, setQuery]                         = useState("");
   const [filterDept, setFilterDept]               = useState("");
   const [error, setError]                         = useState("");
+  const [enrollEditModal, setEnrollEditModal]     = useState<StudentWishes | null>(null);
 
   // ── Assignment state ──────────────────────────────────────────────────────
   const [assignment, setAssignment]   = useState<Assignment | null>(null);
@@ -356,6 +378,81 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
     }
   }
 
+  async function handleEditWish(wishId: number, rank: number) {
+    setError("");
+    try {
+      const updated = await updateStudentWish(wishId, rank);
+      setWishes((prev) =>
+        prev.map((s) => ({
+          ...s,
+          wishes: s.wishes.map((w) => (w.wish_id === wishId ? { ...w, rank: updated.rank } : w)),
+        })),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la modification du vœu.");
+    }
+  }
+
+  async function handleDeleteWish(wishId: number, label: string) {
+    const confirmed = await confirm(
+      `${label} sera supprimé définitivement.`,
+      "Supprimer ce vœu ?",
+    );
+    if (!confirmed || !selectedYearId) return;
+    setError("");
+    try {
+      await deleteStudentWish(wishId);
+      setWishes((prev) =>
+        prev
+          .map((s) => ({ ...s, wishes: s.wishes.filter((w) => w.wish_id !== wishId) }))
+          .filter((s) => s.wishes.length > 0),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la suppression du vœu.");
+    }
+  }
+
+  // ── Enrollment actions ────────────────────────────────────────────────────
+  async function handleEnrollmentEdit(patch: EnrollmentPatch) {
+    if (!enrollEditModal) return;
+    try {
+      const updated = await updateStudentEnrollment(enrollEditModal.enrollment_id, patch);
+      setWishes((prev) =>
+        prev.map((s) =>
+          s.enrollment_id === enrollEditModal.enrollment_id
+            ? {
+                ...s,
+                department_code: updated.department_code ?? null,
+                parcours_code: updated.parcours_code ?? null,
+                level_code: updated.level_code ?? null,
+                gpa: updated.gpa ?? null,
+                is_alternant: updated.is_alternant,
+                is_scholarship: updated.is_scholarship,
+              }
+            : s,
+        ),
+      );
+      setEnrollEditModal(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la modification.");
+    }
+  }
+
+  async function handleEnrollmentDelete(row: StudentWishes) {
+    const confirmed = await confirm(
+      `Supprimer l'inscription de ${row.last_name} ${row.first_name} ? Cette action est irréversible.`,
+      "Supprimer l'inscription",
+    );
+    if (!confirmed) return;
+    setError("");
+    try {
+      await deleteStudentEnrollment(row.enrollment_id);
+      setWishes((prev) => prev.filter((s) => s.enrollment_id !== row.enrollment_id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur lors de la suppression.");
+    }
+  }
+
   // ── Wishes actions ────────────────────────────────────────────────────────
   async function handleTemplateDownload() {
     if (!selectedYear) return;
@@ -467,8 +564,8 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   const assignedPct =
     effectiveTotal > 0 ? Math.round((effectiveAssigned / effectiveTotal) * 100) : 0;
 
-  // Année clôturée ou publiée = lecture seule totale
-  const isReadOnly = !!selectedYear && ["closed", "published"].includes(selectedYear.status);
+  // Publiée, finalisation CTI ou clôturée = lecture seule totale
+  const isReadOnly = !!selectedYear && ["published", "finalization", "closed"].includes(selectedYear.status);
   // Verrouillé pendant le calcul ou pour une année clôturée/publiée
   const isLocked = polling || isReadOnly;
   // Sync et import vœux disponibles uniquement en phase Import
@@ -494,6 +591,25 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
   return (
     <>
       {dialog}
+
+      {/* Modal édition inscription depuis vœux */}
+      {enrollEditModal && (
+        <Modal
+          title={`Modifier l'inscription — ${enrollEditModal.last_name} ${enrollEditModal.first_name}`}
+          description="Modifiez les données d'inscription pour cet étudiant."
+          onClose={() => setEnrollEditModal(null)}
+        >
+          <OutgoingEnrollmentEditForm
+            row={enrollEditModal}
+            departments={departments}
+            levels={levels}
+            parcourses={parcourses}
+            onCancel={() => setEnrollEditModal(null)}
+            onSubmit={handleEnrollmentEdit}
+          />
+        </Modal>
+      )}
+
       {/* Sélecteur d'année */}
       <div className="flex items-end gap-4">
         <label className="block">
@@ -525,10 +641,17 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
         </div>
       )}
 
-      {/* Bannière année clôturée */}
+      {/* Bannière lecture seule */}
       {isReadOnly && (
         <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-          <span className="font-semibold">Année clôturée</span> — consultation seule, imports et synchronisation désactivés.
+          <span className="font-semibold">
+            {selectedYear?.status === "closed"
+              ? "Année clôturée"
+              : selectedYear?.status === "finalization"
+                ? "Finalisation CTI"
+                : "Résultats publiés"}
+          </span>{" "}
+          — consultation seule, modifications désactivées.
         </div>
       )}
 
@@ -798,8 +921,14 @@ export function OutgoingWorkspace({ academicYears }: { academicYears: AcademicYe
           resultsMap={resultsMap}
           hasAssignment={!!assignment}
           canEdit={assignment?.status === "proposed" && !isReadOnly}
+          canDelete={isImportPhase && !isLocked}
+          canManageEnrollment={isImportPhase && !isLocked}
           agreementYears={agreementYearOptions}
           onOverrideResult={handleUnassignResult}
+          onDeleteWish={handleDeleteWish}
+          onEditWish={handleEditWish}
+          onEditEnrollment={(row) => setEnrollEditModal(row)}
+          onDeleteEnrollment={handleEnrollmentDelete}
         />
       ) : (
         <div className="rounded-md border border-dashed border-gray-300 px-4 py-12 text-center text-sm text-gray-400">
@@ -1053,8 +1182,14 @@ function WishesAssignmentTable({
   resultsMap,
   hasAssignment,
   canEdit = false,
+  canDelete = false,
+  canManageEnrollment = false,
   agreementYears = [],
   onOverrideResult,
+  onDeleteWish,
+  onEditWish,
+  onEditEnrollment,
+  onDeleteEnrollment,
 }: {
   rows: StudentWishes[];
   maxRank: number;
@@ -1062,14 +1197,21 @@ function WishesAssignmentTable({
   resultsMap: Map<string, AssignmentResult>;
   hasAssignment: boolean;
   canEdit?: boolean;
+  canDelete?: boolean;
   agreementYears?: AgreementYearOption[];
   onOverrideResult?: (resultId: number, payload: ResultOverridePatch) => Promise<void>;
+  onDeleteWish?: (wishId: number, label: string) => Promise<void>;
+  onEditWish?: (wishId: number, rank: number) => Promise<void>;
+  canManageEnrollment?: boolean;
+  onEditEnrollment?: (row: StudentWishes) => void;
+  onDeleteEnrollment?: (row: StudentWishes) => Promise<void>;
 }) {
   const [page, setPage]       = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const totalPages   = Math.max(1, Math.ceil(rows.length / pageSize));
   const currentPage  = Math.min(page, totalPages);
   const pageItems    = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const [editWish, setEditWish] = useState<AgreementWish | null>(null);
 
   const [prevRows, setPrevRows] = useState(rows);
   if (prevRows !== rows) { setPrevRows(rows); setPage(1); }
@@ -1085,6 +1227,15 @@ function WishesAssignmentTable({
   const rankCols = Array.from({ length: maxRank }, (_, i) => i + 1);
 
   return (
+    <>
+    {editWish && onEditWish && (
+      <WishEditModal
+        wish={editWish}
+        maxRank={maxRank}
+        onCancel={() => setEditWish(null)}
+        onSubmit={async (rank) => { await onEditWish(editWish.wish_id, rank); setEditWish(null); }}
+      />
+    )}
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -1102,6 +1253,7 @@ function WishesAssignmentTable({
                   <span className="text-emerald-700">Décision d&apos;affectation</span>
                 </Th>
               )}
+              {(onEditEnrollment || onDeleteEnrollment) && <Th>Actions</Th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
@@ -1180,7 +1332,14 @@ function WishesAssignmentTable({
                     return (
                       <Td key={r}>
                         {wish ? (
-                          <WishCell wish={wish} highlighted={!!isChosen} />
+                          <WishCell
+                            wish={wish}
+                            highlighted={!!isChosen}
+                            canDelete={canDelete}
+                            canEdit={canDelete}
+                            onDelete={onDeleteWish ? () => void onDeleteWish(wish.wish_id, `Vœu ${r} — ${row.last_name} ${row.first_name}`) : undefined}
+                            onEdit={onEditWish ? () => setEditWish(wish) : undefined}
+                          />
                         ) : (
                           <span className="text-xs italic text-gray-300">—</span>
                         )}
@@ -1194,6 +1353,18 @@ function WishesAssignmentTable({
                         canEdit={canEdit}
                         agreementYears={agreementYears}
                         onOverride={onOverrideResult && result ? (payload) => onOverrideResult(result.id, payload) : undefined}
+                      />
+                    </Td>
+                  )}
+                  {(onEditEnrollment || onDeleteEnrollment) && (
+                    <Td>
+                      <ActionButtons
+                        onEdit={onEditEnrollment ? () => onEditEnrollment(row) : undefined}
+                        editDisabled={!canManageEnrollment}
+                        editDisabledTitle={!canManageEnrollment ? "Non autorisé dans cette phase" : "Modifier l'inscription"}
+                        onDelete={onDeleteEnrollment ? () => void onDeleteEnrollment(row) : undefined}
+                        deleteDisabled={!canManageEnrollment}
+                        deleteDisabledTitle={!canManageEnrollment ? "Non autorisé dans cette phase" : "Supprimer l'inscription"}
                       />
                     </Td>
                   )}
@@ -1214,16 +1385,125 @@ function WishesAssignmentTable({
         emptyLabel="Aucun étudiant"
       />
     </div>
+    </>
+  );
+}
+
+// ─── Modale édition vœu ───────────────────────────────────────────────────────
+function WishEditModal({
+  wish,
+  maxRank,
+  onCancel,
+  onSubmit,
+}: {
+  wish: AgreementWish;
+  maxRank: number;
+  onCancel: () => void;
+  onSubmit: (rank: number) => Promise<void>;
+}) {
+  const [rank, setRank] = useState(String(wish.rank));
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try { await onSubmit(Number(rank)); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-4">
+      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Modifier le vœu</h2>
+            <p className="mt-1 text-sm text-gray-500">{wish.university_name}</p>
+          </div>
+          <button className="rounded-md p-2 text-gray-400 hover:bg-gray-100" onClick={onCancel} type="button">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={(e) => void handleSubmit(e)} className="px-6 py-5 space-y-4">
+          <div>
+            <p className="text-sm text-gray-600"><span className="font-medium">Convention :</span> {wish.agreement_name}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Rang *</label>
+            <select
+              className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+              value={rank}
+              onChange={(e) => setRank(e.target.value)}
+              required
+            >
+              {Array.from({ length: maxRank }, (_, i) => i + 1).map((r) => (
+                <option key={r} value={r}>Vœu {r}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+              Annuler
+            </button>
+            <button type="submit" disabled={saving} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+              {saving ? "Enregistrement..." : "Enregistrer"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
 // ─── Cellule vœu ─────────────────────────────────────────────────────────────
-function WishCell({ wish, highlighted }: { wish: AgreementWish; highlighted: boolean }) {
+function WishCell({
+  wish,
+  highlighted,
+  canDelete = false,
+  canEdit = false,
+  onDelete,
+  onEdit,
+}: {
+  wish: AgreementWish;
+  highlighted: boolean;
+  canDelete?: boolean;
+  canEdit?: boolean;
+  onDelete?: () => void;
+  onEdit?: () => void;
+}) {
+  const showActions = onEdit !== undefined || onDelete !== undefined;
   return (
     <div className={`w-44 space-y-0.5 rounded px-1.5 py-1 ${highlighted ? "bg-emerald-50 ring-1 ring-emerald-200" : ""}`}>
-      <p className={`text-xs font-medium leading-snug break-words ${highlighted ? "text-emerald-800" : "text-gray-900"}`}>
-        {wish.university_name}
-      </p>
+      <div className="flex items-start justify-between gap-1">
+        <p className={`text-xs font-medium leading-snug break-words ${highlighted ? "text-emerald-800" : "text-gray-900"}`}>
+          {wish.university_name}
+        </p>
+        {showActions && (
+          <div className="flex shrink-0 items-center gap-0.5">
+            {onEdit !== undefined && (
+              <button
+                className={`rounded p-0.5 transition-colors ${canEdit ? "text-blue-400 hover:bg-blue-50 hover:text-blue-600" : "cursor-not-allowed text-gray-200"}`}
+                disabled={!canEdit}
+                onClick={canEdit ? onEdit : undefined}
+                title={canEdit ? "Modifier ce vœu" : "Non autorisé dans cette phase"}
+                type="button"
+              >
+                <Pencil className="h-3 w-3" aria-hidden="true" />
+              </button>
+            )}
+            {onDelete !== undefined && (
+              <button
+                className={`rounded p-0.5 transition-colors ${canDelete ? "text-red-400 hover:bg-red-50 hover:text-red-600" : "cursor-not-allowed text-gray-200"}`}
+                disabled={!canDelete}
+                onClick={canDelete ? onDelete : undefined}
+                title={canDelete ? "Supprimer ce vœu" : "Non autorisé dans cette phase"}
+                type="button"
+              >
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       <p className={`text-xs leading-snug break-words ${highlighted ? "text-emerald-600" : "text-gray-500"}`}>
         {wish.agreement_name}
       </p>
@@ -1380,6 +1660,138 @@ function DecisionCell({
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Enrollment edit form (from outgoing workspace) ──────────────────────────
+function OutgoingEnrollmentEditForm({
+  row,
+  departments,
+  levels,
+  parcourses,
+  onCancel,
+  onSubmit,
+}: {
+  row: StudentWishes;
+  departments: Department[];
+  levels: Level[];
+  parcourses: Parcours[];
+  onCancel: () => void;
+  onSubmit: (patch: EnrollmentPatch) => Promise<void>;
+}) {
+  const initDept = departments.find((d) => d.code === row.department_code);
+  const initLevel = levels.find((l) => l.code === row.level_code);
+  const initParcours = parcourses.find((p) => p.code === row.parcours_code);
+
+  const [deptId, setDeptId] = useState(initDept ? String(initDept.id) : "");
+  const [levelId, setLevelId] = useState(initLevel ? String(initLevel.id) : "");
+  const [parcoursId, setParcoursId] = useState(initParcours ? String(initParcours.id) : "");
+  const [gpa, setGpa] = useState(row.gpa ?? "");
+  const [isAlternant, setIsAlternant] = useState(row.is_alternant);
+  const [isScholarship, setIsScholarship] = useState(row.is_scholarship);
+  const [saving, setSaving] = useState(false);
+
+  const sortedDepts = useMemo(() => [...departments].sort((a, b) => a.code.localeCompare(b.code)), [departments]);
+  const sortedLevels = useMemo(() => [...levels].sort((a, b) => a.code.localeCompare(b.code)), [levels]);
+  const filteredParcourses = useMemo(
+    () => parcourses.filter((p) => p.department_id === Number(deptId)).sort((a, b) => a.code.localeCompare(b.code)),
+    [parcourses, deptId],
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSubmit({
+        department_id: Number(deptId),
+        level_id: Number(levelId),
+        parcours_id: parcoursId ? Number(parcoursId) : null,
+        gpa: gpa || null,
+        is_alternant: isAlternant,
+        is_scholarship: isScholarship,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Département *</label>
+          <select
+            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            value={deptId}
+            onChange={(e) => { setDeptId(e.target.value); setParcoursId(""); }}
+            required
+          >
+            <option value="">— Choisir —</option>
+            {sortedDepts.map((d) => (
+              <option key={d.id} value={d.id}>{d.code} — {d.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Niveau *</label>
+          <select
+            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            value={levelId}
+            onChange={(e) => setLevelId(e.target.value)}
+            required
+          >
+            <option value="">— Choisir —</option>
+            {sortedLevels.map((l) => (
+              <option key={l.id} value={l.id}>{l.code}{l.name && l.name !== l.code ? ` — ${l.name}` : ""}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Parcours</label>
+          <select
+            className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+            value={parcoursId}
+            onChange={(e) => setParcoursId(e.target.value)}
+          >
+            <option value="">— Aucun —</option>
+            {filteredParcourses.map((p) => (
+              <option key={p.id} value={p.id}>{p.code}{p.label && p.label !== p.code ? ` — ${p.label}` : ""}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">GPA</label>
+          <input
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            type="number"
+            step="0.01"
+            min="0"
+            max="20"
+            placeholder="Ex: 14.50"
+            value={gpa}
+            onChange={(e) => setGpa(e.target.value)}
+          />
+        </div>
+      </div>
+      <div className="flex gap-6">
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={isAlternant} onChange={(e) => setIsAlternant(e.target.checked)} className="rounded border-gray-300" />
+          Alternant (FISA)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input type="checkbox" checked={isScholarship} onChange={(e) => setIsScholarship(e.target.checked)} className="rounded border-gray-300" />
+          Boursier
+        </label>
+      </div>
+      <div className="flex justify-end gap-3 pt-2">
+        <button type="button" onClick={onCancel} className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+          Annuler
+        </button>
+        <button type="submit" disabled={saving || !deptId || !levelId} className="rounded-md bg-[#1E3A8A] px-4 py-2 text-sm font-medium text-white hover:bg-[#1e40af] disabled:opacity-50">
+          {saving ? "Enregistrement..." : "Enregistrer"}
+        </button>
+      </div>
+    </form>
   );
 }
 

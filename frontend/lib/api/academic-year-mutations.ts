@@ -12,6 +12,7 @@ export type AcademicYearTransition =
   | "close-wishes"
   | "launch-assignment"
   | "publish-results"
+  | "finalize-cti"
   | "close";
 
 export function createAcademicYear(payload: AcademicYearPayload) {

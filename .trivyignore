@@ -1,9 +1,3 @@
-# CVE-2026-12151: undici DoS via unbounded WebSocket memory growth.
-# Affected package: undici bundled inside npm's own node_modules, not in application code.
-# npm is used only as a process runner (CMD ["npm", "start"]), not as an HTTP/WebSocket client.
-# Exploitability: negligible — npm never opens a WebSocket in this deployment context.
-CVE-2026-12151
-
 # GHSA-f88m-g3jw-g9cj (CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591)
 # libvips vulnerabilities inherited by sharp, bundled as an optionalDependency of next@16.2.x.
 # next@16.2.x pins sharp@^0.34.5 — npm overrides do not apply to optionalDependencies and
@@ -14,13 +8,6 @@ CVE-2026-33327
 CVE-2026-33328
 CVE-2026-35590
 CVE-2026-35591
-
-# CVE-2026-14257: brace-expansion DoS via catastrophic backtracking.
-# Affected package: brace-expansion v5.0.7 bundled inside npm's own node_modules
-# (usr/local/lib/node_modules/npm/node_modules/brace-expansion), not in application code.
-# npm is used only as a process runner in production; brace-expansion is never invoked at
-# runtime. The version is pinned by npm's own internal dependency tree (not overridable).
-CVE-2026-14257
 
 # CVE-2026-64641, CVE-2026-64642, CVE-2026-64645, CVE-2026-64649: Next.js App Router vulnerabilities.
 # Affected package: next@16.2.6 (fixed in 16.2.11).

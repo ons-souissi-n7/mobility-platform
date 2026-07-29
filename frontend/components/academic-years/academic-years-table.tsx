@@ -90,15 +90,16 @@ function getColumns({
       header: "Actions",
       align: "right",
       render: (year) => {
-        const isClosed = year.status === "closed";
+        const canEdit = year.status === "initialization" || year.status === "recommendation";
+        const canDelete = year.status === "initialization";
         return (
           <ActionButtons
             onEdit={() => onEdit(year)}
-            editDisabled={isClosed}
-            editDisabledTitle="Année clôturée — modification non autorisée"
+            editDisabled={!canEdit}
+            editDisabledTitle="Modification non autorisée — seules les années en phase Initialisation, Recommandation ou Candidature peuvent être modifiées"
             onDelete={() => onDelete(year)}
-            deleteDisabled={isClosed}
-            deleteDisabledTitle="Année clôturée — suppression non autorisée"
+            deleteDisabled={!canDelete}
+            deleteDisabledTitle="Suppression non autorisée — seules les années en phase Initialisation peuvent être supprimées"
           />
         );
       },

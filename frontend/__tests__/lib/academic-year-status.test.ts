@@ -14,6 +14,7 @@ describe("statusLabels", () => {
     expect(statusLabels.pre_assignment).toBe("Affectation en cours");
     expect(statusLabels.validation).toBe("Validation");
     expect(statusLabels.published).toBe("Publiée");
+    expect(statusLabels.finalization).toBe("Finalisation CTI");
     expect(statusLabels.closed).toBe("Clôturée");
   });
 });
@@ -59,8 +60,12 @@ describe("nextTransitions", () => {
     expect(nextTransitions.pre_assignment).toBeUndefined();
   });
 
-  it("defines a transition for published (manual close button)", () => {
-    expect(nextTransitions.published?.transition).toBe("close");
+  it("defines a transition for published (manual finalize-cti button)", () => {
+    expect(nextTransitions.published?.transition).toBe("finalize-cti");
+  });
+
+  it("defines a transition for finalization (manual close button)", () => {
+    expect(nextTransitions.finalization?.transition).toBe("close");
   });
 
   it("does not define a transition for closed (terminal state)", () => {

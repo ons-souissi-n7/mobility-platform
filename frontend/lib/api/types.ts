@@ -130,6 +130,7 @@ export type Level = {
   name: string;
   pegase_id: string | null;
   last_sync_pegase: string | null;
+  is_terminal: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -143,6 +144,7 @@ export type AcademicYearStatus =
   | "pre_assignment"
   | "validation"
   | "published"
+  | "finalization"
   | "closed";
 
 export type Parcours = {
@@ -235,6 +237,7 @@ export type StudentStats = {
 };
 
 export type StudentWithEnrollment = {
+  enrollment_id: number;
   student_id: number;
   ine: string;
   first_name: string;
@@ -253,9 +256,12 @@ export type StudentWithEnrollment = {
   parcours_code: string | null;
   parcours_label: string | null;
   gpa: string | null;
+  is_alternant: boolean;
+  is_scholarship: boolean;
 };
 
 export type AgreementWish = {
+  wish_id: number;
   rank: number;
   agreement_id: number;
   moveon_id: string | null;
@@ -265,6 +271,7 @@ export type AgreementWish = {
 };
 
 export type StudentWishes = {
+  enrollment_id: number;
   student_id: number;
   ine: string;
   first_name: string;
@@ -582,6 +589,107 @@ export type IncomingStatCountry = {
   department_name: string | null;
   academic_year_label: string;
   count: number;
+};
+
+export type MobilityDuration = {
+  ine: string;
+  exchange_weeks: number;
+  internship_weeks: number;
+  complementary_weeks: number;
+  total_weeks: number;
+};
+
+export type MobilityTotals = {
+  exchange_weeks: number;
+  internship_weeks: number;
+  complementary_weeks: number;
+  total_weeks: number;
+};
+
+export type ExchangeHistoryItem = {
+  academic_year: string;
+  institution_name: string;
+  country_name: string;
+  duration_weeks: number | null;
+};
+
+export type InternshipHistoryItem = {
+  academic_year: string | null;
+  company_name: string;
+  country_name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  weeks_in_company: number | null;
+  is_international: boolean;
+};
+
+export type ComplementaryHistoryItem = {
+  id: number;
+  academic_year: string;
+  experience_type: string;
+  destination_country: string;
+  destination_institution: string | null;
+  start_date: string;
+  end_date: string;
+  duration_weeks: number;
+  status: "pending" | "validated" | "rejected";
+};
+
+export type MobilityHistory = {
+  ine: string;
+  totals: MobilityTotals;
+  exchanges: ExchangeHistoryItem[];
+  internships: InternshipHistoryItem[];
+  complementary_mobilities: ComplementaryHistoryItem[];
+};
+
+export type CtiMobilityRow = {
+  label: string;
+  lt_fise: number;
+  lt_fisa: number;
+  eq_fise: number;
+  eq_fisa: number;
+  gt_fise: number;
+  gt_fisa: number;
+};
+
+export type CtiInternshipRow = {
+  label: string;
+  lt_fise: number;
+  lt_fisa: number;
+  mid_fise: number;
+  mid_fisa: number;
+  gt_fise: number;
+  gt_fisa: number;
+};
+
+export type CtiIncomingRow = {
+  label: string;
+  lt: number;
+  eq: number;
+  gt: number;
+};
+
+export type CtiRegionRow = {
+  region: string;
+  hommes: number;
+  femmes: number;
+  total: number;
+};
+
+export type CtiStats = {
+  academic_year_label: string;
+  enrolled_fise: number;
+  enrolled_fisa: number;
+  exchanges: CtiMobilityRow[];
+  internships: CtiInternshipRow[];
+  pct_fise: number;
+  pct_fisa: number;
+  avg_months_fise: number;
+  avg_months_fisa: number;
+  incoming: CtiIncomingRow[];
+  dd_outgoing: CtiRegionRow[];
+  dd_incoming: CtiRegionRow[];
 };
 
 export type ComplementaryMobility = {

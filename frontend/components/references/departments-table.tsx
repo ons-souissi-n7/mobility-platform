@@ -3,9 +3,12 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type { Department } from "@/lib/api/types";
 import { formatDate } from "@/lib/utils";
 
+const LOCKED_TITLE = "Modifications disponibles en phase Initialisation uniquement";
+
 function getColumns(
   onEdit: (department: Department) => void,
   onDelete: (department: Department) => void,
+  readOnly: boolean,
 ): DataTableColumn<Department>[] {
   return [
     {
@@ -36,8 +39,12 @@ function getColumns(
       align: "right",
       render: (department) => (
         <ActionButtons
-          onDelete={() => onDelete(department)}
           onEdit={() => onEdit(department)}
+          editDisabled={readOnly}
+          editDisabledTitle={LOCKED_TITLE}
+          onDelete={() => onDelete(department)}
+          deleteDisabled={readOnly}
+          deleteDisabledTitle={LOCKED_TITLE}
         />
       ),
     },
@@ -46,18 +53,20 @@ function getColumns(
 
 type DepartmentsTableProps = {
   departments: Department[];
+  readOnly?: boolean;
   onDelete: (department: Department) => void;
   onEdit: (department: Department) => void;
 };
 
 export function DepartmentsTable({
   departments,
+  readOnly = false,
   onDelete,
   onEdit,
 }: DepartmentsTableProps) {
   return (
     <DataTable
-      columns={getColumns(onEdit, onDelete)}
+      columns={getColumns(onEdit, onDelete, readOnly)}
       data={departments}
       emptyLabel="Aucun departement reference"
       getRowKey={(department) => department.id}

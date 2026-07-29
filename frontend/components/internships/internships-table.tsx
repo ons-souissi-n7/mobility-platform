@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
 
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/search-input";
+import { ActionButtons } from "@/components/ui/action-buttons";
 import type { Country, Internship } from "@/lib/api/types";
 
 function formatDate(d: string | null): string {
@@ -139,27 +139,16 @@ export function InternshipsTable({
       key: "actions",
       header: "",
       align: "right",
-      render: (item) =>
-        readOnly ? null : (
-          <div className="flex items-center justify-end gap-1">
-            <button
-              className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-              onClick={() => onEdit(item)}
-              title="Modifier"
-              type="button"
-            >
-              <Pencil size={15} />
-            </button>
-            <button
-              className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
-              onClick={() => onDelete(item)}
-              title="Supprimer"
-              type="button"
-            >
-              <Trash2 size={15} />
-            </button>
-          </div>
-        ),
+      render: (item) => (
+        <ActionButtons
+          onEdit={readOnly ? undefined : () => onEdit(item)}
+          editDisabled={readOnly}
+          editDisabledTitle="Consultation seule"
+          onDelete={() => onDelete(item)}
+          deleteDisabled={readOnly}
+          deleteDisabledTitle="Consultation seule"
+        />
+      ),
     },
   ];
 

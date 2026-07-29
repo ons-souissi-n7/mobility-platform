@@ -1,7 +1,8 @@
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from ninja import Router
 
-from app.cti.schemas import MobilityDurationOut, MobilityHistoryOut
+from app.cti.schemas import CtiStatsOut, MobilityDurationOut, MobilityHistoryOut
 from app.cti.services import (
     compute_cti_duration,
     get_student_mobility_history,
@@ -48,3 +49,27 @@ def refresh_student_cti_duration(request, ine: str):
 def get_student_history(request, ine: str):
     student = get_object_or_404(Student, ine=ine)
     return get_student_mobility_history(student)
+
+
+@router.get("/stats/", response=CtiStatsOut, summary="Statistiques CTI VII.D3 (JSON)")
+def get_cti_stats(request, academic_year_id: int):
+    from app.academic.models import AcademicYear
+    from app.cti.services_export import get_cti_stats_data
+
+    year = get_object_or_404(AcademicYear, id=academic_year_id)
+    return get_cti_stats_data(year)
+
+
+@router.get("/export/", summary="Export rapport CTI (Excel VII.D3)")
+def export_cti_report(request, academic_year_id: int) -> HttpResponse:
+    from app.academic.models import AcademicYear
+    from app.cti.services_export import generate_cti_excel
+
+    year = get_object_or_404(AcademicYear, id=academic_year_id)
+    content = generate_cti_excel(year)
+    filename = f"rapport_cti_{year.label.replace('/', '-')}.xlsx"
+    return HttpResponse(
+        content,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

@@ -9,6 +9,7 @@ export const statusLabels: Record<AcademicYearStatus, string> = {
   pre_assignment: "Affectation en cours",
   validation: "Validation",
   published: "Publiée",
+  finalization: "Finalisation CTI",
   closed: "Clôturée",
 };
 
@@ -20,6 +21,7 @@ export const statusTone: Record<AcademicYearStatus, string> = {
   pre_assignment: "bg-purple-100 text-purple-800",
   validation: "bg-emerald-100 text-emerald-800",
   published: "bg-teal-100 text-teal-800",
+  finalization: "bg-indigo-100 text-indigo-800",
   closed: "bg-red-100 text-red-800",
 };
 
@@ -40,7 +42,8 @@ export const nextTransitions: Partial<Record<AcademicYearStatus, NextTransition>
   recommendation: {
     label: "Démarrer candidature",
     transition: "start-candidature",
-    confirmMessage: null,
+    confirmMessage:
+      "Confirmez-vous l'ouverture de la période de candidature ? Les étudiants pourront saisir leurs vœux de mobilité.",
   },
   candidature: {
     label: "Clôturer les vœux",
@@ -60,6 +63,12 @@ export const nextTransitions: Partial<Record<AcademicYearStatus, NextTransition>
       "Confirmez-vous que toutes les corrections sont validées et que les résultats peuvent être publiés aux étudiants ?",
   },
   published: {
+    label: "Finaliser les statistiques CTI",
+    transition: "finalize-cti",
+    confirmMessage:
+      "Confirmez-vous la finalisation CTI ? Les durées de mobilité de la cohorte seront calculées et persistées. Cette étape précède la clôture définitive.",
+  },
+  finalization: {
     label: "Clôturer l'année",
     transition: "close",
     confirmMessage: "Confirmez-vous la clôture définitive de cette année universitaire ? Cette action est irréversible.",

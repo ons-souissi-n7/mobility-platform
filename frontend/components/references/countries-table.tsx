@@ -12,9 +12,12 @@ const regionLabels: Record<string, string> = {
   oceanie: "Oceanie",
 };
 
+const LOCKED_TITLE = "Modifications disponibles en phase Initialisation uniquement";
+
 function getColumns(
   onEdit: (country: Country) => void,
   onDelete: (country: Country) => void,
+  readOnly: boolean,
 ): DataTableColumn<Country>[] {
   return [
     {
@@ -49,8 +52,12 @@ function getColumns(
       align: "right",
       render: (country) => (
         <ActionButtons
-          onDelete={() => onDelete(country)}
           onEdit={() => onEdit(country)}
+          editDisabled={readOnly}
+          editDisabledTitle={LOCKED_TITLE}
+          onDelete={() => onDelete(country)}
+          deleteDisabled={readOnly}
+          deleteDisabledTitle={LOCKED_TITLE}
         />
       ),
     },
@@ -59,18 +66,20 @@ function getColumns(
 
 type CountriesTableProps = {
   countries: Country[];
+  readOnly?: boolean;
   onDelete: (country: Country) => void;
   onEdit: (country: Country) => void;
 };
 
 export function CountriesTable({
   countries,
+  readOnly = false,
   onDelete,
   onEdit,
 }: CountriesTableProps) {
   return (
     <DataTable
-      columns={getColumns(onEdit, onDelete)}
+      columns={getColumns(onEdit, onDelete, readOnly)}
       data={countries}
       emptyLabel="Aucun pays reference"
       getRowKey={(country) => country.id}

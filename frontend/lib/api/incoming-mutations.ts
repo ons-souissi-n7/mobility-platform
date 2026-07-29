@@ -106,6 +106,40 @@ export function forceIncomingImportError(
   );
 }
 
+export type IncomingStudentPayload = {
+  academic_year_id: number;
+  department_id: number | null;
+  civility: string;
+  last_name: string;
+  first_name: string;
+  country_id: number | null;
+  origin_university_id: number | null;
+  origin_university_name: string;
+  birth_date: string | null;
+  mobility_category_id: number | null;
+  personal_email: string;
+  n7_email: string;
+  duration: string;
+  level_id: number | null;
+  parcours_id: number | null;
+  remarks: string;
+  internship_info: string;
+  diploma_info: string;
+  doctoral_continuation: boolean;
+};
+
+export function createIncomingStudent(payload: IncomingStudentPayload): Promise<IncomingStudent> {
+  return browserApi<IncomingStudent>("/incoming/", { method: "POST", body: payload });
+}
+
+export function updateIncomingStudent(id: number, payload: IncomingStudentPayload): Promise<IncomingStudent> {
+  return browserApi<IncomingStudent>(`/incoming/${id}/`, { method: "PUT", body: payload });
+}
+
+export function deleteIncomingStudent(id: number): Promise<void> {
+  return browserApi<void>(`/incoming/${id}/`, { method: "DELETE" });
+}
+
 export function getIncomingStatsUniv(yearId?: number): Promise<IncomingStatUniv[]> {
   const qs = yearId ? `?year_id=${yearId}` : "";
   return browserApi<IncomingStatUniv[]>(`/incoming/stats/univ/${qs}`, { method: "GET" });
