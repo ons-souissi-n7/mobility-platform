@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Eye, Lock, ToggleLeft, ToggleRight } from "lucide-react";
 
 import { AgreementDetailModal } from "@/components/mobility/agreement-detail-modal";
+import { ActionButtons } from "@/components/ui/action-buttons";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { createIdMap } from "@/lib/utils";
 import type {
@@ -39,6 +40,8 @@ export function AgreementsTable({
   onValidateYear,
   onSaveDeptQuota,
   onEditYearDuration,
+  onEdit,
+  onDelete,
 }: {
   agreements: Agreement[];
   agreementYears: AgreementYear[];
@@ -56,6 +59,8 @@ export function AgreementsTable({
   onValidateYear: (yi: AgreementYear) => Promise<void>;
   onSaveDeptQuota: (dq: AgreementYearDepartment, places: number) => Promise<void>;
   onEditYearDuration: (yi: AgreementYear, durationMonths: number | null) => Promise<void>;
+  onEdit?: (agreement: Agreement) => void;
+  onDelete?: (agreement: Agreement) => void;
 }) {
   const [editingN7ForId, setEditingN7ForId] = useState<number | null>(null);
   const [n7EditValue, setN7EditValue] = useState("");
@@ -541,18 +546,28 @@ export function AgreementsTable({
       },
     },
     {
-      key: "vue",
-      header: "",
+      key: "actions",
+      header: "Actions",
       align: "right",
       render: (row) => (
-        <button
-          className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-          onClick={() => setViewingRow(row)}
-          title="Voir les détails"
-          type="button"
-        >
-          <Eye size={15} />
-        </button>
+        <div className="flex items-center justify-end gap-1">
+          <button
+            className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            onClick={() => setViewingRow(row)}
+            title="Voir les détails"
+            type="button"
+          >
+            <Eye size={15} />
+          </button>
+          <ActionButtons
+            onEdit={onEdit ? () => onEdit(row.agreement) : undefined}
+            editDisabled={isYearClosed || isYearLocked}
+            editDisabledTitle={isYearClosed ? "Année clôturée" : "Campagne en cours — modifications verrouillées"}
+            onDelete={() => onDelete?.(row.agreement)}
+            deleteDisabled={isYearClosed || isYearLocked}
+            deleteDisabledTitle={isYearClosed ? "Année clôturée" : "Campagne en cours — modifications verrouillées"}
+          />
+        </div>
       ),
     },
   ];

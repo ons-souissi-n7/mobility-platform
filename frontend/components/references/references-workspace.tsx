@@ -64,6 +64,12 @@ import {
   type PartnerUniversityPayload,
   type UniversityImportCorrection,
 } from "@/lib/api/reference-mutations";
+import {
+  revalidateDepartments,
+  revalidateLevels,
+  revalidateParcours,
+  revalidateUniversities,
+} from "@/lib/actions/cache-revalidation";
 import type {
   AcademicYear,
   Country,
@@ -284,6 +290,7 @@ export function ReferencesWorkspace({
         const res = await createDepartment(p);
         setDepartments((prev) => [...prev, res]);
       }
+      await revalidateDepartments();
     }
     if (modal.kind === "university") {
       const p = payload as PartnerUniversityPayload;
@@ -294,6 +301,7 @@ export function ReferencesWorkspace({
         const res = await createUniversity(p);
         setUniversities((prev) => ({ ...prev, results: [...prev.results, res], count: prev.count + 1 }));
       }
+      await revalidateUniversities();
     }
     setModal(null);
   }
@@ -307,6 +315,7 @@ export function ReferencesWorkspace({
       const res = await createLevel(payload);
       setMobilityLevels((prev) => [...prev, res]);
     }
+    await revalidateLevels();
     setLevelModal(null);
   }
 
@@ -319,6 +328,7 @@ export function ReferencesWorkspace({
       const res = await createParcours(payload);
       setParcours((prev) => [...prev, res]);
     }
+    await revalidateParcours();
     setParcoursModal(null);
   }
 
@@ -332,6 +342,7 @@ export function ReferencesWorkspace({
     if (!await confirm(`Supprimer le departement "${department.code}" ?`)) return;
     await deleteDepartment(department.id);
     setDepartments((prev) => prev.filter((i) => i.id !== department.id));
+    await revalidateDepartments();
   }
 
   async function removeUniversity(university: PartnerUniversity) {
@@ -342,18 +353,21 @@ export function ReferencesWorkspace({
       results: prev.results.filter((i) => i.id !== university.id),
       count: Math.max(0, prev.count - 1),
     }));
+    await revalidateUniversities();
   }
 
   async function removeLevel(level: Level) {
     if (!await confirm(`Supprimer le niveau "${level.code}" ?`)) return;
     await deleteLevel(level.id);
     setMobilityLevels((prev) => prev.filter((i) => i.id !== level.id));
+    await revalidateLevels();
   }
 
   async function removeParcours(p: Parcours) {
     if (!await confirm(`Supprimer le parcours "${p.code}" ?`)) return;
     await deleteParcours(p.id);
     setParcours((prev) => prev.filter((i) => i.id !== p.id));
+    await revalidateParcours();
   }
 
   async function handleSyncUniversities() {
@@ -363,6 +377,7 @@ export function ReferencesWorkspace({
     try {
       await syncUniversitiesFromMoveon();
       await waitForUniversitySyncRefresh(prev);
+      await revalidateUniversities();
     } catch (error) {
       setSyncError(error instanceof Error ? error.message : "La synchronisation a echoue.");
     } finally {
@@ -377,6 +392,7 @@ export function ReferencesWorkspace({
     try {
       await syncDepartmentsFromPegase();
       await waitForDepartmentSyncRefresh(prev);
+      await revalidateDepartments();
     } catch (error) {
       setDepartmentSyncError(error instanceof Error ? error.message : "La synchronisation a echoue.");
     } finally {
@@ -395,6 +411,7 @@ export function ReferencesWorkspace({
       setLevelImportErrors(errPage.results);
       setLevelImportErrorsCount(errPage.count);
       setLevelErrorsPage(1);
+      await revalidateLevels();
     } catch (error) {
       setLevelSyncError(error instanceof Error ? error.message : "La synchronisation a echoue.");
     } finally {
@@ -446,6 +463,7 @@ export function ReferencesWorkspace({
     const univData = await fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE });
     setUniversities(univData);
     await loadUniversityErrors(universityErrorsPage);
+    await revalidateUniversities();
   }
 
   async function ignoreImportError(error: RawImport) {
@@ -458,6 +476,7 @@ export function ReferencesWorkspace({
     const univData = await fetchUniversitiesPage({ search: univSearch || undefined, country_id: univCountryFilter !== "all" ? Number(univCountryFilter) : undefined, page: univPage, page_size: DEFAULT_PAGE_SIZE });
     setUniversities(univData);
     await loadUniversityErrors(universityErrorsPage);
+    await revalidateUniversities();
   }
 
   async function retryDepartmentImportError(error: RawImport, correction: DepartmentImportCorrection) {
@@ -465,6 +484,7 @@ export function ReferencesWorkspace({
     const refreshed = await getDepartments();
     setDepartments(refreshed);
     await loadDepartmentErrors(departmentErrorsPage);
+    await revalidateDepartments();
   }
 
   async function ignoreDepartmentImportError(error: RawImport) {
@@ -477,6 +497,7 @@ export function ReferencesWorkspace({
     const depts = await getDepartments();
     setDepartments(depts);
     await loadDepartmentErrors(departmentErrorsPage);
+    await revalidateDepartments();
   }
 
   async function ignoreLevelImportError(error: RawImport) {
@@ -489,6 +510,7 @@ export function ReferencesWorkspace({
     const levels = await getLevels();
     setMobilityLevels(levels);
     await loadLevelErrors(levelErrorsPage);
+    await revalidateLevels();
   }
 
   const sortedCountries = useMemo(
@@ -538,6 +560,7 @@ export function ReferencesWorkspace({
           >
             <DepartmentsTable
               departments={filteredDepartments}
+              readOnly={refLocked}
               onDelete={removeDepartment}
               onEdit={(d) => setModal({ kind: "department", item: d })}
             />
@@ -572,6 +595,7 @@ export function ReferencesWorkspace({
             <ParcoursTable
               parcours={filteredParcours}
               departments={departments}
+              readOnly={refLocked}
               onDelete={removeParcours}
               onEdit={(p) => setParcoursModal({ kind: "parcours", item: p })}
             />
@@ -591,6 +615,7 @@ export function ReferencesWorkspace({
           >
             <LevelsTable
               levels={filteredLevels}
+              readOnly={refLocked}
               onDelete={removeLevel}
               onEdit={(l) => setLevelModal({ kind: "mobilityLevel", item: l })}
             />
@@ -636,6 +661,7 @@ export function ReferencesWorkspace({
               onDelete={removeUniversity}
               onEdit={(u) => setModal({ kind: "university", item: u })}
               universities={universities.results}
+              readOnly={refLocked}
               serverSidePagination={{
                 totalItems: universities.count,
                 page: univPage,
@@ -667,6 +693,7 @@ export function ReferencesWorkspace({
           >
             <CountriesTable
               countries={filteredCountries}
+              readOnly={refLocked}
               onDelete={removeCountry}
               onEdit={(c) => setModal({ kind: "country", item: c })}
             />

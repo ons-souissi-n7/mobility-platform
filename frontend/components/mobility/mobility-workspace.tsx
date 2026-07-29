@@ -21,6 +21,7 @@ import {
   adjustAgreementYearInp,
   createAgreement,
   createMobilityCategory,
+  deleteAgreement,
   deleteMobilityCategory,
   downloadExcelTemplate,
   exportAgreementsExcel,
@@ -115,7 +116,7 @@ export function MobilityWorkspace({
     [academicYears, yearFilter],
   );
   const isYearClosed = selectedYearStatus === "closed";
-  const isYearLocked = !!yearFilter && selectedYearStatus !== undefined && selectedYearStatus !== "initialization";
+  const isYearLocked = selectedYearStatus !== undefined && selectedYearStatus !== "initialization";
 
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -220,6 +221,18 @@ export function MobilityWorkspace({
       setAgreements((items) => [...items, created]);
     }
     setModal(null);
+  }
+
+  async function removeAgreement(agreement: Agreement) {
+    if (!(await confirm(`Supprimer l'accord "${agreement.name}" ? Cette action est irréversible.`))) return;
+    setSyncError("");
+    try {
+      await deleteAgreement(agreement.id);
+      setAgreements((items) => items.filter((a) => a.id !== agreement.id));
+      setAgreementYears((items) => items.filter((y) => y.agreement_id !== agreement.id));
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Impossible de supprimer l'accord.");
+    }
   }
 
 
@@ -591,6 +604,8 @@ export function MobilityWorkspace({
           onEditYearDuration={handleEditYearDuration}
           onValidateYear={handleValidateYear}
           onSaveDeptQuota={handleSaveDeptQuota}
+          onEdit={(agreement) => setModal({ kind: "agreement", item: agreement })}
+          onDelete={removeAgreement}
         />
       </MobilitySection>
 
@@ -639,7 +654,7 @@ export function MobilityWorkspace({
       {categoryErrors.length > 0 && (
         <MobilityImportErrorsPanel
           errors={categoryErrors}
-          isBusy={categorySyncInProgress}
+          isBusy={categorySyncInProgress || isYearLocked || isYearClosed}
           onIgnore={handleIgnoreImportError}
           onRetry={handleRetryImportError}
           onForce={handleForceImportError}
