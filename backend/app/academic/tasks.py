@@ -22,7 +22,7 @@ def _alert_transition_failed(
         f"mais l'année est actuellement en état « {year.status} ». "
         f"La transition a été annulée. Une intervention manuelle est nécessaire."
     )
-    SystemAlert.objects.create(level="error", title=title, message=message)
+    SystemAlert.objects.create(level="error", title=title, message=message, academic_year=year)
 
 
 def _alert_transition_failed_close(year: AcademicYear) -> None:
@@ -35,7 +35,12 @@ def _alert_transition_failed_close(year: AcademicYear) -> None:
     elif year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT:
         hint = (
             "L'algorithme d'affectation n'a pas encore terminé. "
-            "Vérifiez les logs Celery et relancez le calcul si nécessaire."
+            "Vérifiez les logs Django-Q et relancez le calcul si nécessaire."
+        )
+    elif year.status == AcademicYear.CampaignStatus.PUBLISHED:
+        hint = (
+            "L'année est publiée mais la finalisation CTI n'a pas encore été effectuée. "
+            "Lancez la finalisation CTI avant la clôture."
         )
     else:
         hint = f"L'état actuel est « {year.status} »."
@@ -43,10 +48,10 @@ def _alert_transition_failed_close(year: AcademicYear) -> None:
     title = f"Clôture automatique impossible — {year.label}"
     message = (
         f"La date de fin de l'année {year.label} est dépassée, "
-        f"mais la clôture automatique (published → closed) ne peut pas s'exécuter. "
+        f"mais la clôture automatique (finalization → closed) ne peut pas s'exécuter. "
         f"{hint}"
     )
-    SystemAlert.objects.create(level="error", title=title, message=message)
+    SystemAlert.objects.create(level="error", title=title, message=message, academic_year=year)
 
 
 def _add_one_year(d: date) -> date:
@@ -123,6 +128,7 @@ def auto_create_next_academic_year() -> None:
                     f"l'initialisation des accords de mobilité a échoué. "
                     f"Lancez l'initialisation manuellement depuis Mobilité > Initialiser l'année."
                 ),
+                academic_year=new_year,
             )
 
         log_action(
@@ -147,6 +153,7 @@ def auto_advance_recommendation_to_candidature() -> None:
         AcademicYear.CampaignStatus.PRE_ASSIGNMENT,
         AcademicYear.CampaignStatus.VALIDATION,
         AcademicYear.CampaignStatus.PUBLISHED,
+        AcademicYear.CampaignStatus.FINALIZATION,
         AcademicYear.CampaignStatus.CLOSED,
     ]
     qs = AcademicYear.objects.filter(wishes_open_date__lte=today).exclude(
@@ -199,6 +206,7 @@ def auto_close_wishes() -> None:
         AcademicYear.CampaignStatus.PRE_ASSIGNMENT,
         AcademicYear.CampaignStatus.VALIDATION,
         AcademicYear.CampaignStatus.PUBLISHED,
+        AcademicYear.CampaignStatus.FINALIZATION,
         AcademicYear.CampaignStatus.CLOSED,
     ]
     qs = AcademicYear.objects.filter(wishes_close_date__lte=today).exclude(
@@ -241,24 +249,24 @@ def auto_close_wishes() -> None:
 
 def auto_close_academic_year() -> None:
     """
-    Tâche planifiée à end_date. Clôture les années en état PUBLISHED.
-    Si l'année n'est pas en PUBLISHED, une alerte est créée sans tenter la transition.
+    Tâche planifiée à end_date. Clôture les années en état FINALIZATION.
+    Si l'année n'est pas en FINALIZATION, une alerte est créée sans tenter la transition.
     """
     today = date.today()
     qs = AcademicYear.objects.exclude(status=AcademicYear.CampaignStatus.CLOSED).filter(
         end_date__lte=today
     )
     for year in qs:
-        if year.status != AcademicYear.CampaignStatus.PUBLISHED:
+        if year.status != AcademicYear.CampaignStatus.FINALIZATION:
             logger.warning(
-                "AcademicYear %s (%s) état inattendu '%s' — transition published → closed annulée",
+                "AcademicYear %s (%s) état inattendu '%s' — transition finalization → closed annulée",
                 year.pk,
                 year.label,
                 year.status,
             )
             log_action(
                 action="auto_transition_failed",
-                detail=f"Année {year.label} ({year.pk}) — état inattendu « {year.status} », transition published → closed annulée.",
+                detail=f"Année {year.label} ({year.pk}) — état inattendu « {year.status} », transition finalization → closed annulée.",
             )
             _alert_transition_failed_close(year)
             continue
@@ -272,12 +280,12 @@ def auto_close_academic_year() -> None:
             )
         except TransitionNotAllowed:
             logger.warning(
-                "AcademicYear %s (%s) transition published → closed refused",
+                "AcademicYear %s (%s) transition finalization → closed refused",
                 year.pk,
                 year.label,
             )
             log_action(
                 action="auto_transition_failed",
-                detail=f"Année {year.label} ({year.pk}) — transition published → closed refusée.",
+                detail=f"Année {year.label} ({year.pk}) — transition finalization → closed refusée.",
             )
             _alert_transition_failed_close(year)
