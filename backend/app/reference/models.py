@@ -107,6 +107,11 @@ class Level(TimeStampedModel):
     name = models.CharField(max_length=255)
     pegase_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
     last_sync_pegase = models.DateTimeField(null=True, blank=True)
+    is_terminal = models.BooleanField(
+        default=False,
+        verbose_name="Niveau terminal (diplômant)",
+        help_text="Cocher si c'est le dernier niveau du cursus (ex: 3A ingénieur, M2). Utilisé pour calculer la cohorte CTI.",
+    )
 
     class Meta:
         verbose_name = "Level"
