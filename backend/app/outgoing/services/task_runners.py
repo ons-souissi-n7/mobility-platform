@@ -184,6 +184,7 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
                         f"Utilisez l'endpoint /academic/years/{year_id}/complete-assignment/ "
                         f"pour forcer la transition manuellement."
                     ),
+                    academic_year=academic_year,
                 )
             except Exception:
                 logger.exception(
@@ -199,6 +200,7 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
                         f"Consultez les logs serveur et utilisez l'endpoint "
                         f"/academic/years/{year_id}/complete-assignment/ pour récupérer."
                     ),
+                    academic_year=academic_year,
                 )
 
     log_action(

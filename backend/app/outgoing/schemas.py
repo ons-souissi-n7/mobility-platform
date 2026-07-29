@@ -140,6 +140,7 @@ class AssignmentOut(Schema):
 
 
 class AgreementWishOut(Schema):
+    wish_id: int
     rank: int
     agreement_id: int
     moveon_id: str | None
@@ -149,6 +150,7 @@ class AgreementWishOut(Schema):
 
 
 class StudentWishesOut(Schema):
+    enrollment_id: int
     student_id: int
     ine: str
     first_name: str
@@ -161,6 +163,10 @@ class StudentWishesOut(Schema):
     is_alternant: bool
     is_scholarship: bool
     wishes: list[AgreementWishOut]
+
+
+class WishPatchIn(Schema):
+    rank: int
 
 
 class WishSyncReportOut(Schema):
