@@ -170,7 +170,7 @@ jobs:
           load: true
 
       - name: Scan backend image (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: mobility-backend:${{ github.sha }}
           format: table
@@ -178,9 +178,10 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           trivyignores: .trivyignore
+          timeout: 10m
 
       - name: Scan frontend image (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: mobility-frontend:${{ github.sha }}
           format: table
@@ -188,3 +189,4 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           trivyignores: .trivyignore
+          timeout: 10m
