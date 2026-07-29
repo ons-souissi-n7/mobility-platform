@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   experimental: {
     staleTimes: {
       // 0 = pas de router cache côté client pour les pages dynamiques.
