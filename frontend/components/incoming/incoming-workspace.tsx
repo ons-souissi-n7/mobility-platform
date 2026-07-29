@@ -13,13 +13,18 @@ import {
 } from "lucide-react";
 
 import { IncomingImportErrorsPanel } from "@/components/incoming/incoming-import-errors-panel";
+import { IncomingStudentForm } from "@/components/incoming/incoming-student-form";
+import { ActionButtons } from "@/components/ui/action-buttons";
 import { CollapsibleStatsPanel } from "@/components/ui/collapsible-stats-panel";
 import { ErrorBanner } from "@/components/ui/alert";
 import { Btn, FileBtn } from "@/components/ui/btn";
+import { Modal } from "@/components/ui/modal";
 import { StatCard } from "@/components/ui/stat-card";
 import { Toolbar } from "@/components/ui/toolbar";
 import { Pagination } from "@/components/ui/pagination";
 import {
+  createIncomingStudent,
+  deleteIncomingStudent,
   downloadIncomingTemplate,
   exportIncomingExcel,
   getIncomingImportErrors,
@@ -28,6 +33,8 @@ import {
   ignoreIncomingImportError,
   importIncomingFromExcel,
   listIncomingStudents,
+  updateIncomingStudent,
+  type IncomingStudentPayload,
 } from "@/lib/api/incoming-mutations";
 import type {
   AcademicYear,
@@ -105,6 +112,8 @@ export function IncomingWorkspace({
     search || filterCountryId || filterDeptId || filterLevelId ||
     filterParcoursId || filterCategoryId || filterUniversityId
   );
+
+  const [studentModal, setStudentModal] = useState<{ item?: IncomingStudent } | null>(null);
 
   const [importErrors, setImportErrors] = useState(initialImportErrors);
   const [importErrorsCount, setImportErrorsCount] = useState(initialImportErrorsCount);
@@ -329,10 +338,56 @@ export function IncomingWorkspace({
     await downloadIncomingTemplate(selectedYearId);
   }
 
+  // ── Student CRUD ─────────────────────────────────────────────────────────────
+
+  async function submitIncoming(payload: IncomingStudentPayload) {
+    if (studentModal?.item) {
+      const updated = await updateIncomingStudent(studentModal.item.id, payload);
+      setStudents((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    } else {
+      await createIncomingStudent(payload);
+      await fetchStudents(1);
+    }
+    setStudentModal(null);
+  }
+
+  async function removeIncoming(student: IncomingStudent) {
+    if (!window.confirm(`Supprimer ${student.last_name} ${student.first_name} ? Cette action est irréversible.`)) return;
+    setActionError("");
+    try {
+      await deleteIncomingStudent(student.id);
+      setStudents((prev) => prev.filter((s) => s.id !== student.id));
+      setTotalCount((c) => c - 1);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Impossible de supprimer l'étudiant.");
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
+      {studentModal !== null && (
+        <Modal
+          description={studentModal.item ? "Modifier les informations de l'étudiant entrant." : "Ajouter un étudiant entrant manuellement."}
+          onClose={() => setStudentModal(null)}
+          title={studentModal.item ? "Modifier l'étudiant" : "Nouvel étudiant entrant"}
+        >
+          <IncomingStudentForm
+            academicYears={academicYears}
+            countries={countries}
+            departments={departments}
+            item={studentModal.item}
+            levels={levels}
+            mobilityCategories={mobilityCategories}
+            onCancel={() => setStudentModal(null)}
+            onSubmit={submitIncoming}
+            parcours={parcours}
+            universities={universities}
+          />
+        </Modal>
+      )}
+
       {/* Year selector */}
       <div>
         <label className="block">
@@ -516,12 +571,13 @@ export function IncomingWorkspace({
                 {selectedYearId === null && (
                   <th className="whitespace-nowrap px-3 py-3">Année</th>
                 )}
+                <th className="whitespace-nowrap px-3 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {students.length === 0 ? (
                 <tr>
-                  <td colSpan={selectedYearId === null ? 18 : 17} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={selectedYearId === null ? 19 : 18} className="px-4 py-8 text-center text-gray-400">
                     Aucun étudiant entrant pour cette sélection.
                   </td>
                 </tr>
@@ -567,6 +623,16 @@ export function IncomingWorkspace({
                           {s.academic_year_label}
                         </td>
                       )}
+                      <td className="whitespace-nowrap px-3 py-2">
+                        <ActionButtons
+                          onEdit={canManage ? () => setStudentModal({ item: s }) : undefined}
+                          editDisabled={!canManage}
+                          editDisabledTitle="Non autorisé dans cette phase"
+                          onDelete={() => void removeIncoming(s)}
+                          deleteDisabled={!canManage}
+                          deleteDisabledTitle="Non autorisé dans cette phase"
+                        />
+                      </td>
                     </tr>
                   );
                 })

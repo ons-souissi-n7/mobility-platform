@@ -41,3 +41,18 @@ export async function rejectMobility(
     body: { reason },
   });
 }
+
+export async function deleteComplementaryMobility(id: number): Promise<void> {
+  return browserApi<void>(`/complementary/${id}/`, { method: "DELETE" });
+}
+
+export async function updateComplementaryMobility(
+  id: number,
+  status: string,
+  rejectionReason: string,
+): Promise<ComplementaryMobility> {
+  return browserApi<ComplementaryMobility>(`/complementary/${id}/`, {
+    method: "PATCH",
+    body: { status, rejection_reason: rejectionReason },
+  });
+}

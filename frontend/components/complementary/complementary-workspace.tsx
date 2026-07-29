@@ -11,8 +11,10 @@ import { Toolbar } from "@/components/ui/toolbar";
 import {
   fetchComplementaryMobilitiesAdmin,
   rejectMobility,
+  updateComplementaryMobility,
   validateMobility,
 } from "@/lib/api/complementary";
+import { ActionButtons } from "@/components/ui/action-buttons";
 import type { AcademicYear, ComplementaryMobility } from "@/lib/api/types";
 import { formatDateShort } from "@/lib/utils";
 import { MobilityStatusBadge } from "./status-badge";
@@ -29,6 +31,14 @@ const STATUS_OPTIONS = [
 type RejectModal = {
   mobilityId: number;
   reason: string;
+  submitting: boolean;
+  error: string;
+};
+
+type EditModal = {
+  mobility: ComplementaryMobility;
+  status: string;
+  rejectionReason: string;
   submitting: boolean;
   error: string;
 };
@@ -68,6 +78,7 @@ export function ComplementaryWorkspace({
   const [modal, setModal] = useState<RejectModal | null>(null);
 
   const { confirm, dialog: confirmDialog } = useConfirm();
+  const [editModal, setEditModal] = useState<EditModal | null>(null);
 
   const selectedYear = academicYears.find((y) => y.id === selectedYearId) ?? null;
   const isReadOnly = !!selectedYear && selectedYear.status === "closed";
@@ -155,6 +166,31 @@ export function ComplementaryWorkspace({
           ...m,
           submitting: false,
           error: err instanceof Error ? err.message : "Erreur lors du rejet.",
+        },
+      );
+    }
+  }
+
+  // ── Edit ─────────────────────────────────────────────────────────────────
+
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editModal) return;
+    setEditModal((m) => m && { ...m, submitting: true, error: "" });
+    try {
+      const updated = await updateComplementaryMobility(
+        editModal.mobility.id,
+        editModal.status,
+        editModal.rejectionReason,
+      );
+      setMobilities((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      setEditModal(null);
+    } catch (err) {
+      setEditModal((m) =>
+        m && {
+          ...m,
+          submitting: false,
+          error: err instanceof Error ? err.message : "Erreur lors de la modification.",
         },
       );
     }
@@ -354,39 +390,54 @@ export function ComplementaryWorkspace({
                     </td>
 
                     <td className="px-4 py-3">
-                      {m.status === "pending" && !closedYearIds.has(m.academic_year_id) && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={actionLoading === m.id}
-                            onClick={() => handleValidate(m.id)}
-                            className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-                          >
-                            {actionLoading === m.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="h-3 w-3" />
-                            )}
-                            Valider
-                          </button>
-                          <button
-                            type="button"
-                            disabled={actionLoading === m.id}
-                            onClick={() =>
-                              setModal({
-                                mobilityId: m.id,
-                                reason: "",
-                                submitting: false,
-                                error: "",
-                              })
-                            }
-                            className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                          >
-                            <XCircle className="h-3 w-3" />
-                            Rejeter
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex flex-col gap-2">
+                        {m.status === "pending" && !closedYearIds.has(m.academic_year_id) && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={actionLoading === m.id}
+                              onClick={() => handleValidate(m.id)}
+                              className="inline-flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                            >
+                              {actionLoading === m.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3 w-3" />
+                              )}
+                              Valider
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actionLoading === m.id}
+                              onClick={() =>
+                                setModal({
+                                  mobilityId: m.id,
+                                  reason: "",
+                                  submitting: false,
+                                  error: "",
+                                })
+                              }
+                              className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                            >
+                              <XCircle className="h-3 w-3" />
+                              Rejeter
+                            </button>
+                          </div>
+                        )}
+                        <ActionButtons
+                          onEdit={() =>
+                            setEditModal({
+                              mobility: m,
+                              status: m.status,
+                              rejectionReason: m.rejection_reason ?? "",
+                              submitting: false,
+                              error: "",
+                            })
+                          }
+                          editDisabled={actionLoading === m.id || closedYearIds.has(m.academic_year_id)}
+                          editDisabledTitle={closedYearIds.has(m.academic_year_id) ? "Année clôturée" : "Action en cours"}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -402,6 +453,86 @@ export function ComplementaryWorkspace({
             emptyLabel="Aucune mobilité"
           />
         </div>
+      )}
+
+      {/* Modal édition */}
+      {editModal && (
+        <Modal
+          title="Modifier la mobilité"
+          description="Modifiez le statut et, si nécessaire, le motif de rejet."
+          onClose={() => setEditModal(null)}
+        >
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            {editModal.error && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {editModal.error}
+              </div>
+            )}
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-700">
+                Statut *
+              </label>
+              <select
+                required
+                value={editModal.status}
+                onChange={(e) =>
+                  setEditModal((m) =>
+                    m && {
+                      ...m,
+                      status: e.target.value,
+                      rejectionReason: e.target.value !== "rejected" ? "" : m.rejectionReason,
+                    },
+                  )
+                }
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
+              >
+                <option value="pending">En attente</option>
+                <option value="validated">Validée</option>
+                <option value="rejected">Rejetée</option>
+              </select>
+            </div>
+
+            {editModal.status === "rejected" && (
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">
+                  Motif du rejet *
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={editModal.rejectionReason}
+                  onChange={(e) =>
+                    setEditModal((m) => m && { ...m, rejectionReason: e.target.value })
+                  }
+                  placeholder="Indiquez le motif du rejet…"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setEditModal(null)}
+                disabled={editModal.submitting}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  editModal.submitting ||
+                  (editModal.status === "rejected" && !editModal.rejectionReason.trim())
+                }
+                className="rounded-md bg-[#1E3A8A] px-4 py-2 text-sm font-medium text-white hover:bg-[#1e40af] disabled:opacity-50"
+              >
+                {editModal.submitting ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* Modal rejet */}

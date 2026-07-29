@@ -1,6 +1,7 @@
 import datetime
 
 from django.db.models import Q
+from django.utils import timezone
 from ninja import File, Router, Schema
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
@@ -97,6 +98,11 @@ class RejectIn(Schema):
         return stripped
 
 
+class MobilityEditIn(Schema):
+    status: str
+    rejection_reason: str = ""
+
+
 class PagedOut(Schema):
     count: int
     page: int
@@ -112,6 +118,16 @@ def _get_student(ine: str) -> Student:
         return Student.objects.get(ine=ine)
     except Student.DoesNotExist as exc:
         raise HttpError(404, "Étudiant introuvable.") from exc
+
+
+def _resolve_mobility_alert(mob: "ComplementaryMobility") -> None:
+    """Marque comme lue l'alerte liée à cette mobilité complémentaire."""
+    SystemAlert.objects.filter(
+        is_read=False,
+        academic_year=mob.academic_year,
+        title="Nouvelle mobilité complémentaire déclarée",
+        message__icontains=f"INE : {mob.student.ine}",
+    ).update(is_read=True, read_at=timezone.now())
 
 
 # ── Reference data ───────────────────────────────────────────────────────────
@@ -216,6 +232,7 @@ def declare_mobility(
             f"a déclaré une mobilité complémentaire "
             f"({exp_type}, {country.name_fr}, {academic_year.label})."
         ),
+        academic_year=academic_year,
     )
 
     return 201, ComplementaryMobilityOut.from_obj(mobility)
@@ -282,6 +299,7 @@ def validate_mobility(request, mobility_id: int):
     mob = _get_pending_mobility(mobility_id)
     mob.validate()
     mob.save()
+    _resolve_mobility_alert(mob)
     log_action(
         request,
         action="validate_complementary_mobility",
@@ -302,6 +320,7 @@ def reject_mobility(request, mobility_id: int, payload: RejectIn):
     mob = _get_pending_mobility(mobility_id)
     mob.reject(reason=payload.reason)
     mob.save()
+    _resolve_mobility_alert(mob)
     log_action(
         request,
         action="reject_complementary_mobility",
@@ -312,3 +331,59 @@ def reject_mobility(request, mobility_id: int, payload: RejectIn):
         ),
     )
     return ComplementaryMobilityOut.from_obj(mob)
+
+
+@router.patch(
+    "/{mobility_id}/",
+    response=ComplementaryMobilityOut,
+    summary="Modifier le statut / motif d'une mobilité complémentaire (admin)",
+)
+def update_mobility(request, mobility_id: int, payload: MobilityEditIn):
+    valid_statuses = {MobilityStatus.PENDING, MobilityStatus.VALIDATED, MobilityStatus.REJECTED}
+    if payload.status not in valid_statuses:
+        raise HttpError(400, f"Statut invalide : {payload.status}.")
+    if payload.status == MobilityStatus.REJECTED and not payload.rejection_reason.strip():
+        raise HttpError(400, "Le motif de rejet est obligatoire.")
+    try:
+        mob = ComplementaryMobility.objects.select_related(
+            "student", "academic_year", "destination_country"
+        ).get(pk=mobility_id)
+    except ComplementaryMobility.DoesNotExist as exc:
+        raise HttpError(404, "Mobilité introuvable.") from exc
+    mob.status = payload.status
+    mob.rejection_reason = payload.rejection_reason.strip() if payload.status == MobilityStatus.REJECTED else ""
+    mob.save(update_fields=["status", "rejection_reason"])
+    if payload.status != MobilityStatus.PENDING:
+        _resolve_mobility_alert(mob)
+    log_action(
+        request,
+        action="update_complementary_mobility",
+        detail=(
+            f"Mobilité #{mob.id} → statut {payload.status} — "
+            f"{mob.student.last_name} {mob.student.first_name} ({mob.student.ine})"
+        ),
+    )
+    return ComplementaryMobilityOut.from_obj(mob)
+
+
+@router.delete(
+    "/{mobility_id}/",
+    response={204: None},
+    summary="Supprimer une mobilité complémentaire (admin)",
+)
+def delete_mobility(request, mobility_id: int):
+    try:
+        mob = ComplementaryMobility.objects.select_related("student", "academic_year").get(pk=mobility_id)
+    except ComplementaryMobility.DoesNotExist as exc:
+        raise HttpError(404, "Mobilité introuvable.") from exc
+    log_action(
+        request,
+        action="delete_complementary_mobility",
+        detail=(
+            f"Mobilité #{mob.id} supprimée — "
+            f"{mob.student.last_name} {mob.student.first_name} ({mob.student.ine}), "
+            f"{mob.academic_year.label}"
+        ),
+    )
+    mob.delete()
+    return 204, None
