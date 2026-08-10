@@ -15,7 +15,7 @@ import {
 
 export const adminNavigation = [
   {
-    href: "/admin",
+    href: "/admin/analytiques",
     label: "Tableau de bord",
     icon: LayoutDashboard,
   },
