@@ -1,5 +1,6 @@
 import datetime
 
+from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 from ninja import File, Router, Schema
@@ -14,7 +15,7 @@ from app.reference.models import Country
 from app.students.models import Student
 
 from .models import ComplementaryMobility, MobilityStatus
-from .services.minio_service import get_presigned_url, upload_document
+from .services.minio_service import delete_document, get_presigned_url, upload_document
 
 router = Router()
 
@@ -298,6 +299,10 @@ def list_all_mobilities(
 def validate_mobility(request, mobility_id: int):
     mob = _get_pending_mobility(mobility_id)
     mob.validate()
+    retention_days = getattr(settings, "DOCUMENT_RETENTION_DAYS", 5 * 365)
+    mob.document_retention_until = datetime.date.today() + datetime.timedelta(
+        days=retention_days
+    )
     mob.save()
     _resolve_mobility_alert(mob)
     log_action(
@@ -320,6 +325,11 @@ def reject_mobility(request, mobility_id: int, payload: RejectIn):
     mob = _get_pending_mobility(mobility_id)
     mob.reject(reason=payload.reason)
     mob.save()
+    # Justificatif rejeté : plus besoin de le conserver
+    if mob.document_key:
+        delete_document(mob.document_key)
+        ComplementaryMobility.objects.filter(pk=mob.pk).update(document_key="")
+        mob.document_key = ""
     _resolve_mobility_alert(mob)
     log_action(
         request,
@@ -357,13 +367,23 @@ def update_mobility(request, mobility_id: int, payload: MobilityEditIn):
         ).get(pk=mobility_id)
     except ComplementaryMobility.DoesNotExist as exc:
         raise HttpError(404, "Mobilité introuvable.") from exc
-    mob.status = payload.status
-    mob.rejection_reason = (
+    rejection_reason = (
         payload.rejection_reason.strip()
         if payload.status == MobilityStatus.REJECTED
         else ""
     )
-    mob.save(update_fields=["status", "rejection_reason"])
+    # FSMField has protected=True: direct assignment and refresh_from_db() both
+    # go through the descriptor and raise AttributeError. QuerySet.update()
+    # writes directly to SQL, and re-fetching via get() initializes a fresh
+    # Python object (status not yet in __dict__), so the descriptor allows it.
+    ComplementaryMobility.objects.filter(pk=mob.pk).update(
+        status=payload.status,
+        rejection_reason=rejection_reason,
+        updated_at=timezone.now(),
+    )
+    mob = ComplementaryMobility.objects.select_related(
+        "student", "academic_year", "destination_country"
+    ).get(pk=mob.pk)
     if payload.status != MobilityStatus.PENDING:
         _resolve_mobility_alert(mob)
     log_action(
@@ -398,5 +418,7 @@ def delete_mobility(request, mobility_id: int):
             f"{mob.academic_year.label}"
         ),
     )
+    if mob.document_key:
+        delete_document(mob.document_key)
     mob.delete()
     return 204, None

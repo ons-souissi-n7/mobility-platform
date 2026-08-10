@@ -15,6 +15,10 @@ def _alert_transition_failed(
     year: AcademicYear, expected_state: str, to_state: str
 ) -> None:
     title = f"Transition automatique échouée — {year.label}"
+    if SystemAlert.objects.filter(
+        title=title, academic_year=year, is_read=False
+    ).exists():
+        return
     message = (
         f"La tâche programmée n'a pas pu faire passer l'année {year.label} "
         f"vers l'état « {to_state} ». "
@@ -29,6 +33,11 @@ def _alert_transition_failed(
 
 def _alert_transition_failed_close(year: AcademicYear) -> None:
     """Alerte de clôture avec message contextuel selon l'état de l'année."""
+    title = f"Clôture automatique impossible — {year.label}"
+    if SystemAlert.objects.filter(
+        title=title, academic_year=year, is_read=False
+    ).exists():
+        return
     if year.status == AcademicYear.CampaignStatus.VALIDATION:
         hint = (
             "L'affectation est en cours de validation — publiez les résultats "
@@ -47,7 +56,6 @@ def _alert_transition_failed_close(year: AcademicYear) -> None:
     else:
         hint = f"L'état actuel est « {year.status} »."
 
-    title = f"Clôture automatique impossible — {year.label}"
     message = (
         f"La date de fin de l'année {year.label} est dépassée, "
         f"mais la clôture automatique (finalization → closed) ne peut pas s'exécuter. "

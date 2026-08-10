@@ -50,6 +50,12 @@ class ComplementaryMobility(TimeStampedModel):
         protected=True,
     )
     rejection_reason = models.TextField(blank=True)
+    document_retention_until = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Conserver le justificatif jusqu'au",
+        help_text="Date d'expiration du délai de conservation RGPD ; après cette date le fichier est supprimé automatiquement.",
+    )
 
     class Meta:
         verbose_name = "Mobilité complémentaire"

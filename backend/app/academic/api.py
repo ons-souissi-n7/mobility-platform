@@ -53,6 +53,15 @@ def get_current_academic_year(request):
     return AcademicYear.get_current()
 
 
+@router.get(
+    "/years/{year_id}/",
+    response=AcademicYearOut,
+    summary="Détail d'une année universitaire",
+)
+def get_academic_year_detail(request, year_id: int):
+    return get_academic_year(year_id)
+
+
 @router.post("/years/", response={201: AcademicYearOut}, summary="Creer une annee")
 def create_academic_year(request, payload: AcademicYearIn):
     academic_year = AcademicYear(**payload.model_dump())

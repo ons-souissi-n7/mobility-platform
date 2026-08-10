@@ -869,3 +869,39 @@ def import_from_excel(request, year_id: int, file: UploadedFile = File(...)):
         detail=f"Tâche {task_id} lancée — Fichier {file.name} — Année {academic_year.label}",
     )
     return 202, {"task_id": task_id, "message": "Import Excel lancé en arrière-plan."}
+
+
+@router.post(
+    "/students/{ine}/anonymize/",
+    response={204: None},
+    summary="Anonymiser un étudiant (RGPD Art. 17)",
+)
+def anonymize_student(request, ine: str):
+    from app.academic.models import AcademicYear
+
+    try:
+        student = Student.objects.get(ine=ine)
+    except Student.DoesNotExist as exc:
+        raise HttpError(404, "Étudiant introuvable.") from exc
+
+    active_enrollment = (
+        AnnualEnrollment.objects.filter(student=student)
+        .exclude(academic_year__status=AcademicYear.CampaignStatus.CLOSED)
+        .select_related("academic_year")
+        .first()
+    )
+    if active_enrollment:
+        raise HttpError(
+            409,
+            f"Impossible d'anonymiser : l'étudiant est inscrit dans la campagne "
+            f"« {active_enrollment.academic_year.label} » qui n'est pas encore clôturée. "
+            f"L'anonymisation est possible uniquement après clôture de toutes les campagnes actives.",
+        )
+
+    student.anonymize()
+    log_action(
+        request,
+        action="anonymize_student",
+        detail=f"Données nominatives effacées (RGPD Art. 17) — INE {ine}.",
+    )
+    return 204, None
