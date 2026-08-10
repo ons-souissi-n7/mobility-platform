@@ -40,6 +40,7 @@ LOCAL_APPS = [
     "app.cti",
     "app.imports",
     "app.rag",
+    "app.analytics",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -131,6 +132,12 @@ Q_CLUSTER = {
 }
 
 AUDITLOG_INCLUDE_ALL_MODELS = False
+
+# Clé de chiffrement pgcrypto (AES symétrique) — jamais stockée dans le code.
+# Fournir via la variable d'environnement PGCRYPTO_KEY (min. 32 caractères).
+PGCRYPTO_KEY = config("PGCRYPTO_KEY", default="dev-insecure-key-change-in-prod-32c")
+# Délai de conservation des justificatifs après validation (Art. 5(1)(e) RGPD)
+DOCUMENT_RETENTION_DAYS = config("DOCUMENT_RETENTION_DAYS", default=5 * 365, cast=int)
 
 MINIO_ENDPOINT = config("MINIO_ENDPOINT", default="minio:9000")
 MINIO_PUBLIC_ENDPOINT = config("MINIO_PUBLIC_ENDPOINT", default="localhost:9000")

@@ -326,3 +326,65 @@ class TestRejectMobility:
         mock_log.assert_called_once()
         assert mock_log.call_args.kwargs["action"] == "reject_complementary_mobility"
         assert "Justificatif non conforme" in mock_log.call_args.kwargs["detail"]
+
+
+# ── Admin PATCH update ────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+class TestUpdateMobility:
+    def test_patch_validates_mobility(self, client, pending_mobility):
+        with patch("app.complementary.api.log_action"):
+            response = client.patch(
+                f"/{pending_mobility.pk}/",
+                json={"status": "validated", "rejection_reason": ""},
+            )
+        assert response.status_code == 200
+        refreshed = ComplementaryMobility.objects.get(pk=pending_mobility.pk)
+        assert refreshed.status == MobilityStatus.VALIDATED
+
+    def test_patch_rejects_mobility_with_reason(self, client, pending_mobility):
+        with patch("app.complementary.api.log_action"):
+            response = client.patch(
+                f"/{pending_mobility.pk}/",
+                json={"status": "rejected", "rejection_reason": "Motif test."},
+            )
+        assert response.status_code == 200
+        refreshed = ComplementaryMobility.objects.get(pk=pending_mobility.pk)
+        assert refreshed.status == MobilityStatus.REJECTED
+        assert refreshed.rejection_reason == "Motif test."
+
+    def test_patch_returns_400_when_rejection_reason_missing(
+        self, client, pending_mobility
+    ):
+        response = client.patch(
+            f"/{pending_mobility.pk}/",
+            json={"status": "rejected", "rejection_reason": ""},
+        )
+        assert response.status_code == 400
+
+    def test_patch_returns_400_for_invalid_status(self, client, pending_mobility):
+        response = client.patch(
+            f"/{pending_mobility.pk}/",
+            json={"status": "unknown_status", "rejection_reason": ""},
+        )
+        assert response.status_code == 400
+
+    def test_patch_returns_404_for_unknown_mobility(self, client):
+        response = client.patch(
+            "/99999/",
+            json={"status": "validated", "rejection_reason": ""},
+        )
+        assert response.status_code == 404
+
+    def test_patch_updates_timestamp(self, client, pending_mobility):
+        original_updated_at = pending_mobility.updated_at
+        with patch("app.complementary.api.log_action"):
+            client.patch(
+                f"/{pending_mobility.pk}/",
+                json={"status": "validated", "rejection_reason": ""},
+            )
+        # refresh_from_db() also goes through the FSM protected descriptor,
+        # so we fetch a fresh instance instead.
+        refreshed = ComplementaryMobility.objects.get(pk=pending_mobility.pk)
+        assert refreshed.updated_at > original_updated_at

@@ -890,3 +890,91 @@ class TestReconciliationCandidates:
         data = response.json()
         scores = [d["score"] for d in data]
         assert scores == sorted(scores, reverse=True)
+
+
+# ---------------------------------------------------------------------------
+# POST /students/students/{ine}/anonymize/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestAnonymizeStudent:
+    def setup_method(self):
+        self.client = Client()
+        self.dept = Department.objects.create(code="ANON", name="Anonymisation Test")
+        self.level = Level.objects.create(code="3A", name="Troisième année")
+
+    def _make_student(self, ine: str = "1234567890A") -> Student:
+        return Student.objects.create(
+            ine=ine,
+            first_name="Alice",
+            last_name="Dupont",
+            email="alice@example.com",
+            gender="F",
+            pegase_id="PEG123",
+        )
+
+    def _make_closed_year(self) -> AcademicYear:
+        year = make_year()
+        AcademicYear.objects.filter(pk=year.pk).update(
+            status=AcademicYear.CampaignStatus.CLOSED
+        )
+        return AcademicYear.objects.get(pk=year.pk)
+
+    def test_returns_404_for_unknown_ine(self):
+        response = self.client.post("/api/v1/students/students/UNKNOWNINE/anonymize/")
+        assert response.status_code == 404
+
+    def test_returns_409_when_student_has_active_enrollment(self):
+        student = self._make_student()
+        year = make_year()
+        AnnualEnrollment.objects.create(
+            student=student, academic_year=year, department=self.dept, level=self.level
+        )
+        response = self.client.post(
+            f"/api/v1/students/students/{student.ine}/anonymize/"
+        )
+        assert response.status_code == 409
+
+    def test_returns_204_when_all_campaigns_closed(self):
+        student = self._make_student()
+        year = self._make_closed_year()
+        AnnualEnrollment.objects.create(
+            student=student, academic_year=year, department=self.dept, level=self.level
+        )
+        response = self.client.post(
+            f"/api/v1/students/students/{student.ine}/anonymize/"
+        )
+        assert response.status_code == 204
+
+    def test_personal_fields_are_replaced(self):
+        student = self._make_student()
+        response = self.client.post(
+            f"/api/v1/students/students/{student.ine}/anonymize/"
+        )
+        assert response.status_code == 204
+        refreshed = Student.objects.get(pk=student.pk)
+        assert refreshed.first_name == "Anonymisé"
+        assert refreshed.last_name == f"ETUDIANT-{student.pk}"
+        assert refreshed.email == ""
+        assert refreshed.gender == ""
+        assert refreshed.pegase_id is None
+
+    def test_enrollments_are_preserved_after_anonymization(self):
+        student = self._make_student()
+        year = self._make_closed_year()
+        AnnualEnrollment.objects.create(
+            student=student, academic_year=year, department=self.dept, level=self.level
+        )
+        self.client.post(f"/api/v1/students/students/{student.ine}/anonymize/")
+        assert AnnualEnrollment.objects.filter(student=student).count() == 1
+
+    def test_creates_audit_log_entry(self):
+        from auditlog.models import LogEntry
+
+        student = self._make_student()
+        self.client.post(f"/api/v1/students/students/{student.ine}/anonymize/")
+        entry = LogEntry.objects.filter(object_repr="anonymize_student").last()
+        assert entry is not None
+        assert entry.changes["action"][1] == "anonymize_student"
+        assert student.ine in entry.changes["detail"][1]

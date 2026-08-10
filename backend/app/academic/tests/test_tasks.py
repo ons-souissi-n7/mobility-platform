@@ -10,6 +10,7 @@ from app.academic.tasks import (
     auto_close_wishes,
     auto_create_next_academic_year,
 )
+from app.alerts.models import SystemAlert
 
 
 def _make_year(label, status, **date_kwargs):
@@ -144,6 +145,28 @@ class TestAutoCloseAcademicYear:
 
         year = AcademicYear.objects.get(pk=year.pk)
         assert year.status == AcademicYear.CampaignStatus.PRE_ASSIGNMENT
+
+    def test_creates_alert_when_auto_close_fails(self):
+        today = timezone.now().date()
+        year = _make_year("TEST-ALERT", "published")
+        AcademicYear.objects.filter(pk=year.pk).update(end_date=today)
+
+        auto_close_academic_year()
+
+        alerts = SystemAlert.objects.filter(academic_year=year)
+        assert alerts.count() == 1
+        assert "Clôture automatique impossible" in alerts.first().title
+
+    def test_does_not_create_duplicate_alert_on_repeated_runs(self):
+        today = timezone.now().date()
+        year = _make_year("TEST-DEDUP", "published")
+        AcademicYear.objects.filter(pk=year.pk).update(end_date=today)
+
+        auto_close_academic_year()
+        auto_close_academic_year()
+        auto_close_academic_year()
+
+        assert SystemAlert.objects.filter(academic_year=year).count() == 1
 
 
 @pytest.mark.django_db

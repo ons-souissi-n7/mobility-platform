@@ -2,6 +2,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from app.academic.models import AcademicYear
+from app.core.encrypted_fields import PgEncryptedTextField
 from app.core.models import TimeStampedModel
 from app.reference.models import Department, Level, Parcours
 
@@ -16,7 +17,7 @@ class Student(TimeStampedModel):
     ine = models.CharField(max_length=11, unique=True, verbose_name="INE")
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    email = models.EmailField(blank=True)
+    email = PgEncryptedTextField(blank=True)
     gender = models.CharField(
         max_length=1,
         choices=GenderChoice.choices,
@@ -32,8 +33,7 @@ class Student(TimeStampedModel):
         related_name="students",
         verbose_name="Nationalité",
     )
-    pegase_id = models.CharField(  # noqa: DJ001
-        max_length=255,
+    pegase_id = PgEncryptedTextField(
         null=True,
         blank=True,
         verbose_name="Identifiant Pégase",
@@ -55,6 +55,28 @@ class Student(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.last_name.upper()} {self.first_name} ({self.ine})"
+
+    def anonymize(self) -> None:
+        """RGPD Art. 17 — efface les données nominatives, conserve les données statistiques."""
+        self.first_name = "Anonymisé"
+        self.last_name = f"ETUDIANT-{self.pk}"
+        self.email = ""
+        self.gender = ""
+        self.nationality = None
+        self.pegase_id = None
+        self.last_sync_pegase = None
+        self.save(
+            update_fields=[
+                "first_name",
+                "last_name",
+                "email",
+                "gender",
+                "nationality",
+                "pegase_id",
+                "last_sync_pegase",
+                "updated_at",
+            ]
+        )
 
 
 class AnnualEnrollment(TimeStampedModel):

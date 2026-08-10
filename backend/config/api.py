@@ -2,6 +2,7 @@ from ninja import NinjaAPI
 
 from app.academic.api import router as academic_router
 from app.alerts.api import router as alerts_router
+from app.analytics.api import router as analytics_router
 from app.audit.api import router as audit_router
 from app.complementary.api import router as complementary_router
 from app.cti.api import router as cti_router
@@ -36,3 +37,4 @@ api.add_router("/internships/", internships_router, tags=["Internships"])
 api.add_router("/incoming/", incoming_router, tags=["Incoming"])
 api.add_router("/complementary/", complementary_router, tags=["Complementary Mobility"])
 api.add_router("/cti/", cti_router, tags=["CTI"])
+api.add_router("/analytics/", analytics_router, tags=["Analytics"])

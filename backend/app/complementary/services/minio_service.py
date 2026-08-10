@@ -54,3 +54,13 @@ def get_presigned_url(key: str, expires_seconds: int = 3600) -> str:
     return _public_client().presigned_get_object(
         settings.MINIO_BUCKET_NAME, key, expires=timedelta(seconds=expires_seconds)
     )
+
+
+def delete_document(key: str) -> None:
+    """Supprime un objet du bucket MinIO (silencieux si inexistant)."""
+    if not key:
+        return
+    try:
+        _client().remove_object(settings.MINIO_BUCKET_NAME, key)
+    except Exception:
+        pass
