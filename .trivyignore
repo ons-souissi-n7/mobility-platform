@@ -30,6 +30,14 @@ CVE-2026-64649
 CVE-2026-45623
 GHSA-r28c-9q8g-f849
 
+# CVE-2025-47273: setuptools Path Traversal Vulnerability in PackageIndex.
+# Affected package: setuptools==70.3.0 in the Debian base image system Python (/usr/local/lib).
+# The venv and requirements.txt both pin setuptools==78.1.1 (patched). The system Python's
+# setuptools is never invoked at runtime — the production container runs the Django app via the
+# /venv Python and never executes `pip install`. CVE requires fetching packages from a malicious
+# index, which cannot happen in a running container.
+CVE-2025-47273
+
 # GHSA-6v7p-g79w-8964: msgpack Out-of-bounds read / crash on Unpacker reuse.
 # Affected package: msgpack (indirect dependency of django-q2==1.7.2 which declares msgpack~=1.1).
 # The venv installs msgpack==1.2.1 (patched); Trivy's detection is triggered by django-q2's package

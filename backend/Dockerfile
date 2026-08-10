@@ -25,7 +25,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y libpq5 \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install --upgrade "setuptools==78.1.1" \
+    && pip uninstall -y pip setuptools \
     && addgroup --system appgroup \
     && adduser --system --ingroup appgroup appuser
 
