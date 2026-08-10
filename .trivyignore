@@ -29,3 +29,18 @@ CVE-2026-64649
 # CSS is never processed at runtime. Will be resolved when next.js is upgraded to 16.2.11+.
 CVE-2026-45623
 GHSA-r28c-9q8g-f849
+
+# GHSA-6v7p-g79w-8964: msgpack Out-of-bounds read / crash on Unpacker reuse.
+# Affected package: msgpack (indirect dependency of django-q2==1.7.2 which declares msgpack~=1.1).
+# The venv installs msgpack==1.2.1 (patched); Trivy's detection is triggered by django-q2's package
+# metadata listing msgpack~=1.1 as a dependency range — not by the actual runtime package.
+GHSA-6v7p-g79w-8964
+
+# CVE-2026-23949: jaraco.context path traversal via malicious tar archives.
+# CVE-2026-24049: wheel privilege escalation via malicious wheel files.
+# Both affect vendor packages bundled inside setuptools/_vendor/ (jaraco.context==5.3.0,
+# wheel==0.45.1 shipped with setuptools==78.1.1). These code paths execute only during
+# `pip install` — never at runtime in the production container.
+# Fixed versions (jaraco.context>=6.1.0, wheel>=0.46.2) are not yet vendored by setuptools.
+CVE-2026-23949
+CVE-2026-24049
