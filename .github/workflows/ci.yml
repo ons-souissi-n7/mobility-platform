@@ -76,6 +76,8 @@ jobs:
           DJANGO_SETTINGS_MODULE: config.settings.development
           DATABASE_URL: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
           SECRET_KEY: ci-secret-key-not-used-in-prod
+          JWT_SECRET_KEY: ci-jwt-secret-key-not-used-in-prod
+          PGCRYPTO_KEY: ci-pgcrypto-key-not-used-in-prod32
         run: |
           cd backend
           python manage.py migrate
@@ -85,6 +87,8 @@ jobs:
           DJANGO_SETTINGS_MODULE: config.settings.development
           DATABASE_URL: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
           SECRET_KEY: ci-secret-key-not-used-in-prod
+          JWT_SECRET_KEY: ci-jwt-secret-key-not-used-in-prod
+          PGCRYPTO_KEY: ci-pgcrypto-key-not-used-in-prod32
         run: |
           cd backend
           pytest --cov=. --cov-report=xml --cov-fail-under=80 -v
@@ -170,7 +174,7 @@ jobs:
           load: true
 
       - name: Scan backend image (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.32.0
         with:
           image-ref: mobility-backend:${{ github.sha }}
           format: table
@@ -181,7 +185,7 @@ jobs:
           timeout: 10m
 
       - name: Scan frontend image (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.32.0
         with:
           image-ref: mobility-frontend:${{ github.sha }}
           format: table

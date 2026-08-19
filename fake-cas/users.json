@@ -1,0 +1,29 @@
+[
+  {
+    "username": "admin@n7.fr",
+    "password": "admin123",
+    "attributes": {
+      "email": "admin@n7.fr",
+      "role": "admin",
+      "ine": null
+    }
+  },
+  {
+    "username": "etudiant@etud.n7.fr",
+    "password": "etudiant123",
+    "attributes": {
+      "email": "etudiant@etud.n7.fr",
+      "role": "student",
+      "ine": "203EA05FISA"
+    }
+  },
+  {
+    "username": "etudiant2@etud.n7.fr",
+    "password": "etudiant123",
+    "attributes": {
+      "email": "etudiant2@etud.n7.fr",
+      "role": "student",
+      "ine": "20SN010FISE"
+    }
+  }
+]

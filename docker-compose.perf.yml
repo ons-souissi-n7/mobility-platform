@@ -1,0 +1,45 @@
+# docker-compose.perf.yml — Overlay pour valider BNF04 (p95 < 200 ms @ 50 VUs)
+# contre le serveur applicatif de production (gunicorn + workers uvicorn),
+# jamais contre `manage.py runserver` qui n'est pas conçu pour la concurrence.
+#
+# Usage :
+#   docker compose -f docker-compose.yml -f docker-compose.perf.yml up -d --build db minio backend
+#   docker run --rm --network mobility-platform_internal \
+#     -e BASE_URL=http://backend:8000/api/v1 \
+#     -v "${PWD}/performance:/scripts" grafana/k6 run /scripts/load-test-bnf04.js
+#
+# Toujours lancer avec -p pour une isolation totale des containers/réseaux/volumes
+# vis-à-vis de la stack de dev (sinon "docker compose -f docker-compose.yml"
+# recrée silencieusement les containers db/minio/backend de docker-compose.dev.yml,
+# qui partagent les mêmes noms de service sous le même projet) :
+#   docker compose -p mobility-perf -f docker-compose.yml -f docker-compose.perf.yml \
+#     up -d db minio backend
+#   docker run --rm --network mobility-perf_internal \
+#     -e BASE_URL=http://backend:8000/api/v1 \
+#     -v "${PWD}/performance:/scripts" grafana/k6 run /scripts/load-test-bnf04.js
+#   docker compose -p mobility-perf -f docker-compose.yml -f docker-compose.perf.yml down -v
+#
+# Deux différences avec docker-compose.yml, toutes deux nécessaires uniquement
+# parce que ce test tourne en local sans certificat TLS ni nom de domaine réel :
+#   - settings.perf_test au lieu de settings.production : désactive
+#     SECURE_SSL_REDIRECT (sinon gunicorn renvoie tout en 301 vers https://,
+#     que rien n'écoute ici — hors sujet pour un test de concurrence pure).
+#   - ALLOWED_HOSTS inclut "backend" : k6 appelle http://backend:8000 (nom du
+#     service Docker), pas localhost.
+# Tout le reste (image, CMD gunicorn --worker-class uvicorn.workers.UvicornWorker)
+# reste identique à la config de production.
+
+services:
+  # max_connections par défaut (100) est atteint sous 50 VUs simultanés
+  # (Django ouvre une connexion par requête, CONN_MAX_AGE=0) — observé en
+  # pratique : "FATAL: sorry, too many clients already", masquant la vraie
+  # latence derrière un taux d'échec élevé. Relevé ici uniquement pour ce
+  # test local jetable ; en production, la vraie réponse est un pooler
+  # (PgBouncer) ou CONN_MAX_AGE, pas une limite plus haute en dur.
+  db:
+    command: postgres -c max_connections=300
+
+  backend:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.perf_test
+      ALLOWED_HOSTS: backend,localhost,127.0.0.1

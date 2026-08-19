@@ -19,6 +19,7 @@ services:
       - internal
 
   backend:
+    image: mobility-platform-backend:staging
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -27,6 +28,8 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      PGCRYPTO_KEY: ${PGCRYPTO_KEY}
       DEBUG: "False"
       ALLOWED_HOSTS: ${ALLOWED_HOSTS}
       SENTRY_DSN: ${SENTRY_DSN}
@@ -38,6 +41,7 @@ services:
       - external
 
   worker:
+    image: mobility-platform-worker:staging
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -46,6 +50,8 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      PGCRYPTO_KEY: ${PGCRYPTO_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -54,6 +60,7 @@ services:
       - internal
 
   frontend:
+    image: mobility-platform-frontend:staging
     build:
       context: ./frontend
       dockerfile: Dockerfile
