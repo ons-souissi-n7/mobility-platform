@@ -53,13 +53,13 @@ export function StudentsWorkspace({
   departments,
   levels,
   parcourses,
-}: {
+}: Readonly<{
   academicYears: AcademicYear[];
   countries: Country[];
   departments: Department[];
   levels: Level[];
   parcourses: Parcours[];
-}) {
+}>) {
   const defaultYear =
     academicYears.find((y) => y.status !== "closed") ?? academicYears[0] ?? null;
 
@@ -96,9 +96,9 @@ export function StudentsWorkspace({
   function buildFilters(overrides: Partial<StudentByYearFilters> = {}): StudentByYearFilters {
     return {
       search: (overrides.search ?? query) || undefined,
-      level_id: (overrides.level_id !== undefined ? overrides.level_id : filterLevel ? Number(filterLevel) : undefined),
-      department_id: (overrides.department_id !== undefined ? overrides.department_id : filterDept ? Number(filterDept) : undefined),
-      parcours_id: (overrides.parcours_id !== undefined ? overrides.parcours_id : filterParcours ? Number(filterParcours) : undefined),
+      level_id: overrides.level_id ?? (filterLevel ? Number(filterLevel) : undefined),
+      department_id: overrides.department_id ?? (filterDept ? Number(filterDept) : undefined),
+      parcours_id: overrides.parcours_id ?? (filterParcours ? Number(filterParcours) : undefined),
     };
   }
 
@@ -539,12 +539,12 @@ function BreakdownCard({
   items,
   isLoading,
   icon: Icon,
-}: {
+}: Readonly<{
   title: string;
   items: { code: string; label: string; count: number }[];
   isLoading: boolean;
   icon: ElementType;
-}) {
+}>) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
@@ -595,7 +595,7 @@ function EnrollmentTable({
   onEdit,
   onDelete,
   onPageChange,
-}: {
+}: Readonly<{
   items: StudentWithEnrollment[];
   totalItems: number;
   page: number;
@@ -607,7 +607,7 @@ function EnrollmentTable({
   onEdit: (s: StudentWithEnrollment) => void;
   onDelete: (s: StudentWithEnrollment) => void;
   onPageChange: (page: number) => void;
-}) {
+}>) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
   if (items.length === 0 && !isBusy) {
@@ -667,7 +667,7 @@ function EnrollmentTable({
                 </Td>
                 <Td>
                   {e.gpa != null
-                    ? <span className="font-mono text-xs text-gray-700">{parseFloat(e.gpa).toFixed(2)}</span>
+                    ? <span className="font-mono text-xs text-gray-700">{Number.parseFloat(e.gpa).toFixed(2)}</span>
                     : <span className="text-xs italic text-gray-300">—</span>}
                 </Td>
                 <td className="px-4 py-3 text-right">
@@ -762,14 +762,14 @@ function EnrollmentEditForm({
   parcourses,
   onCancel,
   onSubmit,
-}: {
+}: Readonly<{
   item: StudentWithEnrollment;
   departments: Department[];
   levels: Level[];
   parcourses: Parcours[];
   onCancel: () => void;
   onSubmit: (patch: EnrollmentPatch) => Promise<void>;
-}) {
+}>) {
   const [deptId, setDeptId] = useState(String(item.department_id));
   const [levelId, setLevelId] = useState(String(item.level_id));
   const [parcoursId, setParcoursId] = useState(item.parcours_id ? String(item.parcours_id) : "");
@@ -785,7 +785,7 @@ function EnrollmentEditForm({
     [parcourses, deptId],
   );
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     setSaving(true);
     try {
@@ -806,8 +806,9 @@ function EnrollmentEditForm({
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Département *</label>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="student-enrollment-dept-select">Département *</label>
           <select
+            id="student-enrollment-dept-select"
             className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             value={deptId}
             onChange={(e) => { setDeptId(e.target.value); setParcoursId(""); }}
@@ -819,8 +820,9 @@ function EnrollmentEditForm({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Niveau *</label>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="student-enrollment-level-select">Niveau *</label>
           <select
+            id="student-enrollment-level-select"
             className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             value={levelId}
             onChange={(e) => setLevelId(e.target.value)}
@@ -832,8 +834,9 @@ function EnrollmentEditForm({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Parcours</label>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="student-enrollment-parcours-select">Parcours</label>
           <select
+            id="student-enrollment-parcours-select"
             className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             value={parcoursId}
             onChange={(e) => setParcoursId(e.target.value)}
@@ -845,8 +848,9 @@ function EnrollmentEditForm({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">GPA</label>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="student-enrollment-gpa-input">GPA</label>
           <input
+            id="student-enrollment-gpa-input"
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             type="number"
             step="0.01"
@@ -865,7 +869,7 @@ function EnrollmentEditForm({
             checked={isAlternant}
             onChange={(e) => setIsAlternant(e.target.checked)}
             className="rounded border-gray-300"
-          />
+          />{" "}
           Alternant (FISA)
         </label>
         <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -874,7 +878,7 @@ function EnrollmentEditForm({
             checked={isScholarship}
             onChange={(e) => setIsScholarship(e.target.checked)}
             className="rounded border-gray-300"
-          />
+          />{" "}
           Boursier
         </label>
       </div>

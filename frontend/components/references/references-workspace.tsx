@@ -137,7 +137,7 @@ export function ReferencesWorkspace({
   parcours,
   setParcours,
   currentYear,
-}: ReferencesWorkspaceProps) {
+}: Readonly<ReferencesWorkspaceProps>) {
   const refLocked = !!currentYear && currentYear.status !== "initialization";
 
   const [query, setQuery] = useState("");

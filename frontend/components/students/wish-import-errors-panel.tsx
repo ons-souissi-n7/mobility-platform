@@ -35,12 +35,12 @@ function WishCandidatesPanel({
   loading,
   onSearch,
   onSelect,
-}: {
+}: Readonly<{
   candidates: ReconciliationCandidate[] | undefined;
   loading: boolean;
   onSearch: () => void;
   onSelect: (studentId: number) => void;
-}) {
+}>) {
   return (
     <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
       <div className="flex items-center justify-between">
@@ -158,7 +158,7 @@ export function WishImportErrorsPanel({
   page = 1,
   pageSize = 25,
   onPageChange,
-}: {
+}: Readonly<{
   agreements: Agreement[];
   errors: RawImport[];
   isBusy: boolean;
@@ -170,7 +170,7 @@ export function WishImportErrorsPanel({
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
-}) {
+}>) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);

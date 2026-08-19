@@ -8,6 +8,12 @@ import type {
   StudentWishItem,
 } from "./types";
 
+function getAuthToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = /(?:^|; )auth_token=([^;]*)/.exec(document.cookie);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 async function throwApiError(res: Response): Promise<never> {
   const text = await res.text().catch(() => "");
   let message = `Erreur API ${res.status}`;
@@ -23,7 +29,13 @@ async function throwApiError(res: Response): Promise<never> {
 }
 
 async function clientFetch<T>(url: string): Promise<T | null> {
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const token = getAuthToken();
+  const res = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
   if (res.status === 404) return null;
   if (!res.ok) await throwApiError(res);
   return res.json() as Promise<T>;
@@ -102,9 +114,14 @@ export async function declareComplementaryMobility(
   const form = new FormData();
   form.append("document", document);
 
+  const token = getAuthToken();
   const res = await fetch(
     `${publicApiBaseUrl}/complementary/student/${ine}/?${params.toString()}`,
-    { method: "POST", body: form },
+    {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    },
   );
   if (!res.ok) await throwApiError(res);
   return res.json() as Promise<ComplementaryMobility>;

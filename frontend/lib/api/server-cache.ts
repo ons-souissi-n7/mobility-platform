@@ -1,4 +1,4 @@
-import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 import { getApi } from "@/lib/api/client";
 import type {
@@ -11,43 +11,44 @@ import type {
   SelectOption,
 } from "@/lib/api/types";
 
-// TTL constants (seconds)
-const TTL_MED  = 60;    // 1min — données synchro Pégase / MoveON
-const TTL_SHORT = 30;   // 30s  — données modifiables par l'UI
+// Next.js 15: cookies() is an async dynamic API — calling it inside
+// unstable_cache() throws "Accessing Dynamic data sources inside a cache
+// scope is not supported." React cache() provides per-request memoization
+// (deduplication within a single render pass) without this restriction.
 
-// Pays : pas de cache — données légères (< 300 entrées), modifiables via fixtures
-export const getCachedCountries = () => getApi<Country[]>("/reference/countries/");
-
-export const getCachedDepartments = unstable_cache(
-  () => getApi<Department[]>("/reference/departments/"),
-  ["ref-departments"],
-  { revalidate: TTL_MED, tags: ["ref-departments"] },
+export const getCachedCountries = cache(
+  (): Promise<Country[]> => getApi<Country[]>("/reference/countries/"),
 );
 
-export const getCachedLevels = unstable_cache(
-  () => getApi<Level[]>("/reference/levels/"),
-  ["ref-levels"],
-  { revalidate: TTL_MED, tags: ["ref-levels"] },
+export const getCachedDepartments = cache(
+  (): Promise<Department[]> => getApi<Department[]>("/reference/departments/"),
 );
 
-export const getCachedParcours = unstable_cache(
-  () => getApi<Parcours[]>("/reference/parcours/"),
-  ["ref-parcours"],
-  { revalidate: TTL_SHORT, tags: ["ref-parcours"] },
+export const getCachedLevels = cache(
+  (): Promise<Level[]> => getApi<Level[]>("/reference/levels/"),
 );
 
-// Pas de cache pour les années : le statut change via transitions et doit être immédiatement reflété.
-export const getCachedAcademicYears = () => getApi<AcademicYear[]>("/academic/years/");
-export const getCachedCurrentYear = () => getApi<AcademicYear | null>("/academic/years/current/");
-
-export const getCachedMobilityCategories = unstable_cache(
-  () => getApi<MobilityCategory[]>("/mobility/agreement-categories/"),
-  ["ref-mobility-categories"],
-  { revalidate: TTL_MED, tags: ["ref-mobility-categories"] },
+export const getCachedParcours = cache(
+  (): Promise<Parcours[]> => getApi<Parcours[]>("/reference/parcours/"),
 );
 
-export const getCachedPartnerUniversities = unstable_cache(
-  () => getApi<SelectOption[]>("/institutions/universities/select/"),
-  ["ref-partner-universities"],
-  { revalidate: TTL_MED, tags: ["ref-partner-universities"] },
+// Academic years: no cross-request caching — status changes must be
+// immediately reflected after FSM transitions.
+export const getCachedAcademicYears = cache(
+  (): Promise<AcademicYear[]> => getApi<AcademicYear[]>("/academic/years/"),
+);
+
+export const getCachedCurrentYear = cache(
+  (): Promise<AcademicYear | null> =>
+    getApi<AcademicYear | null>("/academic/years/current/"),
+);
+
+export const getCachedMobilityCategories = cache(
+  (): Promise<MobilityCategory[]> =>
+    getApi<MobilityCategory[]>("/mobility/agreement-categories/"),
+);
+
+export const getCachedPartnerUniversities = cache(
+  (): Promise<SelectOption[]> =>
+    getApi<SelectOption[]>("/institutions/universities/select-options/"),
 );

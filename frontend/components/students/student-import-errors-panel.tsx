@@ -105,7 +105,7 @@ export function StudentImportErrorsPanel({
   page = 1,
   pageSize = 25,
   onPageChange,
-}: {
+}: Readonly<{
   countries: Country[];
   departments: Department[];
   errors: RawImport[];
@@ -119,7 +119,7 @@ export function StudentImportErrorsPanel({
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
-}) {
+}>) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -370,12 +370,12 @@ function CorrField({
   value,
   type = "text",
   onChange,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   type?: string;
   onChange: (v: string) => void;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</span>

@@ -61,7 +61,7 @@ type ParcoursTableProps = {
   onEdit: (p: Parcours) => void;
 };
 
-export function ParcoursTable({ parcours, departments, readOnly = false, onDelete, onEdit }: ParcoursTableProps) {
+export function ParcoursTable({ parcours, departments, readOnly = false, onDelete, onEdit }: Readonly<ParcoursTableProps>) {
   return (
     <DataTable
       columns={getColumns(departments, onEdit, onDelete, readOnly)}

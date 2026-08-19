@@ -8,7 +8,7 @@ type ModalProps = {
   onClose: () => void;
 };
 
-export function Modal({ title, description, children, onClose }: ModalProps) {
+export function Modal({ title, description, children, onClose }: Readonly<ModalProps>) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-4">
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">

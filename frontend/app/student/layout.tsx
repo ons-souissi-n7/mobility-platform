@@ -5,7 +5,9 @@ import type { ReactNode } from "react";
 import { Menu } from "lucide-react";
 import { StudentSidebar } from "@/components/layout/student-sidebar";
 
-export default function StudentLayout({ children }: { children: ReactNode }) {
+export default function StudentLayout({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (

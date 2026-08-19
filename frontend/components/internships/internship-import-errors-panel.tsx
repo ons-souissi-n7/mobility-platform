@@ -9,6 +9,7 @@ import type { InternshipForcePayload, ReconciliationCandidate } from "@/lib/api/
 import { getInternshipReconciliationCandidates } from "@/lib/api/internship-mutations";
 import { getStudentSelectOptions } from "@/lib/api/student-mutations";
 import type { Country, InternshipImportError } from "@/lib/api/types";
+import { splitTrailingParenthetical } from "@/lib/utils";
 
 const INTERNSHIP_LABELS: Record<string, string> = {
   ine: "N°INE",
@@ -81,12 +82,12 @@ function InternshipCandidatesPanel({
   loading,
   onSearch,
   onSelect,
-}: {
+}: Readonly<{
   candidates: ReconciliationCandidate[] | undefined;
   loading: boolean;
   onSearch: () => void;
   onSelect: (ine: string) => void;
-}) {
+}>) {
   return (
     <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
       <div className="flex items-center justify-between">
@@ -186,7 +187,7 @@ export function InternshipImportErrorsPanel({
   page = 1,
   pageSize = 25,
   onPageChange,
-}: {
+}: Readonly<{
   errors: InternshipImportError[];
   isBusy: boolean;
   onIgnore: (error: InternshipImportError) => Promise<void>;
@@ -198,7 +199,7 @@ export function InternshipImportErrorsPanel({
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
-}) {
+}>) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -261,9 +262,8 @@ export function InternshipImportErrorsPanel({
         const opts = await getStudentSelectOptions(selectedYearId);
         setStudentOptions(
           opts.map((o) => {
-            const ineMatch = o.label.match(/\(([^)]+)\)$/);
-            const ine = ineMatch?.[1] ?? "";
-            const name = o.label.replace(/\s*\([^)]+\)$/, "").trim();
+            // Format attendu : "NOM Prénom (INE)"
+            const { base: name, inner: ine } = splitTrailingParenthetical(o.label);
             return { ine, label: `${ine} – ${name}` };
           }),
         );
@@ -554,12 +554,12 @@ function CorrectionField({
   value,
   type = "text",
   onChange,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   type?: string;
   onChange: (v: string) => void;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</span>

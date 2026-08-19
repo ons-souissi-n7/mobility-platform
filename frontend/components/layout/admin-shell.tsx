@@ -12,15 +12,17 @@ type AdminShellProps = {
   children: ReactNode;
 };
 
-export function AdminShell({ children }: AdminShellProps) {
+export function AdminShell({ children }: Readonly<AdminShellProps>) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  return (
+  return (  
     <div className="flex min-h-screen bg-[#F9FAFB]">
       {/* Mobile backdrop */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+        <button
+          type="button"
+          aria-label="Fermer le menu"
+          className="fixed inset-0 z-30 cursor-default bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -39,7 +41,7 @@ export function AdminShell({ children }: AdminShellProps) {
             <Menu className="h-5 w-5" aria-hidden="true" />
           </button>
           <Link
-            href="/admin/references"
+            href="/admin/analytiques"
             className="text-lg font-bold tracking-wider text-[#1E3A8A]"
           >
             N7 MOBILITE

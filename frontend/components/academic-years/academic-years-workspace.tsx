@@ -26,7 +26,7 @@ type AcademicYearsWorkspaceProps = {
 
 export function AcademicYearsWorkspace({
   years: initialYears,
-}: AcademicYearsWorkspaceProps) {
+}: Readonly<AcademicYearsWorkspaceProps>) {
   const [years, setYears] = useState(initialYears);
   const [modalItem, setModalItem] = useState<AcademicYear | null | "new">(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -63,10 +63,18 @@ export function AcademicYearsWorkspace({
     year: AcademicYear,
     transition: AcademicYearTransition,
   ) {
-    const next = nextTransitions[year.status];
-    if (next?.confirmMessage) {
-      const ok = await confirm(next.confirmMessage, next.label);
+    if (transition === "complete-assignment") {
+      const ok = await confirm(
+        `Forcer la transition de « ${year.label} » de l'état Affectation vers Validation ?\n\nUtilisez cette action uniquement si l'algorithme Gale-Shapley a terminé mais la transition automatique a échoué.`,
+        "Récupérer la transition",
+      );
       if (!ok) return;
+    } else {
+      const next = nextTransitions[year.status];
+      if (next?.confirmMessage) {
+        const ok = await confirm(next.confirmMessage, next.label);
+        if (!ok) return;
+      }
     }
     setActionError(null);
     try {

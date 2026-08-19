@@ -14,7 +14,7 @@ export function ReferenceTabs({
   universitiesCount,
   countriesCount,
   parcoursCount,
-}: ReferenceTabsProps) {
+}: Readonly<ReferenceTabsProps>) {
   return (
     <PageTabBar
       tabs={[

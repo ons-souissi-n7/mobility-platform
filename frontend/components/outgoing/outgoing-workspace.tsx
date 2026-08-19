@@ -110,12 +110,12 @@ export function OutgoingWorkspace({
   departments = [],
   levels = [],
   parcourses = [],
-}: {
+}: Readonly<{
   academicYears: AcademicYear[];
   departments?: Department[];
   levels?: Level[];
   parcourses?: Parcours[];
-}) {
+}>) {
   const defaultYear =
     academicYears.find((y) => y.status !== "closed") ?? academicYears[0] ?? null;
 
@@ -532,9 +532,9 @@ export function OutgoingWorkspace({
   const [filterType, setFilterType]         = useState<"" | "fisa" | "fise">("");
   const [filterScholarship, setFilterScholarship] = useState<"" | "yes" | "no">("");
 
-  const deptOptions     = [...new Set(wishes.map((w) => w.department_code).filter(Boolean))].sort() as string[];
-  const parcoursOptions = [...new Set(wishes.map((w) => w.parcours_code).filter(Boolean))].sort() as string[];
-  const levelOptions    = [...new Set(wishes.map((w) => w.level_code).filter(Boolean))].sort() as string[];
+  const deptOptions     = [...new Set(wishes.map((w) => w.department_code).filter(Boolean))].sort((a, b) => a!.localeCompare(b!)) as string[];
+  const parcoursOptions = [...new Set(wishes.map((w) => w.parcours_code).filter(Boolean))].sort((a, b) => a!.localeCompare(b!)) as string[];
+  const levelOptions    = [...new Set(wishes.map((w) => w.level_code).filter(Boolean))].sort((a, b) => a!.localeCompare(b!)) as string[];
   const maxRank         = wishes.reduce((m, w) => Math.max(m, w.wishes.length), 0);
   const studentsWithWishes = wishes.filter((w) => w.wishes.length > 0).length;
 
@@ -1190,7 +1190,7 @@ function WishesAssignmentTable({
   onEditWish,
   onEditEnrollment,
   onDeleteEnrollment,
-}: {
+}: Readonly<{
   rows: StudentWishes[];
   maxRank: number;
   isBusy: boolean;
@@ -1205,7 +1205,7 @@ function WishesAssignmentTable({
   canManageEnrollment?: boolean;
   onEditEnrollment?: (row: StudentWishes) => void;
   onDeleteEnrollment?: (row: StudentWishes) => Promise<void>;
-}) {
+}>) {
   const [page, setPage]       = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const totalPages   = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -1313,7 +1313,7 @@ function WishesAssignmentTable({
                   <Td>
                     {row.gpa != null ? (
                       <span className="font-mono text-xs text-gray-700">
-                        {parseFloat(row.gpa).toFixed(2)}
+                        {Number.parseFloat(row.gpa).toFixed(2)}
                       </span>
                     ) : (
                       <span className="text-xs italic text-gray-300">—</span>
@@ -1395,16 +1395,16 @@ function WishEditModal({
   maxRank,
   onCancel,
   onSubmit,
-}: {
+}: Readonly<{
   wish: AgreementWish;
   maxRank: number;
   onCancel: () => void;
   onSubmit: (rank: number) => Promise<void>;
-}) {
+}>) {
   const [rank, setRank] = useState(String(wish.rank));
   const [saving, setSaving] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     setSaving(true);
     try { await onSubmit(Number(rank)); }
@@ -1428,8 +1428,9 @@ function WishEditModal({
             <p className="text-sm text-gray-600"><span className="font-medium">Convention :</span> {wish.agreement_name}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Rang *</label>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="wish-rank-select">Rang *</label>
             <select
+              id="wish-rank-select"
               className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
               value={rank}
               onChange={(e) => setRank(e.target.value)}
@@ -1462,14 +1463,14 @@ function WishCell({
   canEdit = false,
   onDelete,
   onEdit,
-}: {
+}: Readonly<{
   wish: AgreementWish;
   highlighted: boolean;
   canDelete?: boolean;
   canEdit?: boolean;
   onDelete?: () => void;
   onEdit?: () => void;
-}) {
+}>) {
   const showActions = onEdit !== undefined || onDelete !== undefined;
   return (
     <div className={`w-44 space-y-0.5 rounded px-1.5 py-1 ${highlighted ? "bg-emerald-50 ring-1 ring-emerald-200" : ""}`}>
@@ -1527,12 +1528,12 @@ function DecisionCell({
   canEdit = false,
   agreementYears = [],
   onOverride,
-}: {
+}: Readonly<{
   result: AssignmentResult | null;
   canEdit?: boolean;
   agreementYears?: AgreementYearOption[];
   onOverride?: (payload: ResultOverridePatch) => Promise<void>;
-}) {
+}>) {
   const [selectedAyId, setSelectedAyId] = useState("");
   const [motif, setMotif]               = useState("");
   const [saving, setSaving]             = useState(false);
@@ -1559,7 +1560,7 @@ function DecisionCell({
       const payload: ResultOverridePatch =
         selectedAyId === "__unassign__"
           ? { override_agreement_year_id: null, override_reason: motif.trim(), force_unassigned: true }
-          : { override_agreement_year_id: parseInt(selectedAyId, 10), override_reason: motif.trim(), force_unassigned: false };
+          : { override_agreement_year_id: Number.parseInt(selectedAyId, 10), override_reason: motif.trim(), force_unassigned: false };
       await onOverride(payload);
       setSelectedAyId("");
       setMotif("");
@@ -1671,14 +1672,14 @@ function OutgoingEnrollmentEditForm({
   parcourses,
   onCancel,
   onSubmit,
-}: {
+}: Readonly<{
   row: StudentWishes;
   departments: Department[];
   levels: Level[];
   parcourses: Parcours[];
   onCancel: () => void;
   onSubmit: (patch: EnrollmentPatch) => Promise<void>;
-}) {
+}>) {
   const initDept = departments.find((d) => d.code === row.department_code);
   const initLevel = levels.find((l) => l.code === row.level_code);
   const initParcours = parcourses.find((p) => p.code === row.parcours_code);
@@ -1698,7 +1699,7 @@ function OutgoingEnrollmentEditForm({
     [parcourses, deptId],
   );
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     setSaving(true);
     try {
@@ -1719,8 +1720,9 @@ function OutgoingEnrollmentEditForm({
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Département *</label>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="enrollment-dept-select">Département *</label>
           <select
+            id="enrollment-dept-select"
             className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             value={deptId}
             onChange={(e) => { setDeptId(e.target.value); setParcoursId(""); }}
@@ -1733,8 +1735,9 @@ function OutgoingEnrollmentEditForm({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Niveau *</label>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="enrollment-level-select">Niveau *</label>
           <select
+            id="enrollment-level-select"
             className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             value={levelId}
             onChange={(e) => setLevelId(e.target.value)}
@@ -1747,8 +1750,9 @@ function OutgoingEnrollmentEditForm({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Parcours</label>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="enrollment-parcours-select">Parcours</label>
           <select
+            id="enrollment-parcours-select"
             className="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
             value={parcoursId}
             onChange={(e) => setParcoursId(e.target.value)}
@@ -1760,8 +1764,9 @@ function OutgoingEnrollmentEditForm({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">GPA</label>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="enrollment-gpa-input">GPA</label>
           <input
+            id="enrollment-gpa-input"
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             type="number"
             step="0.01"
@@ -1775,11 +1780,11 @@ function OutgoingEnrollmentEditForm({
       </div>
       <div className="flex gap-6">
         <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input type="checkbox" checked={isAlternant} onChange={(e) => setIsAlternant(e.target.checked)} className="rounded border-gray-300" />
+          <input type="checkbox" checked={isAlternant} onChange={(e) => setIsAlternant(e.target.checked)} className="rounded border-gray-300" />{" "}
           Alternant (FISA)
         </label>
         <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input type="checkbox" checked={isScholarship} onChange={(e) => setIsScholarship(e.target.checked)} className="rounded border-gray-300" />
+          <input type="checkbox" checked={isScholarship} onChange={(e) => setIsScholarship(e.target.checked)} className="rounded border-gray-300" />{" "}
           Boursier
         </label>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { ReactNode, SubmitEvent } from "react";
 
 import type { InternshipPayload } from "@/lib/api/internship-mutations";
 import type { AcademicYear, Country, Internship } from "@/lib/api/types";
@@ -14,13 +14,13 @@ export function InternshipForm({
   academicYears,
   onCancel,
   onSubmit,
-}: {
+}: Readonly<{
   item?: Internship;
   countries: Country[];
   academicYears: AcademicYear[];
   onCancel: () => void;
   onSubmit: (payload: InternshipPayload) => Promise<void>;
-}) {
+}>) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -32,7 +32,7 @@ export function InternshipForm({
   );
   const [studentId, setStudentId] = useState<number | null>(item?.student_id ?? null);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
@@ -227,14 +227,14 @@ function Field({
   name,
   required = false,
   type = "text",
-}: {
+}: Readonly<{
   defaultValue?: string | null;
   label: string;
   min?: string;
   name: string;
   required?: boolean;
   type?: string;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>
@@ -256,13 +256,13 @@ function Select({
   label,
   name,
   required = false,
-}: {
+}: Readonly<{
   children: ReactNode;
   defaultValue?: number | string | null;
   label: string;
   name: string;
   required?: boolean;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>
@@ -289,10 +289,10 @@ function ErrorBox({ message }: { message: string }) {
 function FormActions({
   isSubmitting,
   onCancel,
-}: {
+}: Readonly<{
   isSubmitting: boolean;
   onCancel: () => void;
-}) {
+}>) {
   return (
     <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
       <button

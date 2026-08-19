@@ -62,7 +62,7 @@ export function InternshipsWorkspace({
   currentYear,
   initialImportErrors,
   initialImportErrorsTotalCount,
-}: {
+}: Readonly<{
   initialInternships: Internship[];
   initialTotalCount: number;
   countries: Country[];
@@ -70,7 +70,7 @@ export function InternshipsWorkspace({
   currentYear: AcademicYear | null;
   initialImportErrors: InternshipImportError[];
   initialImportErrorsTotalCount: number;
-}) {
+}>) {
   const defaultYear =
     academicYears.find((y) => y.status !== "closed") ??
     academicYears.sort((a, b) => b.start_date.localeCompare(a.start_date))[0] ??

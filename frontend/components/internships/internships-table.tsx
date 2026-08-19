@@ -6,6 +6,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/search-input";
 import { ActionButtons } from "@/components/ui/action-buttons";
 import type { Country, Internship } from "@/lib/api/types";
+import { splitTrailingParenthetical } from "@/lib/utils";
 
 function formatDate(d: string | null): string {
   if (!d) return "—";
@@ -24,7 +25,7 @@ export function InternshipsTable({
   onEdit,
   onDelete,
   onFilterChange,
-}: {
+}: Readonly<{
   internships: Internship[];
   totalCount: number;
   page: number;
@@ -36,7 +37,7 @@ export function InternshipsTable({
   onEdit: (item: Internship) => void;
   onDelete: (item: Internship) => void;
   onFilterChange: (filters: { search?: string; country_id?: number }) => void;
-}) {
+}>) {
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState<string>("all");
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,7 +70,7 @@ export function InternshipsTable({
         <div>
           <p className="font-mono text-xs text-gray-500">{item.student_ine}</p>
           <p className="font-medium text-gray-900">
-            {item.student_name.replace(/\s*\([^)]*\)$/, "")}
+            {splitTrailingParenthetical(item.student_name).base}
           </p>
         </div>
       ),

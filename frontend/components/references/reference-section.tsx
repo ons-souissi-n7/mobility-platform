@@ -12,7 +12,7 @@ export function ReferenceSection({
   description,
   toolbar,
   children,
-}: ReferenceSectionProps) {
+}: Readonly<ReferenceSectionProps>) {
   return (
     <section className="space-y-4">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">

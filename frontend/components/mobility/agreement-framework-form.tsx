@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { SubmitEvent, useState } from "react";
 
 import type { MobilityCategoryPayload } from "@/lib/api/mobility-mutations";
 import type { MobilityCategory } from "@/lib/api/types";
@@ -11,11 +11,11 @@ type MobilityCategoryFormProps = {
   onSubmit: (payload: MobilityCategoryPayload) => Promise<void>;
 };
 
-export function MobilityCategoryForm({ item, onCancel, onSubmit }: MobilityCategoryFormProps) {
+export function MobilityCategoryForm({ item, onCancel, onSubmit }: Readonly<MobilityCategoryFormProps>) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -75,13 +75,13 @@ function Field({
   name,
   required = false,
   type = "text",
-}: {
+}: Readonly<{
   defaultValue?: string | number | null;
   label: string;
   name: string;
   required?: boolean;
   type?: string;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>

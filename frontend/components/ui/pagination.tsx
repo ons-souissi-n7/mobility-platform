@@ -12,7 +12,7 @@ export function Pagination({
   onPageChange,
   onPageSizeChange,
   emptyLabel = "Aucun élément",
-}: {
+}: Readonly<{
   page: number;
   totalPages: number;
   totalItems: number;
@@ -21,7 +21,7 @@ export function Pagination({
   onPageChange: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
   emptyLabel?: string;
-}) {
+}>) {
   const firstItem = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
   const lastItem = Math.min(page * pageSize, totalItems);
 
@@ -90,12 +90,12 @@ function PagBtn({
   disabled,
   onClick,
   title,
-}: {
+}: Readonly<{
   children: ReactNode;
   disabled: boolean;
   onClick: () => void;
   title: string;
-}) {
+}>) {
   return (
     <button
       className="flex items-center rounded-md border border-gray-200 bg-white px-1.5 py-1 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"

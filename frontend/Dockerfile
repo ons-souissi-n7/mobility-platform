@@ -14,9 +14,8 @@ FROM node:22-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
-
-RUN addgroup --system appgroup \
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/* \
+    && addgroup --system appgroup \
     && adduser --system --ingroup appgroup appuser
 
 # Standalone output embarque ses propres node_modules minimaux

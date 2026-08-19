@@ -16,7 +16,7 @@ export function Combobox({
   placeholder = "Rechercher...",
   required = false,
   value,
-}: {
+}: Readonly<{
   label: string;
   options: ComboboxOption[];
   value: number | null;
@@ -24,7 +24,7 @@ export function Combobox({
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
-}) {
+}>) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
 

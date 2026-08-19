@@ -70,21 +70,31 @@ export function proxy(request: NextRequest) {
 
   const role = payload?.role;
 
-  // Root redirect based on role
-  if (pathname === "/") {
-    if (role === "student") {
-      return NextResponse.redirect(
-        new URL("/student/tableau-de-bord", request.url),
-      );
-    }
-    return NextResponse.redirect(new URL("/admin/analytiques", request.url));
+  // Rôle absent ou inattendu (ni "admin" ni "student") — traiter comme une
+  // absence de session plutôt que de laisser passer sans zone d'appartenance
+  // connue (ce qui reviendrait à laisser passer implicitement via next()).
+  if (role !== "admin" && role !== "student") {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", pathname);
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.delete("auth_token");
+    return response;
   }
 
-  // Students cannot access admin routes
-  if (role === "student" && pathname.startsWith("/admin")) {
-    return NextResponse.redirect(
-      new URL("/student/tableau-de-bord", request.url),
-    );
+  const homePath = role === "student" ? "/student/tableau-de-bord" : "/admin/analytiques";
+
+  // Root redirect based on role
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(homePath, request.url));
+  }
+
+  // Étanchéité stricte entre les deux zones : un rôle ne peut jamais accéder
+  // à l'espace de l'autre, dans un sens comme dans l'autre.
+  if (
+    (role === "student" && pathname.startsWith("/admin")) ||
+    (role === "admin" && pathname.startsWith("/student"))
+  ) {
+    return NextResponse.redirect(new URL(homePath, request.url));
   }
 
   return NextResponse.next();
@@ -94,5 +104,5 @@ export const config = {
   // Chaîne littérale, pas de tagged template : le pipeline de build de
   // Next.js analyse ce champ statiquement et ne sait pas évaluer un
   // String.raw`...` ("Unsupported node type TaggedTemplateExpression").
-  matcher: ["/((?!api|_next/static|_next/image|favicon\\.ico).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon\\.ico).*)"], // NOSONAR (S7780)
 };

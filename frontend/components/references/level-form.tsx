@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { SubmitEvent, useState } from "react";
 
 import type { LevelPayload } from "@/lib/api/reference-mutations";
 import type { Level } from "@/lib/api/types";
@@ -9,15 +9,15 @@ export function LevelForm({
   item,
   onCancel,
   onSubmit,
-}: {
+}: Readonly<{
   item?: Level;
   onCancel: () => void;
   onSubmit: (payload: LevelPayload) => Promise<void>;
-}) {
+}>) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
@@ -75,21 +75,22 @@ export function LevelForm({
         </label>
       </div>
 
-      <label className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+      <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3">
         <input
           className="mt-0.5 h-4 w-4 rounded accent-[#1E3A8A]"
           defaultChecked={item?.is_terminal ?? false}
+          id="is_terminal"
           name="is_terminal"
           type="checkbox"
         />
-        <span className="text-sm text-gray-700">
+        <label className="text-sm text-gray-700" htmlFor="is_terminal">
           <span className="font-medium">Niveau terminal (diplômant)</span>
           <span className="mt-0.5 block text-xs text-gray-500">
             Cocher si c&apos;est le dernier niveau du cursus.
             Les étudiants inscrits à ce niveau servent de cohorte pour le rapport CTI.
           </span>
-        </span>
-      </label>
+        </label>
+      </div>
 
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

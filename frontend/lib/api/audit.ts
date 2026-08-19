@@ -23,5 +23,5 @@ export async function getAuditLogs(
   if (filters.page) params.set("page", String(filters.page));
   if (filters.page_size) params.set("page_size", String(filters.page_size));
   const qs = params.toString();
-  return getApi<PagedResponse<AuditLog>>(`/audit/logs/${qs ? `?${qs}` : ""}`);
+  return getApi<PagedResponse<AuditLog>>("/audit/logs/" + (qs ? `?${qs}` : ""));
 }

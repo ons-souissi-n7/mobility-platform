@@ -6,13 +6,13 @@ export function MobilitySection({
   id,
   title,
   toolbar,
-}: {
+}: Readonly<{
   children: ReactNode;
   description: string;
   id?: string;
   title: string;
   toolbar?: ReactNode;
-}) {
+}>) {
   return (
     <section id={id} className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

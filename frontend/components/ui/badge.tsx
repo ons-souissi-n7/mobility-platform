@@ -10,11 +10,11 @@ export function Badge({
   value,
   map,
   label,
-}: {
+}: Readonly<{
   value: string;
   map: Record<string, BadgeStyle>;
   label?: string;
-}) {
+}>) {
   const style = map[value] ?? { label: value, className: "bg-gray-100 text-gray-600" };
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${style.className}`}>

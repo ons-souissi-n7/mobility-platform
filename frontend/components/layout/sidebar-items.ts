@@ -26,12 +26,12 @@ export const adminNavigation = [
   },
   {
     href: "/admin/sortantes",
-    label: "Mobilites sortantes",
+    label: "Mobilités sortantes",
     icon: PlaneTakeoff,
   },
   {
     href: "/admin/entrantes",
-    label: "Mobilites entrantes",
+    label: "Mobilités entrantes",
     icon: PlaneLanding,
   },
   {
@@ -56,7 +56,7 @@ export const adminNavigation = [
   },
   {
     href: "/admin/references",
-    label: "Referentiels",
+    label: "Référentiels",
     icon: Settings,
   },
   {

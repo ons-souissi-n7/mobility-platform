@@ -9,6 +9,27 @@ import type {
   RawImport,
 } from "@/lib/api/types";
 
+export type AgreementFilters = {
+  search?: string;
+  country_id?: number;
+  is_active?: boolean;
+  page?: number;
+  page_size?: number;
+};
+
+export function fetchAgreements(filters: AgreementFilters = {}): Promise<PagedResponse<Agreement>> {
+  const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
+  if (filters.country_id) params.set("country_id", String(filters.country_id));
+  if (filters.is_active !== undefined) params.set("is_active", String(filters.is_active));
+  params.set("page_size", String(filters.page_size ?? 200));
+  if (filters.page) params.set("page", String(filters.page));
+  return browserApi<PagedResponse<Agreement>>(
+    `/mobility/agreements/?${params.toString()}`,
+    { method: "GET" },
+  );
+}
+
 // ── Payload types ──────────────────────────────────────────────────────────────
 
 export type AgreementPayload = {
@@ -56,6 +77,38 @@ export type InitYearResult = {
   department_quotas_created: number;
   skipped_existing: number;
 };
+
+// ── Data refresh (browser-safe, used by Client Components) ───────────────────
+
+export async function fetchAgreementYearDepartments(): Promise<AgreementYearDepartment[]> {
+  const page = await browserApi<PagedResponse<AgreementYearDepartment>>(
+    "/mobility/agreement-year-departments/?page_size=500",
+    { method: "GET" },
+  );
+  return page.results;
+}
+
+export async function fetchAgreementYearsList(): Promise<AgreementYear[]> {
+  const page = await browserApi<PagedResponse<AgreementYear>>(
+    "/mobility/agreement-years/?page_size=200",
+    { method: "GET" },
+  );
+  return page.results;
+}
+
+export async function fetchMobilityCategories(): Promise<MobilityCategory[]> {
+  return browserApi<MobilityCategory[]>("/mobility/agreement-categories/", { method: "GET" });
+}
+
+export async function fetchMobilityImportErrors(
+  page = 1,
+  pageSize = 25,
+): Promise<PagedResponse<RawImport>> {
+  return browserApi<PagedResponse<RawImport>>(
+    `/mobility/raw-imports/moveon-errors/?page=${page}&page_size=${pageSize}`,
+    { method: "GET" },
+  );
+}
 
 // ── Accords ───────────────────────────────────────────────────────────────────
 

@@ -101,7 +101,7 @@ export function UniversitiesTable({
   universities,
   readOnly = false,
   serverSidePagination,
-}: UniversitiesTableProps) {
+}: Readonly<UniversitiesTableProps>) {
   const rows = universities.map((university) => ({
     ...university,
     countryName: university.country_name_fr || "-",

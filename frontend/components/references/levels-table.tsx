@@ -70,12 +70,12 @@ export function LevelsTable({
   readOnly = false,
   onDelete,
   onEdit,
-}: {
+}: Readonly<{
   levels: Level[];
   readOnly?: boolean;
   onDelete: (level: Level) => void;
   onEdit: (level: Level) => void;
-}) {
+}>) {
   return (
     <DataTable
       columns={getColumns(onEdit, onDelete, readOnly)}

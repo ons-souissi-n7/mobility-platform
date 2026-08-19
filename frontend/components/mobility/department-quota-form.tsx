@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { SubmitEvent, useState } from "react";
 import type { ReactNode } from "react";
 
 import type { AgreementYearDepartmentPayload } from "@/lib/api/mobility-mutations";
@@ -13,21 +13,21 @@ export function DepartmentQuotaForm({
   item,
   onCancel,
   onSubmit,
-}: {
+}: Readonly<{
   agreementYear: AgreementYear;
   constrainedDepartments: Department[];
   existingDeptCount: number;
   item?: AgreementYearDepartment;
   onCancel: () => void;
   onSubmit: (payload: AgreementYearDepartmentPayload) => Promise<void>;
-}) {
+}>) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const newTotal = existingDeptCount + 1;
   const autoPlaces = Math.round(agreementYear.n7_places / Math.max(1, newTotal));
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
@@ -95,14 +95,14 @@ function Field({
   name,
   required = false,
   type = "text",
-}: {
+}: Readonly<{
   defaultValue?: string | null;
   label: string;
   min?: string;
   name: string;
   required?: boolean;
   type?: string;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>
@@ -124,13 +124,13 @@ function Select({
   label,
   name,
   required = false,
-}: {
+}: Readonly<{
   children: ReactNode;
   defaultValue?: number | string | null;
   label: string;
   name: string;
   required?: boolean;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>

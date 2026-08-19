@@ -45,7 +45,7 @@ export function ReferencesContainer({
   initialLevelImportErrorsCount,
   initialParcours,
   currentYear,
-}: ReferencesContainerProps) {
+}: Readonly<ReferencesContainerProps>) {
   const [countries, setCountries] = useState(initialCountries);
   const [departments, setDepartments] = useState(initialDepartments);
   const [universities, setUniversities] = useState<PagedResponse<PartnerUniversity>>(initialUniversities);

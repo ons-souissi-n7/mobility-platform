@@ -7,7 +7,7 @@ type SearchInputProps = {
   className?: string;
 };
 
-export function SearchInput({ placeholder, value, onChange, className = "w-56 shrink-0" }: SearchInputProps) {
+export function SearchInput({ placeholder, value, onChange, className = "w-56 shrink-0" }: Readonly<SearchInputProps>) {
   return (
     <div className={`relative ${className}`}>
       <Search

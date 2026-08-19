@@ -33,14 +33,14 @@ export function FileBtn({
   onFile,
   children,
   className = "",
-}: {
+}: Readonly<{
   variant?: Variant;
   disabled?: boolean;
   accept?: string;
   onFile: (file: File) => void;
   children: ReactNode;
   className?: string;
-}) {
+}>) {
   return (
     <label
       className={`cursor-pointer ${VARIANTS[variant]} ${disabled ? "cursor-not-allowed opacity-60 pointer-events-none" : ""} ${className}`.trim()}

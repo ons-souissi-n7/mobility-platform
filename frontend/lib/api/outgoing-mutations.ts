@@ -95,21 +95,18 @@ export function retryWishImportError(
   );
 }
 
-export async function syncWishesFromMoveon(yearId: number): Promise<TaskResponse> {
-  const response = await fetch(
-    `${publicApiBaseUrl}/outgoing/wishes/sync-moveon/${yearId}/`,
+export function syncWishesFromMoveon(yearId: number): Promise<TaskResponse> {
+  return browserApi<TaskResponse>(
+    `/outgoing/wishes/sync-moveon/${yearId}/`,
     { method: "POST" },
   );
-  if (!response.ok) throw new Error(`Erreur sync vœux MoveON : ${response.status}`);
-  return response.json() as Promise<TaskResponse>;
 }
 
-export async function getWishesByYear(yearId: number): Promise<PagedResponse<StudentWishes>> {
-  const response = await fetch(
-    `${publicApiBaseUrl}/outgoing/wishes/by-year/${yearId}/?page=1&page_size=500`,
+export function getWishesByYear(yearId: number): Promise<PagedResponse<StudentWishes>> {
+  return browserApi<PagedResponse<StudentWishes>>(
+    `/outgoing/wishes/by-year/${yearId}/?page=1&page_size=500`,
+    { method: "GET" },
   );
-  if (!response.ok) throw new Error(`Erreur chargement vœux : ${response.status}`);
-  return response.json() as Promise<PagedResponse<StudentWishes>>;
 }
 
 export async function downloadWishTemplate(yearId: number): Promise<void> {

@@ -59,14 +59,14 @@ export function DepartmentQuotasTable({
   onDelete,
   onEdit,
   yearInstances,
-}: {
+}: Readonly<{
   agreements: Agreement[];
   departmentQuotas: AgreementYearDepartment[];
   departments: Department[];
   onDelete: (quota: AgreementYearDepartment) => void;
   onEdit: (quota: AgreementYearDepartment) => void;
   yearInstances: AgreementYear[];
-}) {
+}>) {
   const agreementsById = createIdMap(agreements);
   const departmentsById = createIdMap(departments);
   const yearInstancesById = createIdMap(yearInstances);

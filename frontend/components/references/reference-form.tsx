@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { SubmitEvent, useState } from "react";
 
 import type { Country, Department, PartnerUniversity } from "@/lib/api/types";
 import type {
@@ -11,10 +11,12 @@ import type {
 
 export type ReferenceFormKind = "country" | "department" | "university";
 
+type ReferenceItem = Country | Department | PartnerUniversity;
+
 type ReferenceFormProps = {
   countries: Country[];
   kind: ReferenceFormKind;
-  item?: Country | Department | PartnerUniversity;
+  item?: ReferenceItem;
   onCancel: () => void;
   onSubmit: (
     payload: CountryPayload | DepartmentPayload | PartnerUniversityPayload,
@@ -31,18 +33,18 @@ const ctiRegions = [
   { value: "oceanie", label: "Oceanie" },
 ];
 
-function isCountry(item?: Country | Department | PartnerUniversity): item is Country {
+function isCountry(item?: ReferenceItem): item is Country {
   return Boolean(item && "iso2" in item);
 }
 
 function isDepartment(
-  item?: Country | Department | PartnerUniversity,
+  item?: ReferenceItem,
 ): item is Department {
   return Boolean(item && "code" in item);
 }
 
 function isUniversity(
-  item?: Country | Department | PartnerUniversity,
+  item?: ReferenceItem,
 ): item is PartnerUniversity {
   return Boolean(item && "country_id" in item);
 }
@@ -53,11 +55,11 @@ export function ReferenceForm({
   item,
   onCancel,
   onSubmit,
-}: ReferenceFormProps) {
+}: Readonly<ReferenceFormProps>) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -152,13 +154,13 @@ function Field({
   name,
   required = false,
   type = "text",
-}: {
+}: Readonly<{
   defaultValue?: string | number | null;
   label: string;
   name: string;
   required?: boolean;
   type?: string;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>
@@ -210,10 +212,10 @@ function DepartmentFields({ item }: { item?: Department }) {
 function UniversityFields({
   countries,
   item,
-}: {
+}: Readonly<{
   countries: Country[];
   item?: PartnerUniversity;
-}) {
+}>) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <Field defaultValue={item?.name} label="Nom" name="name" required />
