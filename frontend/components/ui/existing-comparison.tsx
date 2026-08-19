@@ -14,11 +14,11 @@ export function ExistingComparisonView({
   newData,
   existingData,
   labels = {},
-}: {
+}: Readonly<{
   newData: Record<string, unknown>;
   existingData: Record<string, unknown>;
   labels?: Record<string, string>;
-}) {
+}>) {
   const keys = Array.from(
     new Set([
       ...Object.keys(newData).filter((k) => k !== "_existing"),

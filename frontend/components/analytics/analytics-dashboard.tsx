@@ -61,10 +61,10 @@ function ErrorCard({ message }: { message: string }) {
 function ThreeChartsLayout({
   data,
   chartKeys = ["outgoing", "incoming", "internships"],
-}: {
+}: Readonly<{
   data: BreakdownResponse;
   chartKeys?: Array<"outgoing" | "incoming" | "internships">;
-}) {
+}>) {
   const visibleCharts = CHART_LABELS.filter(({ key }) => chartKeys.includes(key));
   return (
     <div className="space-y-4">
@@ -84,14 +84,14 @@ function BreakdownTab({
   filterKey,
   subtitle,
   chartKeys = ["outgoing", "incoming", "internships"],
-}: {
+}: Readonly<{
   options: SelectOption[];
   optionsPlaceholder: string;
   fetchData: (selected: (string | number)[]) => Promise<BreakdownResponse>;
   filterKey: string;
   subtitle: string;
   chartKeys?: Array<"outgoing" | "incoming" | "internships">;
-}) {
+}>) {
   const [selected, setSelected] = useState<(string | number)[]>([]);
   const [data, setData] = useState<BreakdownResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,6 +125,7 @@ function BreakdownTab({
       <div className="rounded-xl border bg-card p-4 shadow-sm">
         <div className="flex items-center gap-3 flex-wrap">
           <button
+            type="button"
             onClick={() => setOpen((v) => !v)}
             className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors shrink-0"
           >
@@ -155,6 +156,7 @@ function BreakdownTab({
                   >
                     {o.label}
                     <button
+                      type="button"
                       onClick={() =>
                         handleChange(selected.filter((s) => String(s) !== String(o.id)))
                       }
@@ -170,6 +172,7 @@ function BreakdownTab({
 
           {selected.length > 0 && (
             <button
+              type="button"
               onClick={() => handleChange([])}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
             >
@@ -275,6 +278,7 @@ export function AnalyticsDashboard() {
             <span className="text-xs text-destructive">{exportError}</span>
           )}
           <button
+            type="button"
             onClick={handleExport}
             disabled={exporting}
             className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -303,6 +307,7 @@ export function AnalyticsDashboard() {
       <div className="flex gap-1 border-b">
         {TABS.map((tab) => (
           <button
+            type="button"
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={[

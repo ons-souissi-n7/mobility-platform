@@ -53,6 +53,8 @@ from .tasks import (
 
 router = Router()
 
+STUDENT_IMPORT_ERROR_NOT_FOUND = "Erreur d'import étudiant introuvable."
+
 
 @router.get(
     "/students/", response=PagedResponse[StudentOut], summary="Liste des etudiants"
@@ -66,19 +68,24 @@ def list_students(
     pagination: PaginationQuery = Query(),
 ):
     qs = Student.objects.select_related("nationality")
+    needs_distinct = False
     if academic_year_id:
         qs = qs.filter(enrollments__academic_year_id=academic_year_id)
+        needs_distinct = True
     if department_id:
         qs = qs.filter(enrollments__department_id=department_id)
+        needs_distinct = True
     if level_id:
         qs = qs.filter(enrollments__level_id=level_id)
+        needs_distinct = True
     if search:
         qs = qs.filter(
             Q(last_name__icontains=search)
             | Q(first_name__icontains=search)
             | Q(ine__icontains=search)
         )
-    qs = qs.distinct()
+    if needs_distinct:
+        qs = qs.distinct()
     count, items = paginate(qs, pagination.page, pagination.page_size)
     return PagedResponse(
         count=count, page=pagination.page, page_size=pagination.page_size, results=items
@@ -574,7 +581,7 @@ def ignore_student_import_error(request, raw_import_id: int):
             status=RawImportStatus.FAILED,
         )
     except RawImport.DoesNotExist as exc:
-        raise HttpError(404, "Erreur d'import étudiant introuvable.") from exc
+        raise HttpError(404, STUDENT_IMPORT_ERROR_NOT_FOUND) from exc
     now = timezone.now()
     RawImport.objects.filter(
         source=raw_import.source,
@@ -602,7 +609,7 @@ def retry_student_import_error(
             status=RawImportStatus.FAILED,
         )
     except RawImport.DoesNotExist as exc:
-        raise HttpError(404, "Erreur d'import étudiant introuvable.") from exc
+        raise HttpError(404, STUDENT_IMPORT_ERROR_NOT_FOUND) from exc
 
     if raw_import.academic_year_id is None:
         raise HttpError(400, "Cet import n'est pas associé à une année universitaire.")
@@ -702,7 +709,7 @@ def get_reconciliation_candidates(request, raw_import_id: int):
             status=RawImportStatus.FAILED,
         )
     except RawImport.DoesNotExist as exc:
-        raise HttpError(404, "Erreur d'import étudiant introuvable.") from exc
+        raise HttpError(404, STUDENT_IMPORT_ERROR_NOT_FOUND) from exc
 
     payload = raw_import.payload
     last_name = str(payload.get("last_name", ""))

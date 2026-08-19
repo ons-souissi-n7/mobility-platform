@@ -22,7 +22,7 @@ interface Props {
   height?: number;
 }
 
-export function BreakdownChart({ data, height = 340 }: Props) {
+export function BreakdownChart({ data, height = 340 }: Readonly<Props>) {
   if (data.series.length === 0) {
     return (
       <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">

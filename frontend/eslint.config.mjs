@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated Playwright artifacts (HTML report + traces bundle a minified
+    // vendor JS viewer that isn't project source and shouldn't be linted).
+    "playwright-report/**",
+    "test-results/**",
+    // Generated Vitest coverage report (HTML/lcov viewer, not project source).
+    "coverage/**",
   ]),
   {
     rules: {

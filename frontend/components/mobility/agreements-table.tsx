@@ -42,7 +42,7 @@ export function AgreementsTable({
   onEditYearDuration,
   onEdit,
   onDelete,
-}: {
+}: Readonly<{
   agreements: Agreement[];
   agreementYears: AgreementYear[];
   agreementYearDepartments: AgreementYearDepartment[];
@@ -61,7 +61,7 @@ export function AgreementsTable({
   onEditYearDuration: (yi: AgreementYear, durationMonths: number | null) => Promise<void>;
   onEdit?: (agreement: Agreement) => void;
   onDelete?: (agreement: Agreement) => void;
-}) {
+}>) {
   const [editingN7ForId, setEditingN7ForId] = useState<number | null>(null);
   const [n7EditValue, setN7EditValue] = useState("");
   const [n7Errors, setN7Errors] = useState<Record<number, string>>({});
@@ -112,8 +112,8 @@ export function AgreementsTable({
   }
 
   async function saveInp(yi: AgreementYear) {
-    const val = parseInt(inpEditValue, 10);
-    if (!isNaN(val) && val !== yi.inp_total_places) {
+    const val = Number.parseInt(inpEditValue, 10);
+    if (!Number.isNaN(val) && val !== yi.inp_total_places) {
       setInpErrors((prev) => ({ ...prev, [yi.id]: "" }));
       try {
         await onEditYearInp(yi, val);
@@ -136,8 +136,8 @@ export function AgreementsTable({
   }
 
   async function saveN7(yi: AgreementYear) {
-    const val = parseInt(n7EditValue, 10);
-    if (!isNaN(val) && val !== yi.n7_places) {
+    const val = Number.parseInt(n7EditValue, 10);
+    if (!Number.isNaN(val) && val !== yi.n7_places) {
       setN7Errors((prev) => ({ ...prev, [yi.id]: "" }));
       try {
         await onEditYear(yi, val);
@@ -161,8 +161,8 @@ export function AgreementsTable({
 
   async function saveDuration(yi: AgreementYear) {
     const raw = durationEditValue.trim();
-    const val = raw === "" ? null : parseInt(raw, 10);
-    if (val !== null && isNaN(val)) { setEditingDurationForId(null); return; }
+    const val = raw === "" ? null : Number.parseInt(raw, 10);
+    if (val !== null && Number.isNaN(val)) { setEditingDurationForId(null); return; }
     if (val !== yi.duration_weeks) {
       setDurationErrors((prev) => ({ ...prev, [yi.id]: "" }));
       try {
@@ -186,8 +186,8 @@ export function AgreementsTable({
   }
 
   async function saveDept(dq: AgreementYearDepartment) {
-    const val = parseInt(deptEditValue, 10);
-    if (!isNaN(val) && val !== dq.estimated_places) {
+    const val = Number.parseInt(deptEditValue, 10);
+    if (!Number.isNaN(val) && val !== dq.estimated_places) {
       setDeptErrors((prev) => ({ ...prev, [dq.id]: "" }));
       try {
         await onSaveDeptQuota(dq, val);

@@ -39,7 +39,6 @@ from .moveon_transformer import (
     transform_agreement_quota,
     transform_mobility_category,
 )
-from .moveon_validator import ValidationError as MoveOnValidationError
 from .moveon_validator import (
     validate_agreement,
     validate_agreement_quota,
@@ -163,7 +162,6 @@ def sync_moveon_mobility_categories(
         except (
             IntegrityError,
             DjangoValidationError,
-            MoveOnValidationError,
             ValueError,
             KeyError,
         ) as exc:
@@ -226,7 +224,6 @@ def sync_moveon_agreements(
         except (
             IntegrityError,
             DjangoValidationError,
-            MoveOnValidationError,
             ValueError,
             KeyError,
         ) as exc:
@@ -283,7 +280,6 @@ def sync_moveon_agreements(
         except (
             IntegrityError,
             DjangoValidationError,
-            MoveOnValidationError,
             ValueError,
             KeyError,
         ) as exc:
@@ -339,7 +335,6 @@ def sync_moveon_agreement_inp_quotas(
             Agreement.DoesNotExist,
             IntegrityError,
             DjangoValidationError,
-            MoveOnValidationError,
             ValueError,
             KeyError,
         ) as exc:

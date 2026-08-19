@@ -34,7 +34,7 @@ type Props =
       onToggle: () => void;
     };
 
-export function CollapsibleStatsPanel({ tables, children, isLoading = false, isOpen, onToggle }: Props) {
+export function CollapsibleStatsPanel({ tables, children, isLoading = false, isOpen, onToggle }: Readonly<Props>) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
       <button
@@ -58,8 +58,8 @@ export function CollapsibleStatsPanel({ tables, children, isLoading = false, isO
               )}
 
               {!isLoading &&
-                tables!.map((table, ti) => (
-                  <div key={ti}>
+                tables!.map((table) => (
+                  <div key={table.heading}>
                     <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                       {table.heading}
                     </h3>
@@ -84,8 +84,11 @@ export function CollapsibleStatsPanel({ tables, children, isLoading = false, isO
                               </td>
                             </tr>
                           ) : (
-                            table.rows.map((r, i) => (
-                              <tr key={i} className="hover:bg-gray-50">
+                            table.rows.map((r) => (
+                              <tr
+                                key={`${r.dimension}-${r.department_code ?? ""}-${r.academic_year_label ?? ""}`}
+                                className="hover:bg-gray-50"
+                              >
                                 <td className="px-3 py-1.5 text-gray-800">{r.dimension}</td>
                                 <td className="px-3 py-1.5 text-gray-600">
                                   {r.department_code ?? "—"}

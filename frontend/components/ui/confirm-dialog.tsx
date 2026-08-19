@@ -45,12 +45,12 @@ function ConfirmDialog({
   message,
   onCancel,
   onConfirm,
-}: {
+}: Readonly<{
   action?: string;
   message: string;
   onCancel: () => void;
   onConfirm: () => void;
-}) {
+}>) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-4">
       <div className="w-full max-w-sm rounded-lg bg-white shadow-xl">

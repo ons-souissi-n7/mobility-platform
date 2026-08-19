@@ -11,6 +11,7 @@ export type AcademicYearTransition =
   | "start-candidature"
   | "close-wishes"
   | "launch-assignment"
+  | "complete-assignment"
   | "publish-results"
   | "finalize-cti"
   | "close";

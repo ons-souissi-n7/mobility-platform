@@ -1,0 +1,169 @@
+# docker-compose.test.yml — Override pour les tests E2E Playwright
+#
+# Utilisation :
+#   docker compose -f docker-compose.dev.yml -f docker-compose.test.yml up --build --exit-code-from playwright
+#
+# Ce fichier SURCHARGE docker-compose.dev.yml pour :
+#   1. Remplacer les URLs "localhost" par des noms de services Docker internes
+#      (le navigateur Playwright tourne DANS le réseau Docker)
+#   2. Ajouter le service "playwright" qui lance les tests
+#
+# Flux CAS en réseau Docker interne :
+#   browser → http://frontend:3000/login
+#   → http://backend:8000/api/v1/auth/login/
+#   → http://fake-cas:8380/cas/login  (CAS_SERVER_PUBLIC_URL)
+#   → http://backend:8000/api/v1/auth/cas-callback/  (BACKEND_PUBLIC_URL)
+#   → http://frontend:3000/auth/callback?token=JWT  (FRONTEND_PUBLIC_URL)
+
+services:
+
+  # ── Base de données dédiée aux tests E2E ────────────────────────────────
+  # Séparée de "db" (données de dev) : sans ça, chaque run E2E créait/mutait
+  # des dizaines d'enregistrements ("2025-ALERT-TESTxxxxx", etc.) directement
+  # dans la base de dev, jusqu'à la rendre inutilisable. Pas de volume nommé
+  # persistant : chaque run E2E repart d'une base vierge (migrate la recrée).
+  db-test:
+    image: postgres:16-alpine
+    restart: "no"
+    environment:
+      POSTGRES_DB: mobility_test
+      POSTGRES_USER: ${POSTGRES_USER:-mobility}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mobility_secret}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mobility} -d mobility_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Backend : base de test dédiée + remplacer les URLs publiques ────────
+  backend:
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mobility}:${POSTGRES_PASSWORD:-mobility_secret}@db-test:5432/mobility_test
+      # CAS : le navigateur Playwright suit les redirections dans le réseau Docker
+      CAS_SERVER_PUBLIC_URL: http://fake-cas:8380
+      # Callback CAS → backend interne
+      BACKEND_PUBLIC_URL: http://backend:8000
+      # Redirection post-auth → frontend interne
+      FRONTEND_PUBLIC_URL: http://frontend:3000
+    depends_on:
+      db-test:
+        condition: service_healthy
+
+  worker:
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mobility}:${POSTGRES_PASSWORD:-mobility_secret}@db-test:5432/mobility_test
+    depends_on:
+      db-test:
+        condition: service_healthy
+
+  # ── Frontend : pointer l'API vers le backend interne ───────────────────
+  frontend:
+    environment:
+      # Utilisé par le browser (client-side) — doit pointer vers le réseau Docker
+      NEXT_PUBLIC_API_URL: http://backend:8000/api/v1
+      # Utilisé par Next.js server-side — reste interne
+      API_INTERNAL_URL: http://backend:8000/api/v1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      # Volume .next dédié aux tests : évite les conflits de cache avec le dev stack
+      - frontend_next_e2e:/app/.next
+
+  # ── Runner Playwright headless (CI) ────────────────────────────────────
+  # Usage : docker compose -f docker-compose.dev.yml -f docker-compose.test.yml \
+  #           up --build --exit-code-from playwright
+  playwright:
+    # Pas de `profiles:` ici : ce service ne réserve aucun port hôte, il ne
+    # peut donc entrer en conflit avec rien. C'est uniquement playwright-ui
+    # et playwright-report (tous deux sur le port 9323) qui doivent être
+    # empêchés de démarrer ensemble via un `up` sans nom de service explicite —
+    # voir leurs blocs respectifs plus bas.
+    build:
+      context: .
+      dockerfile: frontend/e2e/Dockerfile.playwright
+    working_dir: /app
+    volumes:
+      - ./frontend/e2e:/app/e2e
+      - ./frontend/playwright.config.ts:/app/playwright.config.ts
+      - ./frontend/playwright-report:/app/playwright-report
+      - ./frontend/test-results:/app/test-results
+    environment:
+      E2E_BASE_URL: http://frontend:3000
+      E2E_API_URL: http://backend:8000/api/v1
+      FORCE_COLOR: "1"
+      CI: "true"
+    depends_on:
+      backend:
+        condition: service_healthy
+      fake-cas:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    command: >
+      sh -c "
+        echo '=== Attente du frontend ===' &&
+        timeout 120 sh -c 'until wget -q --spider http://frontend:3000 > /dev/null 2>&1; do printf \".\"; sleep 3; done' &&
+        echo '' &&
+        echo '=== Frontend disponible. Lancement des tests ===' &&
+        npx playwright test
+      "
+
+  # ── Interface graphique Playwright UI ──────────────────────────────────
+  # Usage : docker compose -f docker-compose.dev.yml -f docker-compose.test.yml \
+  #           up --build playwright-ui
+  # Puis ouvrir http://localhost:9323 dans le navigateur
+  # → Voir les tests, les exécuter un par un, observer les étapes + screenshots
+  playwright-ui:
+    profiles: ["e2e-ui"]
+    build:
+      context: .
+      dockerfile: frontend/e2e/Dockerfile.playwright
+    working_dir: /app
+    ports:
+      - "9323:9323"
+    volumes:
+      - ./frontend/e2e:/app/e2e
+      - ./frontend/playwright.config.ts:/app/playwright.config.ts
+      - ./frontend/playwright-report:/app/playwright-report
+      - ./frontend/test-results:/app/test-results
+    environment:
+      E2E_BASE_URL: http://frontend:3000
+      E2E_API_URL: http://backend:8000/api/v1
+      FORCE_COLOR: "1"
+      CI: "true"
+    depends_on:
+      backend:
+        condition: service_healthy
+      fake-cas:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    command: >
+      sh -c "
+        echo '=== Attente du frontend ===' &&
+        timeout 120 sh -c 'until wget -q --spider http://frontend:3000 > /dev/null 2>&1; do printf \".\"; sleep 3; done' &&
+        echo '' &&
+        echo '=== UI Playwright disponible sur http://localhost:9323 ===' &&
+        npx playwright test --ui --ui-host=0.0.0.0 --ui-port=9323
+      "
+
+  # ── Serveur de rapport HTML ─────────────────────────────────────────────
+  # Usage : docker compose -f docker-compose.dev.yml -f docker-compose.test.yml \
+  #           up playwright-report
+  # Puis ouvrir http://localhost:9323 dans le navigateur
+  # → Voir les résultats, les vidéos d'exécution, les traces pas à pas
+  playwright-report:
+    profiles: ["e2e-report"]
+    build:
+      context: .
+      dockerfile: frontend/e2e/Dockerfile.playwright
+    working_dir: /app
+    ports:
+      - "9323:9323"
+    volumes:
+      - ./frontend/playwright-report:/app/playwright-report
+      - ./frontend/test-results:/app/test-results
+    command: npx playwright show-report playwright-report --host 0.0.0.0 --port 9323
+
+volumes:
+  frontend_next_e2e:

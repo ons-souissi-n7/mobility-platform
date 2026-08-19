@@ -1,18 +1,6 @@
 import { browserApi } from "@/lib/api/browser-client";
 import { downloadBlob, publicApiBaseUrl } from "@/lib/api/download-utils";
-import type {
-  ComplementaryHistoryItem,
-  CtiIncomingRow,
-  CtiInternshipRow,
-  CtiMobilityRow,
-  CtiRegionRow,
-  CtiStats,
-  ExchangeHistoryItem,
-  InternshipHistoryItem,
-  MobilityDuration,
-  MobilityHistory,
-  MobilityTotals,
-} from "@/lib/api/types";
+import type { CtiStats, MobilityDuration, MobilityHistory } from "@/lib/api/types";
 
 export type {
   ComplementaryHistoryItem,
@@ -26,7 +14,7 @@ export type {
   MobilityDuration,
   MobilityHistory,
   MobilityTotals,
-};
+} from "@/lib/api/types";
 
 export function getCtiDuration(ine: string): Promise<MobilityDuration> {
   return browserApi<MobilityDuration>(`/cti/students/${ine}/duration/`, { method: "GET" });

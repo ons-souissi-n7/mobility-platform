@@ -79,7 +79,7 @@ export function IncomingImportErrorsPanel({
   page = 1,
   pageSize = 25,
   onPageChange,
-}: {
+}: Readonly<{
   errors: IncomingImportError[];
   isBusy: boolean;
   canManage: boolean;
@@ -91,7 +91,7 @@ export function IncomingImportErrorsPanel({
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
-}) {
+}>) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);

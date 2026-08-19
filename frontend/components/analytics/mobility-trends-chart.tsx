@@ -23,7 +23,7 @@ const SERIES = [
   { key: "complementary", label: "Complémentaires", color: "#a855f7" },
 ] as const;
 
-export function MobilityTrendsChart({ data }: Props) {
+export function MobilityTrendsChart({ data }: Readonly<Props>) {
   return (
     <ResponsiveContainer width="100%" height={360}>
       <LineChart data={data} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>

@@ -55,7 +55,7 @@ export function ComplementaryWorkspace({
   initialTotalCount,
   academicYears,
   currentYear,
-}: Props) {
+}: Readonly<Props>) {
   const defaultYear =
     academicYears.find((y) => y.status !== "closed") ??
     [...academicYears].sort((a, b) => b.start_date.localeCompare(a.start_date))[0] ??
@@ -150,7 +150,7 @@ export function ComplementaryWorkspace({
 
   // ── Reject ────────────────────────────────────────────────────────────────
 
-  async function handleRejectSubmit(e: React.FormEvent) {
+  async function handleRejectSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     if (!modal) return;
     setModal((m) => m && { ...m, submitting: true, error: "" });
@@ -173,7 +173,7 @@ export function ComplementaryWorkspace({
 
   // ── Edit ─────────────────────────────────────────────────────────────────
 
-  async function handleEditSubmit(e: React.FormEvent) {
+  async function handleEditSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     if (!editModal) return;
     setEditModal((m) => m && { ...m, submitting: true, error: "" });
@@ -470,10 +470,11 @@ export function ComplementaryWorkspace({
             )}
 
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">
+              <label className="mb-1 block text-xs font-medium text-gray-700" htmlFor="complementary-status-select">
                 Statut *
               </label>
               <select
+                id="complementary-status-select"
                 required
                 value={editModal.status}
                 onChange={(e) =>
@@ -495,10 +496,11 @@ export function ComplementaryWorkspace({
 
             {editModal.status === "rejected" && (
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">
+                <label className="mb-1 block text-xs font-medium text-gray-700" htmlFor="complementary-edit-rejection-reason">
                   Motif du rejet *
                 </label>
                 <textarea
+                  id="complementary-edit-rejection-reason"
                   required
                   rows={3}
                   value={editModal.rejectionReason}
@@ -550,10 +552,11 @@ export function ComplementaryWorkspace({
             )}
 
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700">
+              <label className="mb-1 block text-xs font-medium text-gray-700" htmlFor="complementary-reject-reason">
                 Motif du rejet *
               </label>
               <textarea
+                id="complementary-reject-reason"
                 required
                 rows={4}
                 value={modal.reason}

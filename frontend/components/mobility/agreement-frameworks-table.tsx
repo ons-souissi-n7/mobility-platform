@@ -57,7 +57,7 @@ export function MobilityCategorysTable({
   isYearClosed = false,
   onDelete,
   onEdit,
-}: MobilityCategorysTableProps) {
+}: Readonly<MobilityCategorysTableProps>) {
   return (
     <DataTable
       columns={getColumns(onEdit, onDelete, isYearClosed)}

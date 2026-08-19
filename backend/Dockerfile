@@ -23,7 +23,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y libpq5 \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y libpq5 \
     && rm -rf /var/lib/apt/lists/* \
     && pip uninstall -y pip setuptools \
     && addgroup --system appgroup \
@@ -33,6 +33,8 @@ COPY --from=builder /venv /venv
 COPY . .
 
 RUN SECRET_KEY=build-time-secret \
+    JWT_SECRET_KEY=build-time-secret \
+    PGCRYPTO_KEY=build-time-secret-32-characters-x \
     DATABASE_URL=sqlite:////tmp/build.sqlite3 \
     python manage.py collectstatic --noinput \
     && chown -R appuser:appgroup /app

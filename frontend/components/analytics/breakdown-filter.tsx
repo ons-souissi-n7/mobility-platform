@@ -15,7 +15,7 @@ export function BreakdownFilter({
   selected,
   onChange,
   placeholder = "Rechercher…",
-}: Props) {
+}: Readonly<Props>) {
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(
@@ -51,12 +51,14 @@ export function BreakdownFilter({
       {/* Boutons Tout / Effacer */}
       <div className="flex gap-2">
         <button
+          type="button"
           onClick={() => onChange(options.map((o) => o.id))}
           className="flex-1 rounded-md border px-2 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors"
         >
           Tout sélectionner
         </button>
         <button
+          type="button"
           onClick={() => onChange([])}
           className="flex-1 rounded-md border px-2 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors"
         >

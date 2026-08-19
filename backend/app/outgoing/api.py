@@ -81,6 +81,10 @@ logger = logging.getLogger(__name__)
 
 router = Router()
 
+ASSIGNMENT_NOT_FOUND = "Affectation introuvable."
+CORRECTION_AGREEMENT_COL = "Correction (accord)"
+CORRECTION_REASON_COL = "Motif de correction"
+
 
 def _derive_override_rank(
     annual_enrollment_id: int, agreement_year_id: int | None
@@ -141,7 +145,7 @@ def get_assignment(request, assignment_id: int):
     try:
         return Assignment.objects.select_related("academic_year").get(pk=assignment_id)
     except Assignment.DoesNotExist as exc:
-        raise HttpError(404, "Affectation introuvable.") from exc
+        raise HttpError(404, ASSIGNMENT_NOT_FOUND) from exc
 
 
 @router.get(
@@ -158,7 +162,7 @@ def list_assignment_results(
     pagination: LargePaginationQuery = Query(),
 ):
     if not Assignment.objects.filter(pk=assignment_id).exists():
-        raise HttpError(404, "Affectation introuvable.")
+        raise HttpError(404, ASSIGNMENT_NOT_FOUND)
 
     qs = (
         AssignmentResult.objects.filter(assignment_id=assignment_id)
@@ -198,7 +202,7 @@ def get_assignment_stats(request, assignment_id: int):
     try:
         assignment = Assignment.objects.get(pk=assignment_id)
     except Assignment.DoesNotExist as exc:
-        raise HttpError(404, "Affectation introuvable.") from exc
+        raise HttpError(404, ASSIGNMENT_NOT_FOUND) from exc
 
     # Annotations pour les valeurs effectives (après overrides manuels)
     # eff_slot : slot type final (override_slot_type si correction, sinon slot_type auto)
@@ -423,7 +427,7 @@ def list_assignment_agreement_years(request, assignment_id: int):
     try:
         assignment = Assignment.objects.get(pk=assignment_id)
     except Assignment.DoesNotExist as exc:
-        raise HttpError(404, "Affectation introuvable.") from exc
+        raise HttpError(404, ASSIGNMENT_NOT_FOUND) from exc
 
     ays = (
         AgreementYear.objects.filter(
@@ -763,8 +767,8 @@ def export_wishes_excel(
             "Auto-affectation",
             "Type de quota",
             "Rang d'affectation",
-            "Correction (accord)",
-            "Motif de correction",
+            CORRECTION_AGREEMENT_COL,
+            CORRECTION_REASON_COL,
         ]
         widths += [80, 22, 10, 60, 50]
     write_header_row(ws, headers, widths)
@@ -830,7 +834,7 @@ def export_wishes_excel(
 
             total_rows = len(accord_names) + 1
             corr_col_letter = get_column_letter(
-                headers.index("Correction (accord)") + 1
+                headers.index(CORRECTION_AGREEMENT_COL) + 1
             )
             dv = openpyxl.worksheet.datavalidation.DataValidation(
                 type="list",
@@ -871,7 +875,7 @@ def validate_assignment(request, assignment_id: int):
             pk=assignment_id
         )
     except Assignment.DoesNotExist as exc:
-        raise HttpError(404, "Affectation introuvable.") from exc
+        raise HttpError(404, ASSIGNMENT_NOT_FOUND) from exc
 
     try:
         assignment.validate()
@@ -901,7 +905,7 @@ def publish_assignment(request, assignment_id: int):
             pk=assignment_id
         )
     except Assignment.DoesNotExist as exc:
-        raise HttpError(404, "Affectation introuvable.") from exc
+        raise HttpError(404, ASSIGNMENT_NOT_FOUND) from exc
 
     try:
         assignment.publish()
@@ -946,7 +950,7 @@ def import_assignment_overrides(
             pk=assignment_id
         )
     except Assignment.DoesNotExist as exc:
-        raise HttpError(404, "Affectation introuvable.") from exc
+        raise HttpError(404, ASSIGNMENT_NOT_FOUND) from exc
 
     if assignment.status in (
         AssignmentStatus.VALIDATED,
@@ -970,7 +974,7 @@ def import_assignment_overrides(
         raise HttpError(400, "Fichier Excel vide.")
     headers = [str(h or "").strip() for h in header_row]
 
-    required_cols = ["INE", "Correction (accord)", "Motif de correction"]
+    required_cols = ["INE", CORRECTION_AGREEMENT_COL, CORRECTION_REASON_COL]
     missing_cols = [col for col in required_cols if col not in headers]
     if missing_cols:
         raise HttpError(
@@ -978,8 +982,8 @@ def import_assignment_overrides(
             f"Colonnes requises manquantes : {', '.join(missing_cols)}",
         )
     ine_col = headers.index("INE")
-    correction_col = headers.index("Correction (accord)")
-    motif_col = headers.index("Motif de correction")
+    correction_col = headers.index(CORRECTION_AGREEMENT_COL)
+    motif_col = headers.index(CORRECTION_REASON_COL)
 
     ay_by_name: dict[str, int] = {}
     for _ay in AgreementYear.objects.filter(
@@ -1125,7 +1129,7 @@ def override_assignment_result(
     try:
         assignment = Assignment.objects.get(pk=assignment_id)
     except Assignment.DoesNotExist as exc:
-        raise HttpError(404, "Affectation introuvable.") from exc
+        raise HttpError(404, ASSIGNMENT_NOT_FOUND) from exc
 
     if assignment.status in (
         AssignmentStatus.VALIDATED,

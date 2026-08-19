@@ -28,6 +28,25 @@ export function formatDateTime(value: string | null | undefined, includeSeconds 
   });
 }
 
+/**
+ * Sépare un libellé du type "NOM Prénom (INE)" en sa base ("NOM Prénom") et
+ * le contenu de la parenthèse finale ("INE"). Implémenté par recherche de
+ * caractères plutôt que par regex, pour un temps d'exécution garanti linéaire
+ * quelle que soit l'entrée (une regex du type /\(([^)]+)\)$/ backtrack en
+ * O(n²) sur une chaîne sans parenthèse fermante).
+ */
+export function splitTrailingParenthetical(text: string): { base: string; inner: string } {
+  const openIdx = text.lastIndexOf("(");
+  const hasTrailingParen = openIdx !== -1 && text.endsWith(")") && openIdx < text.length - 1;
+  if (!hasTrailingParen) {
+    return { base: text.trim(), inner: "" };
+  }
+  return {
+    base: text.slice(0, openIdx).trim(),
+    inner: text.slice(openIdx + 1, -1),
+  };
+}
+
 /** Tailwind classes shared across all filter select/input elements. */
 export const SELECT_CLS =
   "rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]";

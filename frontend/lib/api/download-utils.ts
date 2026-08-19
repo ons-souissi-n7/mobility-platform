@@ -1,10 +1,24 @@
 export { publicApiBaseUrl } from "@/lib/api/browser-client";
 
-export async function downloadBlob(url: string, defaultFilename = "export.xlsx"): Promise<void> {
-  const response = await fetch(url);
+function getAuthToken(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = /(?:^|; )auth_token=([^;]*)/.exec(document.cookie);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+export async function downloadBlob(
+  url: string,
+  defaultFilename = "export.xlsx"
+): Promise<void> {
+  const token = getAuthToken();
+  const response = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    throw new Error(`Erreur export ${response.status}${text ? ` — ${text}` : ""}`);
+    throw new Error(
+      `Erreur export ${response.status}` + (text ? ` — ${text}` : "")
+    );
   }
   const blob = await response.blob();
   const cd = response.headers.get("Content-Disposition") ?? "";
@@ -16,6 +30,6 @@ export async function downloadBlob(url: string, defaultFilename = "export.xlsx")
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  a.remove();
   URL.revokeObjectURL(href);
 }

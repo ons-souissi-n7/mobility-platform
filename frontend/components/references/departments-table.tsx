@@ -63,7 +63,7 @@ export function DepartmentsTable({
   readOnly = false,
   onDelete,
   onEdit,
-}: DepartmentsTableProps) {
+}: Readonly<DepartmentsTableProps>) {
   return (
     <DataTable
       columns={getColumns(onEdit, onDelete, readOnly)}

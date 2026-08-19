@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, Download, FileDown, FileSpreadsheet, Plus, RefreshCw, Upload } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Download, FileDown, FileSpreadsheet, FileText, Gauge, Landmark, Layers, Plus, RefreshCw, Upload } from "lucide-react";
 
 import { AgreementForm } from "@/components/mobility/agreement-form";
 import { MobilityCategoryForm } from "@/components/mobility/agreement-framework-form";
@@ -16,7 +16,6 @@ import { Modal } from "@/components/ui/modal";
 import { PageTabBar } from "@/components/ui/page-tab-bar";
 import { SearchInput } from "@/components/ui/search-input";
 import { StatCard } from "@/components/ui/stat-card";
-import { FileText, Gauge, Landmark, Layers } from "lucide-react";
 import {
   adjustAgreementYearInp,
   createAgreement,
@@ -25,6 +24,11 @@ import {
   deleteMobilityCategory,
   downloadExcelTemplate,
   exportAgreementsExcel,
+  fetchAgreementYearDepartments,
+  fetchAgreementYearsList,
+  fetchAgreements,
+  fetchMobilityCategories,
+  fetchMobilityImportErrors,
   forceMobilityImport,
   getMoveonMobilityImportErrors,
   ignoreMobilityImport,
@@ -41,7 +45,6 @@ import {
   type MobilityImportRetryPayload,
   type MobilityCategoryPayload,
 } from "@/lib/api/mobility-mutations";
-import { fetchAgreements } from "@/lib/api/mobility";
 
 const MOBILITY_ERRORS_PAGE_SIZE = 25;
 import type {
@@ -77,7 +80,7 @@ export function MobilityWorkspace({
   departments,
   mobilityLevels,
   universities,
-}: {
+}: Readonly<{
   academicYears: AcademicYear[];
   mobilityCategories: MobilityCategory[];
   countries: Country[];
@@ -91,7 +94,7 @@ export function MobilityWorkspace({
   departments: Department[];
   mobilityLevels: Level[];
   universities: PartnerUniversity[];
-}) {
+}>) {
   const [agreements, setAgreements] = useState(initialAgreements);
   const [expiringAgreements] = useState(initialExpiringAgreements);
   const [mobilityCategories, setMobilityCategories] = useState(initialMobilityCategories);
@@ -245,9 +248,8 @@ export function MobilityWorkspace({
       setAgreementYears((items) => items.map((y) => (y.id === updated.id ? updated : y)));
       // Si vient d'être activé, le backend a pu créer des quotas dept → on rafraîchit
       if (updated.is_active) {
-        const { getMobilityData } = await import("@/lib/api/mobility");
-        const fresh = await getMobilityData();
-        setAgreementYearDepartments(fresh.agreementYearDepartments);
+        const depts = await fetchAgreementYearDepartments();
+        setAgreementYearDepartments(depts);
       }
     } catch (err) {
       setSyncError(err instanceof Error ? err.message : "Impossible de modifier le statut.");
@@ -266,9 +268,8 @@ export function MobilityWorkspace({
     });
     setAgreementYears((items) => items.map((y) => (y.id === updated.id ? updated : y)));
     // Rafraîchir les quotas département recalculés par Hamilton
-    const { getMobilityData } = await import("@/lib/api/mobility");
-    const fresh = await getMobilityData();
-    setAgreementYearDepartments(fresh.agreementYearDepartments);
+    const depts = await fetchAgreementYearDepartments();
+    setAgreementYearDepartments(depts);
   }
 
   async function handleEditYearInp(yi: AgreementYear, inpPlaces: number) {
@@ -276,9 +277,8 @@ export function MobilityWorkspace({
     const updated = await adjustAgreementYearInp(yi.id, inpPlaces);
     setAgreementYears((items) => items.map((y) => (y.id === updated.id ? updated : y)));
     // Rafraîchir les quotas département recalculés par Hamilton
-    const { getMobilityData } = await import("@/lib/api/mobility");
-    const fresh = await getMobilityData();
-    setAgreementYearDepartments(fresh.agreementYearDepartments);
+    const depts = await fetchAgreementYearDepartments();
+    setAgreementYearDepartments(depts);
   }
 
   async function handleEditYearDuration(yi: AgreementYear, durationMonths: number | null) {
@@ -435,22 +435,25 @@ export function MobilityWorkspace({
   }
 
   async function refreshMobilityData() {
-    const { getMobilityData } = await import("@/lib/api/mobility");
-    const [fresh, agreementsPage] = await Promise.all([
-      getMobilityData(),
-      fetchAgreements({
-        search: query || undefined,
-        country_id: countryFilter !== "all" ? Number(countryFilter) : undefined,
-        is_active: activityFilter === "active" ? true : activityFilter === "inactive" ? false : undefined,
-        page_size: 200,
-      }),
-    ]);
+    const [agreementsPage, agreementYears, agreementYearDepts, mobilityCategories, importErrorsPage] =
+      await Promise.all([
+        fetchAgreements({
+          search: query || undefined,
+          country_id: countryFilter !== "all" ? Number(countryFilter) : undefined,
+          is_active: activityFilter === "active" ? true : activityFilter === "inactive" ? false : undefined,
+          page_size: 200,
+        }),
+        fetchAgreementYearsList(),
+        fetchAgreementYearDepartments(),
+        fetchMobilityCategories(),
+        fetchMobilityImportErrors(1, 25),
+      ]);
     setAgreements(agreementsPage.results);
-    setAgreementYears(fresh.agreementYears);
-    setAgreementYearDepartments(fresh.agreementYearDepartments);
-    setMobilityCategories(fresh.mobilityCategories);
-    setImportErrors(fresh.importErrors);
-    setImportErrorsTotalCount(fresh.importErrorsTotalCount);
+    setAgreementYears(agreementYears);
+    setAgreementYearDepartments(agreementYearDepts);
+    setMobilityCategories(mobilityCategories);
+    setImportErrors(importErrorsPage.results);
+    setImportErrorsTotalCount(importErrorsPage.count);
     setImportErrorsPage(1);
   }
 
@@ -711,11 +714,11 @@ function ExpiringAgreementsBanner({
   agreements,
   universities,
   nowMs,
-}: {
+}: Readonly<{
   agreements: Agreement[];
   universities: PartnerUniversity[];
   nowMs: number;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
 
   if (agreements.length === 0) return null;
@@ -773,7 +776,7 @@ function ExpiringAgreementsBanner({
                         : "—"}
                     </td>
                     <td className={`py-1.5 whitespace-nowrap ${urgency}`}>
-                      {isFinite(days) ? `${days} j` : "—"}
+                      {Number.isFinite(days) ? `${days} j` : "—"}
                     </td>
                   </tr>
                 );

@@ -83,7 +83,7 @@ export function AgreementDetailModal({
   departments,
   levels,
   onClose,
-}: Props) {
+}: Readonly<Props>) {
   const yearInstances = allAgreementYears
     .filter((yi) => yi.agreement_id === agreement.id)
     .sort((a, b) => b.academic_year_label.localeCompare(a.academic_year_label));

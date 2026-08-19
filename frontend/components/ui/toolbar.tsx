@@ -11,12 +11,12 @@ export function Toolbar({
   actions,
   filters,
   searchClassName,
-}: {
+}: Readonly<{
   search?: { value: string; onChange: (v: string) => void; placeholder?: string };
   actions?: ReactNode;
   filters?: ReactNode;
   searchClassName?: string;
-}) {
+}>) {
   const hasBottomRow = search || filters;
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm space-y-3">

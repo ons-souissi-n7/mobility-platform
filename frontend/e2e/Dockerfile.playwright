@@ -1,0 +1,26 @@
+# Image Playwright officielle — navigateurs (Chromium, Firefox, WebKit) pré-installés
+FROM mcr.microsoft.com/playwright:v1.62.1-noble
+
+WORKDIR /app
+
+# Ne pas re-télécharger les navigateurs : ils sont dans l'image de base
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+# Installer uniquement les dépendances Node.js (sans les navigateurs)
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci && chown -R pwuser:pwuser /app
+
+# L'image officielle Playwright fournit l'utilisateur non-root "pwuser",
+# prévu spécifiquement pour ce cas d'usage (contrairement à un conteneur
+# generique, elle n'a pas besoin de root pour le sandbox Chromium — les
+# tests tournent de toute façon avec --no-sandbox en CI, cf. global-setup.ts).
+# Le conteneur démarre en root : docker-compose.test.yml monte e2e/,
+# playwright-report/ et test-results/ par-dessus au runtime (racine côté hôte),
+# donc l'entrypoint doit re-chown ces points de montage avant de basculer
+# vers pwuser — voir docker-entrypoint.playwright.sh.
+COPY frontend/e2e/docker-entrypoint.playwright.sh /usr/local/bin/docker-entrypoint.playwright.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.playwright.sh
+
+ENTRYPOINT ["docker-entrypoint.playwright.sh"]
+
+# Les fichiers de tests sont montés au runtime via les volumes docker-compose

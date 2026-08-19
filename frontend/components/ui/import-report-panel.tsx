@@ -14,7 +14,7 @@ export function ImportReportPanel({
   formatUnresolved,
   hideUnresolved = false,
   onClose,
-}: {
+}: Readonly<{
   report: ImportReportData;
   title?: string;
   /** Format one unresolved item into a display string. Default uses `ine`/`individu` + `reason`. */
@@ -22,16 +22,19 @@ export function ImportReportPanel({
   /** When true, the unresolved item list is hidden (counts still shown in the summary line). */
   hideUnresolved?: boolean;
   onClose: () => void;
-}) {
+}>) {
   const errors = report.errors ?? [];
   const hasIssues = (!hideUnresolved && report.unresolved.length > 0) || errors.length > 0;
 
   const defaultFormat = (item: ReportItem) => {
-    const prefix = item.ine
-      ? `INE ${item.ine as string}`
-      : item.individu
-        ? String(item.individu) + (item.rank != null ? ` rang ${item.rank as number}` : "")
-        : null;
+    let prefix: string | null;
+    if (item.ine) {
+      prefix = `INE ${item.ine as string}`;
+    } else if (typeof item.individu === "string" && item.individu) {
+      prefix = item.individu + (item.rank != null ? ` rang ${item.rank as number}` : "");
+    } else {
+      prefix = null;
+    }
     const reason = item.reason ? String(item.reason) : "";
     return prefix ? `${prefix} — ${reason}` : reason;
   };

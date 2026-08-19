@@ -22,10 +22,12 @@ from ..models import Internship
 
 logger = logging.getLogger(__name__)
 
+_COL_RAISON_SOCIALE = "Raison sociale"
+
 _COLUMNS = [
     "Étudiant (INE – Nom Prénom)",
     "N°INE",
-    "Raison sociale",
+    _COL_RAISON_SOCIALE,
     "Pays",
     "Ville",
     "Date de début",
@@ -96,7 +98,7 @@ def import_internships_from_excel(
         result.total += 1
         raw_ine = _get(row, "Étudiant (INE – Nom Prénom)") or _get(row, "N°INE") or ""
         ine = _extract_ine(raw_ine)
-        company_name = _get(row, "Raison sociale") or ""
+        company_name = _get(row, _COL_RAISON_SOCIALE) or ""
         external_id = f"row_{row_number}_{company_name[:30]}"
 
         if not ine or not company_name:
@@ -194,7 +196,7 @@ def _save_raw(
         val = row[idx] if idx < len(row) else None
         payload[name] = str(val).strip() if val is not None else ""
     payload["row_number"] = row_number
-    company = payload.get("Raison sociale", "")[:30]
+    company = payload.get(_COL_RAISON_SOCIALE, "")[:30]
     return RawImport.objects.create(
         source="excel_internships",
         source_file=source_file,

@@ -228,10 +228,10 @@ function ReportRow({ report }: { report: ImportReportList }) {
 export function ImportReportsWorkspace({
   reports,
   academicYears,
-}: {
+}: Readonly<{
   reports: ImportReportList[];
   academicYears: AcademicYear[];
-}) {
+}>) {
   const [sourceFilter, setSourceFilter] = useState("");
   const [yearFilter, setYearFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);

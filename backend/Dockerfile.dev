@@ -9,13 +9,22 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && addgroup --system appgroup \
+    && adduser --system --ingroup appgroup appuser
 
 COPY requirements.txt requirements-dev.txt ./
 RUN pip install --upgrade pip && pip install -r requirements-dev.txt
 
+# Image de dev uniquement (jamais déployée) : docker-compose.dev.yml monte
+# ./backend:/app par-dessus, donc cette copie ne sert que de repli pour un
+# démarrage sans bind-mount. .dockerignore exclut déjà les secrets/clés.
 COPY . .
+
+COPY docker-entrypoint.dev.sh /usr/local/bin/docker-entrypoint.dev.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.dev.sh
 
 EXPOSE 8000
 
+ENTRYPOINT ["docker-entrypoint.dev.sh"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

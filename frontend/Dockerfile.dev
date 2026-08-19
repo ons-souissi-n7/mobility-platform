@@ -1,12 +1,24 @@
 FROM node:20
 
+RUN addgroup --system appgroup \
+    && adduser --system --ingroup appgroup appuser
+
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Image de dev uniquement (jamais déployée) : docker-compose.dev.yml monte
+# ./frontend:/app par-dessus, donc cette copie ne sert que de repli pour un
+# démarrage sans bind-mount. .dockerignore exclut déjà les secrets/clés.
 COPY . .
+
+RUN chown -R appuser:appgroup /app
+
+COPY docker-entrypoint.dev.sh /usr/local/bin/docker-entrypoint.dev.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.dev.sh
 
 EXPOSE 3000
 
+ENTRYPOINT ["docker-entrypoint.dev.sh"]
 CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]

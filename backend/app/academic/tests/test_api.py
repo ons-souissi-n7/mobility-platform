@@ -98,13 +98,15 @@ class TestAcademicYearAPI:
         assert response.status_code == 400
         assert "dates" in response.json()["detail"].lower()
 
-    def test_transition_order_returns_400(self):
-        # start-candidature requires recommendation state; from initialization → 400
+    def test_transition_order_returns_409(self):
+        # start-candidature requires recommendation state; from initialization → 409
+        # (Conflict: l'état actuel de la ressource empêche l'opération, cohérent
+        # avec launch-assignment/publish-results ci-dessous.)
         response = self.client.post(
             f"/api/v1/academic/years/{self.academic_year.id}/start-candidature/"
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 409
 
     def test_launch_assignment_advances_year_and_returns_202(self):
         from unittest.mock import patch

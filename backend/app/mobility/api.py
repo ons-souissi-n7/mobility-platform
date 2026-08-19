@@ -55,7 +55,6 @@ from .schemas import (
     RawImportRetryIn,
 )
 from .services.moveon_transformer import transform_agreement
-from .services.moveon_validator import ValidationError as MoveOnValidationError
 from .services.moveon_validator import validate_agreement
 from .services.quota_estimator import (
     ensure_dept_quotas_on_activation,
@@ -76,6 +75,8 @@ PROTECTED_DELETE_MSG = (
     "Impossible de supprimer cet element : des donnees y sont rattachees. "
     "Supprimez d'abord les elements dependants."
 )
+AGREEMENT_YEAR_NOT_FOUND = "Instance annuelle introuvable."
+AGREEMENT_YEAR_LOCKED_MSG = "Une instance validée ne peut plus être modifiée."
 
 
 def safe_delete(instance) -> None:
@@ -426,9 +427,9 @@ def create_agreement_year(request, payload: AgreementYearIn):
     summary="Modifier une instance annuelle (quotas, activation)",
 )
 def update_agreement_year(request, year_id: int, payload: AgreementYearIn):
-    instance = get_or_404(AgreementYear, year_id, "Instance annuelle introuvable.")
+    instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
     if instance.is_validated:
-        raise HttpError(400, "Une instance validée ne peut plus être modifiée.")
+        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
     old_n7 = instance.n7_places
     for field, value in payload.model_dump().items():
         if field not in (
@@ -456,9 +457,9 @@ def update_agreement_year(request, year_id: int, payload: AgreementYearIn):
     summary="Modifier les places INP et recalculer le quota N7 + départements (Hamilton)",
 )
 def adjust_inp_places(request, year_id: int, payload: AgreementYearAdjustInpIn):
-    instance = get_or_404(AgreementYear, year_id, "Instance annuelle introuvable.")
+    instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
     if instance.is_validated:
-        raise HttpError(400, "Une instance validée ne peut plus être modifiée.")
+        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
     if payload.inp_total_places < 0:
         raise HttpError(400, "inp_total_places ne peut pas être négatif.")
     instance.inp_total_places = payload.inp_total_places
@@ -479,9 +480,9 @@ def adjust_inp_places(request, year_id: int, payload: AgreementYearAdjustInpIn):
     summary="Activer / désactiver manuellement une instance annuelle",
 )
 def toggle_agreement_year_active(request, year_id: int):
-    instance = get_or_404(AgreementYear, year_id, "Instance annuelle introuvable.")
+    instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
     if instance.is_validated:
-        raise HttpError(400, "Une instance validée ne peut plus être modifiée.")
+        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
     instance.is_active = not instance.is_active
     instance.save(update_fields=["is_active", "updated_at"])
     if instance.is_active:
@@ -495,7 +496,7 @@ def toggle_agreement_year_active(request, year_id: int):
     summary="Valider une instance annuelle (verrouille les quotas)",
 )
 def validate_agreement_year(request, year_id: int, payload: AgreementYearValidateIn):
-    instance = get_or_404(AgreementYear, year_id, "Instance annuelle introuvable.")
+    instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
     validate_year_consistency(instance)
     instance.is_validated = True
     instance.validated_by = payload.validated_by
@@ -512,7 +513,7 @@ def validate_agreement_year(request, year_id: int, payload: AgreementYearValidat
     summary="Redistribuer les quotas par département via la méthode Hamilton (proportionnel à l'historique)",
 )
 def redistribute_year_departments(request, year_id: int):
-    instance = get_or_404(AgreementYear, year_id, "Instance annuelle introuvable.")
+    instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
     if instance.is_validated:
         raise HttpError(400, "Une instance validée ne peut plus être redistribuée.")
     redistribute_department_quotas(instance)
@@ -525,7 +526,7 @@ def redistribute_year_departments(request, year_id: int):
     summary="Supprimer une instance annuelle",
 )
 def delete_agreement_year(request, year_id: int):
-    instance = get_or_404(AgreementYear, year_id, "Instance annuelle introuvable.")
+    instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
     if instance.is_validated:
         raise HttpError(400, "Une instance validée ne peut pas être supprimée.")
     safe_delete(instance)
@@ -570,10 +571,10 @@ def list_agreement_year_departments(
 )
 def create_agreement_year_department(request, payload: AgreementYearDepartmentIn):
     year_instance = get_or_404(
-        AgreementYear, payload.agreement_year_id, "Instance annuelle introuvable."
+        AgreementYear, payload.agreement_year_id, AGREEMENT_YEAR_NOT_FOUND
     )
     if year_instance.is_validated:
-        raise HttpError(400, "Une instance validée ne peut plus être modifiée.")
+        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
     try:
         agreement_dept = AgreementDepartment.objects.get(
             agreement=year_instance.agreement,
@@ -603,7 +604,7 @@ def update_agreement_year_department(
         AgreementYearDepartment, dept_id, "Quota département introuvable."
     )
     if dept.agreement_year.is_validated:
-        raise HttpError(400, "Une instance validée ne peut plus être modifiée.")
+        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
     dept.estimated_places = payload.estimated_places
     return save_validated(dept)
 
@@ -618,7 +619,7 @@ def delete_agreement_year_department(request, dept_id: int):
         AgreementYearDepartment, dept_id, "Quota département introuvable."
     )
     if dept.agreement_year.is_validated:
-        raise HttpError(400, "Une instance validée ne peut plus être modifiée.")
+        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
     safe_delete(dept)
     return 204, None
 
@@ -781,7 +782,6 @@ def retry_raw_import(request, raw_import_id: int, payload: RawImportRetryIn):
     except (
         IntegrityError,
         ValidationError,
-        MoveOnValidationError,
         ValueError,
         KeyError,
         Agreement.DoesNotExist,

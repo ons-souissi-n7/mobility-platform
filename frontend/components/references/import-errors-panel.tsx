@@ -150,7 +150,7 @@ export function ImportErrorsPanel({
   page = 1,
   pageSize = 25,
   onPageChange,
-}: ImportErrorsPanelProps) {
+}: Readonly<ImportErrorsPanelProps>) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -444,11 +444,11 @@ function TextField({
   label,
   value,
   onChange,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   onChange: (v: string) => void;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</span>

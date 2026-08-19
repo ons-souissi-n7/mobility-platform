@@ -18,6 +18,10 @@ Ce que le script crée :
   - Affectations historiques publiées pour 2022-2025
 
 Idempotent : peut être relancé plusieurs fois sans doublons.
+
+`random` sert uniquement à piocher/mélanger des données de démonstration
+(jamais un token, un mot de passe ou une décision de sécurité). Sans objet
+pour les hotspots Sonar "pseudorandom number generator" (S2245) ci-dessous.
 """
 
 import random
@@ -25,16 +29,22 @@ import random
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+# Noms d'accords existants réutilisés à la fois dans EXISTING_AGREEMENT_QUOTAS_2526
+# et dans FORCED_WISHES plus bas.
+AGREEMENT_TU_MUNCHEN = "Erasmus+ TU Munchen"
+AGREEMENT_MCGILL = "Convention McGill"
+AGREEMENT_KTH_STOCKHOLM = "Erasmus+ KTH Stockholm"
+
 # ── Quotas pour les accords existants (AgreementYears 2025-2026) ──────────────
 # (agreement_name, {dept_code: estimated_places}, n7_places)
 EXISTING_AGREEMENT_QUOTAS_2526 = [
-    ("Erasmus+ TU Munchen", {"SN": 3, "3EA": 2}, 5),
+    (AGREEMENT_TU_MUNCHEN, {"SN": 3, "3EA": 2}, 5),
     ("Erasmus+ UPM Madrid", {"SN": 2, "MF2E": 2}, 4),
     ("Convention ETH Zurich", {"3EA": 2, "MF2E": 2}, 4),
-    ("Convention McGill", {"SN": 2, "3EA": 1}, 3),
+    (AGREEMENT_MCGILL, {"SN": 2, "3EA": 1}, 3),
     ("Erasmus+ Politecnico di Milano", {"SN": 2, "3EA": 2, "MF2E": 2}, 6),
     ("Erasmus+ TU Delft", {"3EA": 2, "MF2E": 2}, 4),
-    ("Erasmus+ KTH Stockholm", {"SN": 2, "3EA": 2}, 4),
+    (AGREEMENT_KTH_STOCKHOLM, {"SN": 2, "3EA": 2}, 4),
 ]
 
 # ── Nouveaux accords à créer si absents ──────────────────────────────────────
@@ -113,19 +123,19 @@ SCHOLARSHIP_INES: set[str] = {
 # Résultat attendu : rejetés de leurs vœux → affectés en destination alternative.
 FORCED_WISHES: dict[str, list[str]] = {
     "20MF204FISE": [
-        "Erasmus+ TU Munchen",
-        "Erasmus+ KTH Stockholm",
-        "Convention McGill",
+        AGREEMENT_TU_MUNCHEN,
+        AGREEMENT_KTH_STOCKHOLM,
+        AGREEMENT_MCGILL,
     ],
     "20MF209FISE": [
-        "Erasmus+ TU Munchen",
-        "Erasmus+ KTH Stockholm",
-        "Convention McGill",
+        AGREEMENT_TU_MUNCHEN,
+        AGREEMENT_KTH_STOCKHOLM,
+        AGREEMENT_MCGILL,
     ],
     "20MF202FISA": [
-        "Erasmus+ TU Munchen",
-        "Erasmus+ KTH Stockholm",
-        "Convention McGill",
+        AGREEMENT_TU_MUNCHEN,
+        AGREEMENT_KTH_STOCKHOLM,
+        AGREEMENT_MCGILL,
     ],
 }
 
@@ -730,7 +740,7 @@ class Command(BaseCommand):
             )
             self._create_wishes(enrollments, current_year)
             self._create_historical_assignments(
-                dept_map, level_2ing, level_3ing, country_map, parcours_map
+                dept_map, level_2ing, country_map, parcours_map
             )
 
         self.stdout.write(self.style.SUCCESS("\n✓ Seed terminé."))
@@ -1024,7 +1034,11 @@ class Command(BaseCommand):
                 )
                 dept = dept_map[dept_code]
                 parcours_list = parcours_map.get(dept_code, [])
-                parcours = random.choice(parcours_list) if parcours_list else None
+                parcours = (
+                    random.choice(parcours_list)  # NOSONAR (S2245) — donnée de démo
+                    if parcours_list
+                    else None
+                )
                 enrollment, e_created = AnnualEnrollment.objects.get_or_create(
                     student=student,
                     academic_year=current_year,
@@ -1098,7 +1112,7 @@ class Command(BaseCommand):
                     )
                     continue
                 n = min(len(eligible), 3)
-                chosen = random.sample(eligible, n)
+                chosen = random.sample(eligible, n)  # NOSONAR (S2245) — donnée de démo
 
             for rank, ay in enumerate(chosen, start=1):
                 StudentWish.objects.create(
@@ -1122,7 +1136,7 @@ class Command(BaseCommand):
     # ────────────────────────────────────────────────────────────────────────
 
     def _create_historical_assignments(
-        self, dept_map, level_2ing, level_3ing, country_map, parcours_map
+        self, dept_map, level_2ing, country_map, parcours_map
     ):
         from app.academic.models import AcademicYear
         from app.mobility.models import AgreementYear
@@ -1193,7 +1207,11 @@ class Command(BaseCommand):
                     continue
 
                 parcours_list = parcours_map.get(dept_code, [])
-                parcours = random.choice(parcours_list) if parcours_list else None
+                parcours = (
+                    random.choice(parcours_list)  # NOSONAR (S2245) — donnée de démo
+                    if parcours_list
+                    else None
+                )
 
                 enrollment, _ = AnnualEnrollment.objects.get_or_create(
                     student=student,
@@ -1214,8 +1232,13 @@ class Command(BaseCommand):
                 # Vœux : créés avant l'affectation (cohérence stats)
                 wish_ays: list = []
                 if eligible and not enrollment.wishes.exists():
-                    n_wish = min(len(eligible), random.randint(2, 3))
-                    wish_ays = random.sample(eligible, n_wish)
+                    n_wish = min(
+                        len(eligible),
+                        random.randint(2, 3),  # NOSONAR (S2245) — donnée de démo
+                    )
+                    wish_ays = random.sample(  # NOSONAR (S2245) — donnée de démo
+                        eligible, n_wish
+                    )
                     for rank, ay in enumerate(wish_ays, start=1):
                         StudentWish.objects.create(
                             annual_enrollment=enrollment,
@@ -1224,13 +1247,18 @@ class Command(BaseCommand):
                         )
 
                 # Affectation : 85 % des étudiants avec vœux → affecté au vœu 1
-                if wish_ays and random.random() > 0.15:
+                if (
+                    wish_ays
+                    and random.random() > 0.15  # NOSONAR (S2245) — donnée de démo
+                ):
                     results.append(
                         AssignmentResult(
                             assignment=assignment,
                             annual_enrollment=enrollment,
                             agreement_year=wish_ays[0],
-                            slot_type=random.choice([SlotType.DEPT, SlotType.SURPLUS]),
+                            slot_type=random.choice(  # NOSONAR (S2245) — donnée de démo
+                                [SlotType.DEPT, SlotType.SURPLUS]
+                            ),
                             assigned_rank=1,
                         )
                     )

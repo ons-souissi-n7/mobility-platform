@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { ReactNode, SubmitEvent } from "react";
 
 import type { AgreementPayload } from "@/lib/api/mobility-mutations";
 import type { Agreement, Department, Level, MobilityCategory, PartnerUniversity } from "@/lib/api/types";
@@ -14,7 +14,7 @@ export function AgreementForm({
   onCancel,
   onSubmit,
   universities,
-}: {
+}: Readonly<{
   departments: Department[];
   frameworks: MobilityCategory[];
   item?: Agreement;
@@ -22,13 +22,13 @@ export function AgreementForm({
   onCancel: () => void;
   onSubmit: (payload: AgreementPayload) => Promise<void>;
   universities: PartnerUniversity[];
-}) {
+}>) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedDeptIds, setSelectedDeptIds] = useState<number[]>(() => item?.department_ids ?? []);
   const [selectedLevelIds, setSelectedLevelIds] = useState<number[]>(() => item?.level_ids ?? []);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
@@ -124,7 +124,7 @@ export function AgreementForm({
       {/* Contraintes niveaux */}
       <div className="border-t border-gray-100 pt-4">
         <p className="mb-3 text-sm font-semibold text-gray-700">
-          Niveaux autorisés
+          Niveaux autorisés{" "}
           <span className="ml-1 font-normal text-gray-400">(vide = tous)</span>
         </p>
         <div className="flex flex-wrap gap-2">
@@ -151,7 +151,7 @@ export function AgreementForm({
       {/* Contraintes départements */}
       <div className="border-t border-gray-100 pt-4">
         <p className="mb-3 text-sm font-semibold text-gray-700">
-          Départements éligibles
+          Départements éligibles{" "}
           <span className="ml-1 font-normal text-gray-400">(vide = tous)</span>
         </p>
         <div className="flex flex-wrap gap-2">
@@ -191,14 +191,14 @@ function Field({
   name,
   required = false,
   type = "text",
-}: {
+}: Readonly<{
   defaultValue?: string | null;
   label: string;
   min?: string;
   name: string;
   required?: boolean;
   type?: string;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>
@@ -220,13 +220,13 @@ function Select({
   label,
   name,
   required = false,
-}: {
+}: Readonly<{
   children: ReactNode;
   defaultValue?: number | string | null;
   label: string;
   name: string;
   required?: boolean;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>

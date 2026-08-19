@@ -114,7 +114,7 @@ export function MobilityImportErrorsPanel({
   page = 1,
   pageSize = 25,
   onPageChange,
-}: {
+}: Readonly<{
   errors: RawImport[];
   isBusy: boolean;
   onIgnore: (error: RawImport) => Promise<void>;
@@ -125,7 +125,7 @@ export function MobilityImportErrorsPanel({
   page?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
-}) {
+}>) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);

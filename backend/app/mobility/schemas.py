@@ -58,7 +58,10 @@ class AgreementOut(Schema):
 
     @staticmethod
     def resolve_department_ids(obj) -> list[int]:
-        return list(obj.agreement_departments.values_list("department_id", flat=True))
+        # .values_list() ignore le cache prefetch_related("agreement_departments")
+        # posé par list_agreements() et refait une requête par accord (N+1).
+        # Itérer .all() réutilise le cache, comme le fait déjà level_ids.
+        return [ad.department_id for ad in obj.agreement_departments.all()]
 
 
 class AgreementDepartmentIn(Schema):

@@ -21,6 +21,7 @@ services:
       retries: 5
 
   backend:
+    image: mobility-platform-backend:dev
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
@@ -38,11 +39,21 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_secret_123}
+      # Auth CAS / JWT
+      CAS_SERVER_PUBLIC_URL: http://localhost:8380
+      CAS_SERVER_INTERNAL_URL: http://fake-cas:8380
+      BACKEND_PUBLIC_URL: http://localhost:8000
+      FRONTEND_PUBLIC_URL: http://localhost:3000
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-in-production}
+      JWT_EXPIRY_MINUTES: "15"
+      PGCRYPTO_KEY: ${PGCRYPTO_KEY:-dev-insecure-key-change-in-prod-32c}
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+      fake-cas:
+        condition: service_started
       fake-moveon-api:
         condition: service_started
       fake-pegase-api:
@@ -63,7 +74,23 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py runserver 0.0.0.0:8000"
 
+  fake-cas:
+    build:
+      context: ./fake-cas
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./fake-cas:/app
+    ports:
+      - "8380:8380"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8380/health', timeout=2)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   worker:
+    image: mobility-platform-worker:dev
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
@@ -82,6 +109,8 @@ services:
       MINIO_ENDPOINT: minio:9000
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio_admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_secret_123}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-in-production}
+      PGCRYPTO_KEY: ${PGCRYPTO_KEY:-dev-insecure-key-change-in-prod-32c}
     depends_on:
       db:
         condition: service_healthy
@@ -96,6 +125,7 @@ services:
     command: python manage.py qcluster
 
   frontend:
+    image: mobility-platform-frontend:dev
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
@@ -182,7 +212,19 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
-
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    restart: unless-stopped
+    ports:
+      - "9001:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
 volumes:
   postgres_data:
   minio_data:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:

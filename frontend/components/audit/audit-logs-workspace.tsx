@@ -3,7 +3,7 @@
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { useState } from "react";
 
-import { getAuditLogs, type AuditFilters } from "@/lib/api/audit";
+import { getAuditLogs, type AuditFilters } from "@/lib/api/audit-mutations";
 import type { AuditLog, PagedResponse } from "@/lib/api/types";
 import { DEFAULT_PAGE_SIZE } from "@/lib/config";
 import { Badge, type BadgeStyle } from "@/components/ui/badge";
@@ -190,6 +190,7 @@ export function AuditLogsWorkspace({ initialData }: { initialData: PagedResponse
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex items-center gap-2 overflow-x-auto">
           <select
+            aria-label="Filtrer par action"
             value={actionFilter}
             onChange={(e) => handleActionChange(e.target.value)}
             className={`w-40 shrink-0 ${SELECT_CLS}`}
@@ -202,12 +203,13 @@ export function AuditLogsWorkspace({ initialData }: { initialData: PagedResponse
           </select>
 
           <select
+            aria-label="Filtrer par type d'entité"
             value={entityFilter}
             onChange={(e) => handleEntityChange(e.target.value)}
             className={`w-48 shrink-0 ${SELECT_CLS}`}
           >
             <option value="">Tous les types</option>
-            {Object.keys(ENTITY_LABELS).sort().map((t) => (
+            {Object.keys(ENTITY_LABELS).sort((a, b) => a.localeCompare(b)).map((t) => (
               <option key={t} value={t}>{ENTITY_LABELS[t]}</option>
             ))}
           </select>

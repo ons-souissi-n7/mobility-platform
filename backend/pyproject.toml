@@ -1,6 +1,12 @@
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+# docker-compose.dev.yml monte ./backend:/app en bind-mount, où tout apparaît
+# root-owned côté conteneur (comportement par défaut de Docker Desktop) quelle
+# que soit la propriété réelle côté hôte — le process tournant en appuser ne
+# peut donc pas écrire dans .ruff_cache/ s'il vit sous /app. /tmp est purement
+# interne au conteneur et toujours writable par appuser.
+cache-dir = "/tmp/ruff_cache"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "DJ"]
@@ -20,6 +26,16 @@ ignore_missing_imports = true
 django_settings_module = "config.settings.development"
 
 [tool.coverage.run]
+# Les tests tournent dans le conteneur Docker (WORKDIR /app) mais l'analyse
+# SonarQube s'exécute hors conteneur : sans ce réglage, coverage.xml enregistre
+# <source>/app</source>, un chemin absolu introuvable côté Sonar, qui échoue
+# alors à résoudre TOUS les fichiers du rapport ("Cannot resolve N file paths").
+# relative_files rend les chemins du rapport portables entre les deux environnements,
+# mais ne suffit pas à lui seul : les chemins restent relatifs à backend/ (ex.
+# "conftest.py") alors que Sonar attend des chemins relatifs à la racine du
+# projet ("backend/conftest.py") — voir l'étape de préfixage dans le README
+# (section 2, juste après la génération de coverage.xml).
+relative_files = true
 omit = [
   "manage.py",
   "*/asgi.py",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { ReactNode, SubmitEvent } from "react";
 
 import type { IncomingStudentPayload } from "@/lib/api/incoming-mutations";
 import type {
@@ -26,7 +26,7 @@ export function IncomingStudentForm({
   onSubmit,
   parcours,
   universities,
-}: {
+}: Readonly<{
   academicYears: AcademicYear[];
   countries: Country[];
   departments: Department[];
@@ -37,7 +37,7 @@ export function IncomingStudentForm({
   onSubmit: (payload: IncomingStudentPayload) => Promise<void>;
   parcours: Parcours[];
   universities: SelectOption[];
-}) {
+}>) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -58,7 +58,7 @@ export function IncomingStudentForm({
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
@@ -234,13 +234,13 @@ function Field({
   name,
   required = false,
   type = "text",
-}: {
+}: Readonly<{
   defaultValue?: string | null;
   label: string;
   name: string;
   required?: boolean;
   type?: string;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>
@@ -261,13 +261,13 @@ function Select({
   label,
   name,
   required = false,
-}: {
+}: Readonly<{
   children: ReactNode;
   defaultValue?: number | string | null;
   label: string;
   name: string;
   required?: boolean;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>

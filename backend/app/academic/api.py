@@ -5,6 +5,7 @@ from ninja import Router
 from ninja.errors import HttpError
 
 from app.audit.logger import log_action
+from app.auth.authentication import AdminJWTAuth
 from app.mobility.models import AgreementYear
 from app.mobility.services.quota_estimator import (
     initialize_new_year_mobility,
@@ -27,7 +28,12 @@ def get_academic_year(year_id: int) -> AcademicYear:
         raise HttpError(404, "Academic year introuvable.") from exc
 
 
-@router.get("/years/", response=list[AcademicYearOut], summary="Liste des annees")
+@router.get(
+    "/years/",
+    response=list[AcademicYearOut],
+    summary="Liste des annees",
+    auth=AdminJWTAuth(),
+)
 def list_academic_years(request):
     return AcademicYear.objects.all()
 
@@ -62,7 +68,12 @@ def get_academic_year_detail(request, year_id: int):
     return get_academic_year(year_id)
 
 
-@router.post("/years/", response={201: AcademicYearOut}, summary="Creer une annee")
+@router.post(
+    "/years/",
+    response={201: AcademicYearOut},
+    summary="Creer une annee",
+    auth=AdminJWTAuth(),
+)
 def create_academic_year(request, payload: AcademicYearIn):
     academic_year = AcademicYear(**payload.model_dump())
     saved = save_validated(academic_year)
@@ -74,6 +85,7 @@ def create_academic_year(request, payload: AcademicYearIn):
     "/years/{year_id}/",
     response=AcademicYearOut,
     summary="Modifier une annee",
+    auth=AdminJWTAuth(),
 )
 def update_academic_year(request, year_id: int, payload: AcademicYearIn):
     academic_year = get_academic_year(year_id)
@@ -102,16 +114,15 @@ def update_academic_year(request, year_id: int, payload: AcademicYearIn):
         AcademicYear.CampaignStatus.PUBLISHED,
         AcademicYear.CampaignStatus.FINALIZATION,
     }
-    if academic_year.status in locked_statuses:
-        if (
-            payload.wishes_open_date != academic_year.wishes_open_date
-            or payload.wishes_close_date != academic_year.wishes_close_date
-        ):
-            raise HttpError(
-                400,
-                "Les dates d'ouverture et de clôture des vœux ne peuvent plus être modifiées "
-                "une fois la période de candidature démarrée.",
-            )
+    if academic_year.status in locked_statuses and (
+        payload.wishes_open_date != academic_year.wishes_open_date
+        or payload.wishes_close_date != academic_year.wishes_close_date
+    ):
+        raise HttpError(
+            400,
+            "Les dates d'ouverture et de clôture des vœux ne peuvent plus être modifiées "
+            "une fois la période de candidature démarrée.",
+        )
 
     for field, value in payload.model_dump().items():
         setattr(academic_year, field, value)
@@ -122,6 +133,7 @@ def update_academic_year(request, year_id: int, payload: AcademicYearIn):
     "/years/{year_id}/",
     response={204: None},
     summary="Supprimer une annee",
+    auth=AdminJWTAuth(),
 )
 def delete_academic_year(request, year_id: int):
     academic_year = get_academic_year(year_id)
@@ -140,6 +152,7 @@ def delete_academic_year(request, year_id: int):
     "/years/{year_id}/open-recommendation/",
     response=AcademicYearOut,
     summary="Ouvrir la phase de recommandation",
+    auth=AdminJWTAuth(),
 )
 def open_recommendation(request, year_id: int):
     academic_year = get_academic_year(year_id)
@@ -179,6 +192,7 @@ def open_recommendation(request, year_id: int):
     "/years/{year_id}/start-candidature/",
     response=AcademicYearOut,
     summary="Démarrer la phase de candidature (ouverture des vœux)",
+    auth=AdminJWTAuth(),
 )
 def start_candidature(request, year_id: int):
     academic_year = get_academic_year(year_id)
@@ -189,6 +203,7 @@ def start_candidature(request, year_id: int):
     "/years/{year_id}/close-wishes/",
     response=AcademicYearOut,
     summary="Clôturer les vœux (candidature → import)",
+    auth=AdminJWTAuth(),
 )
 def close_wishes(request, year_id: int):
     academic_year = get_academic_year(year_id)
@@ -199,6 +214,7 @@ def close_wishes(request, year_id: int):
     "/years/{year_id}/finalize-cti/",
     response=AcademicYearOut,
     summary="Finaliser les statistiques CTI (published → finalization)",
+    auth=AdminJWTAuth(),
 )
 def finalize_cti(request, year_id: int):
     from app.cti.tasks import enqueue_refresh_cti_durations
@@ -224,6 +240,7 @@ def finalize_cti(request, year_id: int):
     "/years/{year_id}/close/",
     response=AcademicYearOut,
     summary="Clôturer l'année universitaire (finalization → closed)",
+    auth=AdminJWTAuth(),
 )
 def close_year(request, year_id: int):
     academic_year = get_academic_year(year_id)
@@ -240,6 +257,7 @@ def close_year(request, year_id: int):
     "/years/{year_id}/launch-assignment/",
     response={202: AcademicYearOut},
     summary="Lancer l'affectation (import → pre_assignment + Gale-Shapley)",
+    auth=AdminJWTAuth(),
 )
 def launch_assignment(request, year_id: int):
     from app.students.models import StudentWish
@@ -286,6 +304,7 @@ def launch_assignment(request, year_id: int):
     "/years/{year_id}/publish-results/",
     response=AcademicYearOut,
     summary="Publier les résultats (validation → published)",
+    auth=AdminJWTAuth(),
 )
 def publish_results(request, year_id: int):
     from app.outgoing.models import Assignment, AssignmentStatus
@@ -349,6 +368,7 @@ def _auto_validate_agreement_years(academic_year: AcademicYear) -> None:
     "/years/{year_id}/complete-assignment/",
     response=AcademicYearOut,
     summary="Forcer la transition pre_assignment → validation (récupération après incident)",
+    auth=AdminJWTAuth(),
 )
 def complete_assignment_recovery(request, year_id: int):
     academic_year = get_academic_year(year_id)
@@ -371,8 +391,10 @@ def apply_transition(academic_year: AcademicYear, transition_name: str) -> Acade
     try:
         getattr(academic_year, transition_name)()
     except TransitionNotAllowed as exc:
+        # 409 Conflict : l'état actuel de la ressource empêche l'opération demandée
+        # (cohérent avec launch_assignment/publish_results ci-dessus).
         raise HttpError(
-            400,
+            409,
             f"Transition « {transition_name} » non autorisée depuis l'état « {academic_year.status} ».",
         ) from exc
     academic_year.save(update_fields=["status", "updated_at"])

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { SubmitEvent, useState } from "react";
 
 import type { AcademicYearPayload } from "@/lib/api/academic-year-mutations";
 import type { AcademicYear } from "@/lib/api/types";
@@ -15,11 +15,11 @@ export function AcademicYearForm({
   item,
   onCancel,
   onSubmit,
-}: AcademicYearFormProps) {
+}: Readonly<AcademicYearFormProps>) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
@@ -109,13 +109,13 @@ function Field({
   name,
   required = false,
   type = "text",
-}: {
+}: Readonly<{
   defaultValue?: string | null;
   label: string;
   name: string;
   required?: boolean;
   type?: string;
-}) {
+}>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>

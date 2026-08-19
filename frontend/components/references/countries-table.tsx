@@ -76,7 +76,7 @@ export function CountriesTable({
   readOnly = false,
   onDelete,
   onEdit,
-}: CountriesTableProps) {
+}: Readonly<CountriesTableProps>) {
   return (
     <DataTable
       columns={getColumns(onEdit, onDelete, readOnly)}

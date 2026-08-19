@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 
 import type { ParcoursPayload } from "@/lib/api/reference-mutations";
 import type { Department, Parcours } from "@/lib/api/types";
@@ -10,16 +10,16 @@ export function ParcoursForm({
   departments,
   onCancel,
   onSubmit,
-}: {
+}: Readonly<{
   item?: Parcours;
   departments: Department[];
   onCancel: () => void;
   onSubmit: (payload: ParcoursPayload) => Promise<void>;
-}) {
+}>) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);

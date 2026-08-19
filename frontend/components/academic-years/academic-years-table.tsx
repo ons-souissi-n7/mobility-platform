@@ -63,10 +63,20 @@ function getColumns({
 
         if (year.status === "pre_assignment") {
           return (
-            <span className="inline-flex items-center gap-1.5 text-sm text-purple-600">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Calcul en cours…
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-sm text-purple-600">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Calcul en cours…
+              </span>
+              <button
+                className="rounded-md bg-amber-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
+                onClick={() => onTransition(year, "complete-assignment")}
+                title="Forcer la transition vers Validation si l'algorithme a terminé mais la transition automatique a échoué"
+                type="button"
+              >
+                Récupérer
+              </button>
+            </div>
           );
         }
 
@@ -96,7 +106,7 @@ function getColumns({
           <ActionButtons
             onEdit={() => onEdit(year)}
             editDisabled={!canEdit}
-            editDisabledTitle="Modification non autorisée — seules les années en phase Initialisation, Recommandation ou Candidature peuvent être modifiées"
+            editDisabledTitle="Modification non autorisée — seules les années en phase Initialisation ou Recommandation peuvent être modifiées"
             onDelete={() => onDelete(year)}
             deleteDisabled={!canDelete}
             deleteDisabledTitle="Suppression non autorisée — seules les années en phase Initialisation peuvent être supprimées"
@@ -112,7 +122,7 @@ export function AcademicYearsTable({
   onDelete,
   onEdit,
   onTransition,
-}: AcademicYearsTableProps) {
+}: Readonly<AcademicYearsTableProps>) {
   return (
     <DataTable
       columns={getColumns({ onDelete, onEdit, onTransition })}

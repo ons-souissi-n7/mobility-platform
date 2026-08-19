@@ -19,13 +19,20 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.STAGING_SSH_KEY }}
 
+      - name: Add staging host to known_hosts
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$STAGING_HOST" >> ~/.ssh/known_hosts
+
       - name: Deploy via SSH
         env:
           STAGING_HOST: ${{ secrets.STAGING_HOST }}
           STAGING_USER: ${{ secrets.STAGING_USER }}
           STAGING_PATH: ${{ secrets.STAGING_PATH }}
         run: |
-          ssh -o StrictHostKeyChecking=accept-new $STAGING_USER@$STAGING_HOST << 'ENDSSH'
+          ssh $STAGING_USER@$STAGING_HOST << 'ENDSSH'
             cd ${{ env.STAGING_PATH }}
             git pull origin main
             docker compose build

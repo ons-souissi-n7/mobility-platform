@@ -73,13 +73,13 @@ export function AgreementQuotasTable({
   onDelete,
   onEdit,
   quotas,
-}: {
+}: Readonly<{
   agreements: Agreement[];
   isYearClosed?: boolean;
   onDelete: (quota: AgreementYear) => void;
   onEdit: (quota: AgreementYear) => void;
   quotas: AgreementYear[];
-}) {
+}>) {
   const agreementsById = createIdMap(agreements);
   const rows = quotas.map((quota) => ({
     ...quota,

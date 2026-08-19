@@ -16,10 +16,10 @@ type Tab = "profile" | "mobilities";
 export function StudentDetailPanel({
   student,
   onClose,
-}: {
+}: Readonly<{
   student: StudentWithEnrollment;
   onClose: () => void;
-}) {
+}>) {
   const [activeTab, setActiveTab] = useState<Tab>("profile");
 
   const [detail, setDetail] = useState<StudentDetail | null>(null);
@@ -126,12 +126,12 @@ function ProfileTab({
   detail,
   loading,
   error,
-}: {
+}: Readonly<{
   student: StudentWithEnrollment;
   detail: StudentDetail | null;
   loading: boolean;
   error: string;
-}) {
+}>) {
   return (
     <>
       <DetailSection title="Informations personnelles">
@@ -181,7 +181,7 @@ function ProfileTab({
                   <InfoRow label="Parcours" value={e.parcours_code ?? "—"} />
                   <InfoRow
                     label="GPA"
-                    value={e.gpa != null ? <span className="font-mono">{parseFloat(e.gpa).toFixed(2)}</span> : "—"}
+                    value={e.gpa != null ? <span className="font-mono">{Number.parseFloat(e.gpa).toFixed(2)}</span> : "—"}
                   />
                 </div>
               </div>
@@ -215,11 +215,11 @@ function MobilitiesTab({
   history,
   loading,
   error,
-}: {
+}: Readonly<{
   history: MobilityHistory | null;
   loading: boolean;
   error: string;
-}) {
+}>) {
   if (error) {
     return (
       <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -402,11 +402,11 @@ function TabButton({
   active,
   onClick,
   children,
-}: {
+}: Readonly<{
   active: boolean;
   onClick: () => void;
   children: ReactNode;
-}) {
+}>) {
   return (
     <button
       className={`mr-6 border-b-2 py-3 text-sm font-medium transition-colors ${
@@ -445,12 +445,12 @@ function DurationChip({
   weeks,
   color,
   bold,
-}: {
+}: Readonly<{
   label: string;
   weeks: number;
   color: "blue" | "purple" | "emerald" | "slate";
   bold?: boolean;
-}) {
+}>) {
   const colors = {
     blue:    "bg-blue-50 text-[#1E3A8A]",
     purple:  "bg-purple-50 text-purple-700",

@@ -43,10 +43,8 @@ def purge_expired_documents() -> int:
                 update_fields=["document_key", "document_retention_until", "updated_at"]
             )
             count += 1
-        except Exception as exc:
-            logger.error(
-                "Erreur suppression justificatif mobilité #%s : %s", mob.id, exc
-            )
+        except Exception:
+            logger.exception("Erreur suppression justificatif mobilité #%s", mob.id)
 
     if count:
         logger.info(

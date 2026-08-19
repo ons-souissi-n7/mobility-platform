@@ -16,7 +16,7 @@ export function ActionButtons({
   onDelete,
   deleteDisabled = false,
   deleteDisabledTitle = "Suppression non autorisée",
-}: ActionButtonsProps) {
+}: Readonly<ActionButtonsProps>) {
   const isEditDisabled = editDisabled || !onEdit;
 
   return (

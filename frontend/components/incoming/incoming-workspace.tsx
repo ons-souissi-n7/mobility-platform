@@ -69,7 +69,7 @@ export function IncomingWorkspace({
   parcours,
   mobilityCategories,
   universities,
-}: {
+}: Readonly<{
   initialStudents: IncomingStudent[];
   initialTotalCount: number;
   initialImportErrors: IncomingImportError[];
@@ -82,7 +82,7 @@ export function IncomingWorkspace({
   parcours: Parcours[];
   mobilityCategories: MobilityCategory[];
   universities: SelectOption[];
-}) {
+}>) {
   const defaultYear =
     academicYears.find((y) => y.status !== "closed") ??
     [...academicYears].sort((a, b) => b.start_date.localeCompare(a.start_date))[0] ??

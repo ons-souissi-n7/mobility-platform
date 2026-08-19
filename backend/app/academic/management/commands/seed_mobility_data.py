@@ -6,6 +6,12 @@ Seed données de mobilité complémentaires :
 
 Couvre les 4 années académiques (2022-2023, 2023-2024, 2024-2025, 2025-2026).
 Idempotent : ne crée pas de doublons si relancé.
+
+`random` est utilisé uniquement pour mélanger/piocher des données de démo
+(jamais pour un token, un mot de passe ou une décision de sécurité) — la
+graine fixe (99) est même volontaire pour que le jeu de données généré soit
+reproductible d'un lancement à l'autre. Sans objet pour les hotspots Sonar
+"pseudorandom number generator" (S2245) ci-dessous.
 """
 
 import random
@@ -14,7 +20,7 @@ from datetime import date, timedelta
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-random.seed(99)
+random.seed(99)  # NOSONAR (S2245) — génération de données de démo, pas de sécurité
 
 INCOMING_DATA = [
     # (civility, first, last, country_iso2, origin_university_name, dept_code, duration_weeks)
@@ -208,25 +214,31 @@ INTERNSHIP_DATA = [
     ("Engie", "Paris", "FR", "Stage hydrogène vert", "stage_fin_etudes", 20),
 ]
 
+# Types d'expérience répétés dans COMPLEMENTARY_DATA ci-dessous.
+EXPERIENCE_SUMMER_SCHOOL = "Summer school"
+EXPERIENCE_SHORT_EXCHANGE = "Programme d'échange court"
+EXPERIENCE_RESEARCH_PROJECT = "Projet de recherche"
+EXPERIENCE_INTERNSHIP_ABROAD = "Stage à l'étranger"
+
 COMPLEMENTARY_DATA = [
     # (experience_type, country_iso2, institution, start_month, duration_days)
-    ("Summer school", "GB", "Imperial College London", 7, 21),
-    ("Summer school", "DE", "TU Munich", 7, 28),
-    ("Summer school", "SE", "KTH Stockholm", 7, 21),
-    ("Programme d'échange court", "ES", "Universidad Complutense", 2, 90),
-    ("Programme d'échange court", "IT", "Politecnico di Milano", 9, 90),
-    ("Programme d'échange court", "PT", "Instituto Superior Técnico", 2, 90),
-    ("Projet de recherche", "CH", "EPFL", 6, 60),
-    ("Projet de recherche", "DE", "RWTH Aachen", 5, 60),
-    ("Projet de recherche", "NL", "TU Delft", 6, 45),
+    (EXPERIENCE_SUMMER_SCHOOL, "GB", "Imperial College London", 7, 21),
+    (EXPERIENCE_SUMMER_SCHOOL, "DE", "TU Munich", 7, 28),
+    (EXPERIENCE_SUMMER_SCHOOL, "SE", "KTH Stockholm", 7, 21),
+    (EXPERIENCE_SHORT_EXCHANGE, "ES", "Universidad Complutense", 2, 90),
+    (EXPERIENCE_SHORT_EXCHANGE, "IT", "Politecnico di Milano", 9, 90),
+    (EXPERIENCE_SHORT_EXCHANGE, "PT", "Instituto Superior Técnico", 2, 90),
+    (EXPERIENCE_RESEARCH_PROJECT, "CH", "EPFL", 6, 60),
+    (EXPERIENCE_RESEARCH_PROJECT, "DE", "RWTH Aachen", 5, 60),
+    (EXPERIENCE_RESEARCH_PROJECT, "NL", "TU Delft", 6, 45),
     ("Volunteering international", "MA", "ONEE", 6, 30),
     ("Volunteering international", "SN", "Institut Polytechnique de Thiès", 6, 30),
     ("Programme humanitaire", "MA", "Université Cadi Ayyad", 7, 30),
     ("Conférence internationale", "US", "MIT", 6, 7),
     ("Conférence internationale", "JP", "Université de Tokyo", 9, 10),
-    ("Stage à l'étranger", "CA", "McGill University", 6, 90),
-    ("Stage à l'étranger", "JP", "Université d'Osaka", 1, 60),
-    ("Stage à l'étranger", "AU", "Université de Melbourne", 6, 90),
+    (EXPERIENCE_INTERNSHIP_ABROAD, "CA", "McGill University", 6, 90),
+    (EXPERIENCE_INTERNSHIP_ABROAD, "JP", "Université d'Osaka", 1, 60),
+    (EXPERIENCE_INTERNSHIP_ABROAD, "AU", "Université de Melbourne", 6, 90),
 ]
 
 COUNTRY_CACHE: dict = {}
@@ -315,7 +327,7 @@ class Command(BaseCommand):
         per_year = [6, 7, 7, 8]
         cat = self._get_mobility_category()
         pool = INCOMING_DATA[:]
-        random.shuffle(pool)
+        random.shuffle(pool)  # NOSONAR (S2245) — donnée de démo
         pool = pool * 4  # enough for all years
         idx = 0
 
@@ -366,7 +378,7 @@ class Command(BaseCommand):
 
         per_year = [5, 6, 7, 6]
         pool = INTERNSHIP_DATA[:]
-        random.shuffle(pool)
+        random.shuffle(pool)  # NOSONAR (S2245) — donnée de démo
         pool = pool * 4
         idx = 0
 
@@ -383,7 +395,9 @@ class Command(BaseCommand):
                 if not student:
                     continue
 
-                start = date(start_yr + 1, 3, 1) + timedelta(days=random.randint(0, 30))
+                start = date(start_yr + 1, 3, 1) + timedelta(
+                    days=random.randint(0, 30)  # NOSONAR (S2245) — donnée de démo
+                )
                 end = start + timedelta(weeks=weeks)
 
                 if Internship.objects.filter(
@@ -420,7 +434,7 @@ class Command(BaseCommand):
 
         per_year = [4, 4, 5, 4]
         pool = COMPLEMENTARY_DATA[:]
-        random.shuffle(pool)
+        random.shuffle(pool)  # NOSONAR (S2245) — donnée de démo
         pool = pool * 4
         idx = 0
 

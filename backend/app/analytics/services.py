@@ -114,7 +114,7 @@ def get_department_breakdown(
 ) -> dict:
     """Retourne {outgoing, incoming, internships} ventilés par département."""
     year_ids, year_labels = _years_context(n_years)
-    top_n = None if dept_ids else None  # tous les départements (peu nombreux)
+    top_n = None  # tous les départements (peu nombreux)
 
     # Sortantes
     out_qs = AssignmentResult.objects.filter(

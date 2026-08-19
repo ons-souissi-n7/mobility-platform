@@ -17,6 +17,8 @@ _EXCHANGE_1SEM_WEEKS = 20  # ≥ 20 sem. = 1 semestre
 _INTERNSHIP_3M_WEEKS = 13  # < 13 sem. ≈ < 3 mois
 _INTERNSHIP_6M_WEEKS = 26  # ≥ 26 sem. ≈ > 6 mois
 
+_LABEL_1_SEMESTRE = "1 semestre"
+
 
 # ─── Styles openpyxl ──────────────────────────────────────────────────────────
 
@@ -65,7 +67,7 @@ def _parse_incoming_duration(duration: str) -> str:
         return "gt"
     if re.search(r"1\s*sem|un\s*sem", s):
         return "eq"
-    m = re.search(r"(\d+)\s*mois", s)
+    m = re.search(r"(\d++)\s{0,3}+mois", s)
     if m:
         weeks = int(m.group(1)) * _WEEKS_PER_MONTH
         if weeks < _EXCHANGE_1SEM_WEEKS:
@@ -362,7 +364,7 @@ def _build_4(incoming_rows):
     def g(gender, cat):
         return counts.get((gender, cat), 0)
 
-    col_headers = ["< 1 semestre", "1 semestre", "> 1 semestre"]
+    col_headers = ["< 1 semestre", _LABEL_1_SEMESTRE, "> 1 semestre"]
     rows = [
         ("Hommes", [g("M", "lt"), g("M", "eq"), g("M", "gt")]),
         ("Femmes", [g("F", "lt"), g("F", "eq"), g("F", "gt")]),
@@ -635,7 +637,7 @@ def _sheet_vii_d3(
         row,
         [
             "Moins d'un semestre",
-            "1 semestre",
+            _LABEL_1_SEMESTRE,
             "Plus d'un semestre (en continu ou non)",
         ],
         exc_rows,
@@ -747,7 +749,7 @@ def _sheet_vii_d3(
         row,
         [
             "Moins d'un semestre",
-            "1 semestre",
+            _LABEL_1_SEMESTRE,
             "Plus d'un semestre (en continu ou non)",
         ],
         inc_rows,
