@@ -17,12 +17,15 @@ from app.reference.models import Country, CTIRegion
 from app.students.models import Student
 
 
-@pytest.fixture()
+@pytest.fixture
 def client():
-    return TestClient(router)
+    from app.auth.test_utils import make_test_jwt
+
+    token = make_test_jwt(role="admin")
+    return TestClient(router, headers={"Authorization": f"Bearer {token}"})
 
 
-@pytest.fixture()
+@pytest.fixture
 def country(db):
     return Country.objects.create(
         iso2="DE",
@@ -32,7 +35,7 @@ def country(db):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def academic_year(db):
     return AcademicYear.objects.create(
         label="2026-2027",
@@ -41,7 +44,7 @@ def academic_year(db):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def student(db):
     return Student.objects.create(
         ine="1234567890A",
@@ -51,7 +54,7 @@ def student(db):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def pending_mobility(student, country, academic_year):
     return ComplementaryMobility.objects.create(
         student=student,

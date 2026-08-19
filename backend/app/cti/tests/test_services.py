@@ -14,7 +14,7 @@ from app.students.models import Student
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture()
+@pytest.fixture
 def student(db) -> Student:
     return Student.objects.create(
         ine="CTI0000001A",
@@ -24,7 +24,7 @@ def student(db) -> Student:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def country_de(db):
     from app.reference.models import Country, CTIRegion
 
@@ -36,7 +36,7 @@ def country_de(db):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def country_fr(db):
     from app.reference.models import Country, CTIRegion
 
@@ -48,7 +48,7 @@ def country_fr(db):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def academic_year(db):
     from app.academic.models import AcademicYear
 

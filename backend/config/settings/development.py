@@ -1,5 +1,11 @@
 from .base import *  # noqa: F403
 
+# Ce module n'est JAMAIS utilisé en production (production.py, importé par
+# staging.py, définit ses propres origines et force SECURE_SSL_REDIRECT=True /
+# SESSION_COOKIE_SECURE=True / CSRF_COOKIE_SECURE=True). Les URLs http://
+# ci-dessous ne visent que localhost et le réseau Docker interne de dev — sans
+# objet pour le hotspot Sonar "Using http protocol is insecure" (S5332).
+
 DEBUG = True
 
 INSTALLED_APPS += ["django_extensions", "corsheaders"]  # noqa: F405
@@ -13,12 +19,15 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3003",
-    "http://127.0.0.1:3003",
-    "http://localhost:3004",
-    "http://127.0.0.1:3004",
+    "http://localhost:3000",  # NOSONAR
+    "http://127.0.0.1:3000",  # NOSONAR
+    "http://localhost:3003",  # NOSONAR
+    "http://127.0.0.1:3003",  # NOSONAR
+    "http://localhost:3004",  # NOSONAR
+    "http://127.0.0.1:3004",  # NOSONAR
+    # Réseau Docker interne (docker-compose.test.yml) — le navigateur Playwright
+    # accède au frontend via le nom de service "frontend", pas "localhost".
+    "http://frontend:3000",  # NOSONAR
 ]
 
 SECURE_SSL_REDIRECT = False
@@ -26,12 +35,13 @@ SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:3003",
-    "http://127.0.0.1:3003",
-    "http://localhost:3004",
-    "http://127.0.0.1:3004",
+    "http://localhost:3000",  # NOSONAR
+    "http://127.0.0.1:3000",  # NOSONAR
+    "http://localhost:3003",  # NOSONAR
+    "http://127.0.0.1:3003",  # NOSONAR
+    "http://localhost:3004",  # NOSONAR
+    "http://127.0.0.1:3004",  # NOSONAR
+    "http://frontend:3000",  # NOSONAR
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_EXPOSE_HEADERS = ["Content-Disposition"]

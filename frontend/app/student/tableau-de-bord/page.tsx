@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { getCurrentIne } from "@/lib/auth";
 import { getCtiDuration, type MobilityDuration } from "@/lib/api/cti";
 
 export default function TableauDeBordPage() {
-  const { ine } = useParams<{ ine: string }>();
+  const ine = getCurrentIne();
   const [duration, setDuration] = useState<MobilityDuration | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -83,12 +83,12 @@ function DurationCard({
   weeks,
   color,
   description,
-}: {
+}: Readonly<{
   label: string;
   weeks: number;
   color: "blue" | "purple" | "emerald";
   description: string;
-}) {
+}>) {
   const palette = {
     blue:    { bg: "bg-blue-50",    text: "text-[#1E3A8A]",   border: "border-blue-100" },
     purple:  { bg: "bg-purple-50",  text: "text-purple-700",  border: "border-purple-100" },

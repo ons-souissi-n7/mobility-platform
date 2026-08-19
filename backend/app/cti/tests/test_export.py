@@ -11,12 +11,15 @@ from app.cti.api import router
 from app.cti.services_export import _parse_incoming_duration
 
 
-@pytest.fixture()
+@pytest.fixture
 def client() -> TestClient:
-    return TestClient(router)
+    from app.auth.test_utils import make_test_jwt
+
+    token = make_test_jwt(role="admin")
+    return TestClient(router, headers={"Authorization": f"Bearer {token}"})
 
 
-@pytest.fixture()
+@pytest.fixture
 def academic_year(db):
     from app.academic.models import AcademicYear
 

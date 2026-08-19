@@ -25,8 +25,11 @@ from .tasks import enqueue_import_excel_incoming
 
 router = Router()
 
+ACADEMIC_YEAR_NOT_FOUND = "Année introuvable."
+IMPORT_ERROR_NOT_FOUND = "Erreur d'import introuvable."
 
-# ──────────────────────────────────────────────
+
+# ──────────────────────────────────────────────  # NOSONAR (S125) — séparateur de section, pas du code
 # List / CRUD
 # ──────────────────────────────────────────────
 
@@ -119,7 +122,7 @@ def import_incoming_excel(request, year_id: int, file: UploadedFile = File(...))
     file_bytes = file.read()
     if len(file_bytes) > 5 * 1024 * 1024:
         raise HttpError(400, "Fichier trop volumineux (max 5 Mo).")
-    academic_year = get_or_404(AcademicYear, year_id, "Année introuvable.")
+    academic_year = get_or_404(AcademicYear, year_id, ACADEMIC_YEAR_NOT_FOUND)
     task_id = enqueue_import_excel_incoming(
         academic_year.pk, file_bytes, file.name or "upload.xlsx"
     )
@@ -131,7 +134,7 @@ def import_incoming_excel(request, year_id: int, file: UploadedFile = File(...))
     return 202, {"task_id": task_id, "message": "Import Excel lancé en arrière-plan."}
 
 
-# ──────────────────────────────────────────────
+# ──────────────────────────────────────────────  # NOSONAR (S125) — séparateur de section, pas du code
 # Template & Export
 # ──────────────────────────────────────────────
 
@@ -140,8 +143,8 @@ def import_incoming_excel(request, year_id: int, file: UploadedFile = File(...))
 def download_incoming_template(request, year_id: int):
     from .services.excel_template import generate_incoming_template
 
-    academic_year = get_or_404(AcademicYear, year_id, "Année introuvable.")
-    file_bytes = generate_incoming_template(academic_year)
+    academic_year = get_or_404(AcademicYear, year_id, ACADEMIC_YEAR_NOT_FOUND)
+    file_bytes = generate_incoming_template()
     label_slug = academic_year.label.replace("/", "-")
     response = HttpResponse(
         file_bytes,
@@ -239,7 +242,7 @@ def export_incoming_excel(
     return workbook_response(wb, filename)
 
 
-# ──────────────────────────────────────────────
+# ──────────────────────────────────────────────  # NOSONAR (S125) — séparateur de section, pas du code
 # Statistics
 # ──────────────────────────────────────────────
 
@@ -349,7 +352,7 @@ def list_incoming_import_errors(
     summary="Ignorer une erreur d'import",
 )
 def ignore_incoming_import_error(request, raw_import_id: int):
-    raw = get_or_404(RawImport, raw_import_id, "Erreur d'import introuvable.")
+    raw = get_or_404(RawImport, raw_import_id, IMPORT_ERROR_NOT_FOUND)
     now = timezone.now()
     RawImport.objects.filter(
         source=raw.source,
@@ -378,8 +381,10 @@ def force_incoming_import_error(
     from app.mobility.models import MobilityCategory
     from app.reference.models import Country, Department, Level, Parcours
 
-    raw = get_or_404(RawImport, raw_import_id, "Erreur d'import introuvable.")
-    academic_year = get_or_404(AcademicYear, raw.academic_year_id, "Année introuvable.")
+    raw = get_or_404(RawImport, raw_import_id, IMPORT_ERROR_NOT_FOUND)
+    academic_year = get_or_404(
+        AcademicYear, raw.academic_year_id, ACADEMIC_YEAR_NOT_FOUND
+    )
 
     p = body.payload
 

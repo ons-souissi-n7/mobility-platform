@@ -106,6 +106,7 @@ class AcademicYear(TimeStampedModel):
         conditions=[_has_campaign_dates],
     )
     def open_recommendation(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
     @transition(
@@ -114,6 +115,7 @@ class AcademicYear(TimeStampedModel):
         target=CampaignStatus.CANDIDATURE,
     )
     def start_candidature(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
     @transition(
@@ -122,6 +124,7 @@ class AcademicYear(TimeStampedModel):
         target=CampaignStatus.IMPORT,
     )
     def close_wishes(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
     @transition(
@@ -130,6 +133,7 @@ class AcademicYear(TimeStampedModel):
         target=CampaignStatus.PRE_ASSIGNMENT,
     )
     def launch_assignment(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
     @transition(
@@ -138,6 +142,7 @@ class AcademicYear(TimeStampedModel):
         target=CampaignStatus.VALIDATION,
     )
     def complete_assignment(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
     @transition(
@@ -146,6 +151,7 @@ class AcademicYear(TimeStampedModel):
         target=CampaignStatus.PUBLISHED,
     )
     def publish_results(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
     @transition(
@@ -154,6 +160,7 @@ class AcademicYear(TimeStampedModel):
         target=CampaignStatus.FINALIZATION,
     )
     def finalize_cti(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
     @transition(

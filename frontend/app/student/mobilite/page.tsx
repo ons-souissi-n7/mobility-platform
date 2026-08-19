@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { getCurrentIne } from "@/lib/auth";
 import { fetchStudentAssignment, fetchStudentProfile, fetchStudentWishes } from "@/lib/api/student";
 import type { StudentAssignment, StudentProfile, StudentWishItem } from "@/lib/api/types";
 
 export default function MobilitePage() {
-  const { ine } = useParams<{ ine: string }>();
+  const ine = getCurrentIne();
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [selectedYearId, setSelectedYearId] = useState<number | undefined>(undefined);
   const [selectedYearStatus, setSelectedYearStatus] = useState<string>("");

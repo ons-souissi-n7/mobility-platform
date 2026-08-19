@@ -5,7 +5,6 @@ from io import BytesIO
 import openpyxl
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from app.academic.models import AcademicYear
 from app.shared.excel_utils import write_header_row
 
 _HEADERS = [
@@ -31,7 +30,7 @@ _HEADERS = [
 _WIDTHS = [18, 10, 25, 25, 22, 40, 16, 25, 35, 35, 14, 18, 20, 30, 30, 30, 18]
 
 
-def generate_incoming_template(academic_year: AcademicYear) -> bytes:
+def generate_incoming_template() -> bytes:
     from app.institutions.models import PartnerUniversity
     from app.mobility.models import MobilityCategory
     from app.reference.models import Country, Department, Level, Parcours

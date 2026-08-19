@@ -40,8 +40,8 @@ def fetch_enrollments(start_date: date, end_date: date) -> list[StudentRow]:
     try:
         with urlopen(request, timeout=10) as response:
             data = json.loads(response.read().decode("utf-8"))
-    except (URLError, json.JSONDecodeError) as exc:
-        logger.error("Pégase API indisponible : %s", exc)
+    except (URLError, json.JSONDecodeError):
+        logger.exception("Pégase API indisponible")
         return []
 
     if not isinstance(data, list):

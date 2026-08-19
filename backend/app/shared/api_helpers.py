@@ -34,7 +34,9 @@ class LargePaginationQuery(Schema):
 
 def paginate(qs, page: int, page_size: int):
     offset = (page - 1) * page_size
-    count = qs.count()
+    # select_related() joins are needed for serializing `items` but are dead
+    # weight on a COUNT(*) — drop them for the count query only.
+    count = qs.select_related(None).count()
     items = list(qs[offset : offset + page_size])
     return count, items
 

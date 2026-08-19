@@ -89,9 +89,7 @@ def transform_institution(payload: dict[str, Any]) -> TransformedInstitution:
         raise ValueError("moveon_id is required")
 
     country_payload = raw.get("country")
-    if isinstance(country_payload, dict):
-        country_payload = country_payload
-    else:
+    if not isinstance(country_payload, dict):
         country_payload = {"name": str(country_payload or "").strip()}
 
     return TransformedInstitution(

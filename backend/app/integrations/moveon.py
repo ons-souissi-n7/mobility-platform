@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
-from urllib.error import HTTPError, URLError
+from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from django.conf import settings
@@ -232,7 +232,7 @@ class MoveOnClient:
         try:
             with urlopen(request, timeout=10) as response:
                 return json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+        except (URLError, TimeoutError, json.JSONDecodeError) as exc:
             raise MoveOnClientError(f"MoveON request failed: {exc}") from exc
 
     def _headers(self) -> dict[str, str]:

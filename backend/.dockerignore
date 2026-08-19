@@ -13,3 +13,20 @@ media
 staticfiles
 coverage.xml
 .coverage
+
+# Secrets/identifiants qui ne doivent jamais entrer dans une image, même via
+# `COPY . .` — voir le hotspot Sonar "Copying recursively might inadvertently
+# add sensitive data to the container" sur ce Dockerfile.
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+.aws
+.gcloud
+.ssh
+*credentials*
+secrets.*
+.vscode
+.idea

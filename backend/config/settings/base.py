@@ -26,6 +26,7 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
+    "app.auth.apps.AuthConfig",
     "app.reference",
     "app.students",
     "app.academic",
@@ -52,6 +53,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Promotes request.user from JWT Bearer token so AuditlogMiddleware sees real users
+    "app.auth.middleware.JWTMiddleware",
     "auditlog.middleware.AuditlogMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -134,8 +137,10 @@ Q_CLUSTER = {
 AUDITLOG_INCLUDE_ALL_MODELS = False
 
 # Clé de chiffrement pgcrypto (AES symétrique) — jamais stockée dans le code.
+# Obligatoire (comme SECRET_KEY) : un oubli en production doit faire échouer
+# le démarrage plutôt que de chiffrer silencieusement avec une clé connue.
 # Fournir via la variable d'environnement PGCRYPTO_KEY (min. 32 caractères).
-PGCRYPTO_KEY = config("PGCRYPTO_KEY", default="dev-insecure-key-change-in-prod-32c")
+PGCRYPTO_KEY = config("PGCRYPTO_KEY")
 # Délai de conservation des justificatifs après validation (Art. 5(1)(e) RGPD)
 DOCUMENT_RETENTION_DAYS = config("DOCUMENT_RETENTION_DAYS", default=5 * 365, cast=int)
 
@@ -145,6 +150,39 @@ MINIO_ACCESS_KEY = config("MINIO_ROOT_USER", default="minio_admin")
 MINIO_SECRET_KEY = config("MINIO_ROOT_PASSWORD", default="minio_secret")
 MINIO_BUCKET_NAME = "mobility-documents"
 MINIO_USE_HTTPS = config("MINIO_USE_HTTPS", default=False, cast=bool)
+
+# ── Authentification CAS / JWT (rapport §3.4.7) ───────────────────────────────
+# Les valeurs par défaut ci-dessous ne servent qu'en local (dev-compose, sans
+# TLS) — un déploiement réel fournit toujours ces variables en https:// (voir
+# .env.example) ; production.py force par ailleurs SECURE_SSL_REDIRECT=True.
+# Sans objet pour le hotspot Sonar "Using http protocol is insecure" (S5332).
+#
+# URL publique du serveur CAS (utilisée par le navigateur pour les redirections)
+CAS_SERVER_PUBLIC_URL = config(
+    "CAS_SERVER_PUBLIC_URL", default="http://localhost:8380"
+)  # NOSONAR
+# URL interne du serveur CAS (utilisée par le backend pour valider les tickets)
+CAS_SERVER_INTERNAL_URL = config(
+    "CAS_SERVER_INTERNAL_URL",
+    default="http://fake-cas:8380",  # NOSONAR
+)
+# URL publique du backend Django (doit correspondre à ce que le navigateur voit)
+BACKEND_PUBLIC_URL = config(
+    "BACKEND_PUBLIC_URL", default="http://localhost:8000"
+)  # NOSONAR
+# URL publique du frontend Next.js
+FRONTEND_PUBLIC_URL = config(
+    "FRONTEND_PUBLIC_URL", default="http://localhost:3000"
+)  # NOSONAR
+# Clé secrète HS256 pour signer les JWT — obligatoire (comme SECRET_KEY) : un
+# oubli en production doit faire échouer le démarrage plutôt que de signer
+# silencieusement avec une clé connue publiquement (code source).
+JWT_SECRET_KEY = config("JWT_SECRET_KEY")
+JWT_EXPIRY_MINUTES = config("JWT_EXPIRY_MINUTES", default=15, cast=int)
+
+# Sécurité des cookies de session
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
 
 MOVEON_API_URL = config("MOVEON_API_URL", default="")
 MOVEON_API_KEY = config("MOVEON_API_KEY", default="")

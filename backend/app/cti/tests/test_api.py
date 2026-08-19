@@ -15,12 +15,15 @@ from app.students.models import Student
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture()
+@pytest.fixture
 def client() -> TestClient:
-    return TestClient(router)
+    from app.auth.test_utils import make_test_jwt
+
+    token = make_test_jwt(role="admin")
+    return TestClient(router, headers={"Authorization": f"Bearer {token}"})
 
 
-@pytest.fixture()
+@pytest.fixture
 def student(db) -> Student:
     return Student.objects.create(
         ine="CTI0000002B",
@@ -30,7 +33,7 @@ def student(db) -> Student:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def country_de(db):
     from app.reference.models import Country, CTIRegion
 
@@ -42,7 +45,7 @@ def country_de(db):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def academic_year(db):
     from app.academic.models import AcademicYear
 

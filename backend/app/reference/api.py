@@ -6,6 +6,7 @@ from ninja import Query, Router
 from ninja.errors import HttpError
 
 from app.audit.logger import log_action
+from app.auth.authentication import AdminJWTAuth
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
 from app.shared.api_helpers import (
     PagedResponse,
@@ -52,7 +53,12 @@ def list_countries_select(request):
     ]
 
 
-@router.post("/countries/", response={201: CountryOut}, summary="Creer un pays")
+@router.post(
+    "/countries/",
+    response={201: CountryOut},
+    summary="Creer un pays",
+    auth=AdminJWTAuth(),
+)
 def create_country(request, payload: CountryIn):
     country = Country(**payload.model_dump())
     return 201, save_validated(country)
@@ -62,6 +68,7 @@ def create_country(request, payload: CountryIn):
     "/countries/{country_id}/",
     response=CountryOut,
     summary="Modifier un pays",
+    auth=AdminJWTAuth(),
 )
 def update_country(request, country_id: int, payload: CountryIn):
     try:
@@ -79,6 +86,7 @@ def update_country(request, country_id: int, payload: CountryIn):
     "/countries/{country_id}/",
     response={204: None},
     summary="Supprimer un pays",
+    auth=AdminJWTAuth(),
 )
 def delete_country(request, country_id: int):
     try:
@@ -87,7 +95,8 @@ def delete_country(request, country_id: int):
     except Country.DoesNotExist as exc:
         raise HttpError(404, "Pays introuvable.") from exc
     except ProtectedError as exc:
-        raise HttpError(400, "Ce pays est utilise par une autre entite.") from exc
+        # 409 Conflict : cohérent avec safe_delete() dans mobility/internships.
+        raise HttpError(409, "Ce pays est utilise par une autre entite.") from exc
 
     return 204, None
 
@@ -96,6 +105,7 @@ def delete_country(request, country_id: int):
     "/departments/import-errors/",
     response=PagedResponse[RawImportOut],
     summary="Liste des erreurs d'import Pegase des departements",
+    auth=AdminJWTAuth(),
 )
 def list_department_import_errors(request, pagination: PaginationQuery = Query(...)):
     latest_ids = (
@@ -118,6 +128,7 @@ def list_department_import_errors(request, pagination: PaginationQuery = Query(.
     "/departments/imports/",
     response=list[RawImportOut],
     summary="Liste de tous les imports Pegase (erreurs, reussis, etc.)",
+    auth=AdminJWTAuth(),
 )
 def list_department_imports(request):
     raw_imports = RawImport.objects.filter(entity=RawImportEntity.DEPARTMENT).order_by(
@@ -135,6 +146,7 @@ def list_department_imports(request):
     "/departments/import-errors/{raw_import_id}/retry/",
     response=RawImportOut,
     summary="Relancer un import Pegase de departement",
+    auth=AdminJWTAuth(),
 )
 def retry_department_import(
     request,
@@ -178,6 +190,7 @@ def retry_department_import(
     "/departments/import-errors/{raw_import_id}/ignore/",
     response=RawImportOut,
     summary="Marquer une erreur d'import Pegase de departement comme traitee",
+    auth=AdminJWTAuth(),
 )
 def ignore_department_import(request, raw_import_id: int):
     try:
@@ -205,6 +218,7 @@ def ignore_department_import(request, raw_import_id: int):
     "/departments/sync-pegase/",
     response={202: dict},
     summary="Demander la synchronisation des departements depuis Pegase",
+    auth=AdminJWTAuth(),
 )
 def sync_departments_from_pegase(request):
     task_id = enqueue_sync_pegase_departments()
@@ -233,6 +247,7 @@ def get_department_raw_import(raw_import_id: int) -> RawImport:
     "/departments/import-errors/{raw_import_id}/force-overwrite/",
     response=RawImportOut,
     summary="Forcer la mise a jour d'un departement en conflit",
+    auth=AdminJWTAuth(),
 )
 def force_overwrite_department_import(request, raw_import_id: int):
     try:
@@ -283,6 +298,7 @@ def list_departments_select(request):
     "/departments/",
     response={201: DepartmentOut},
     summary="Creer un departement",
+    auth=AdminJWTAuth(),
 )
 def create_department(request, payload: DepartmentIn):
     department = Department(**payload.model_dump())
@@ -293,6 +309,7 @@ def create_department(request, payload: DepartmentIn):
     "/departments/{department_id}/",
     response=DepartmentOut,
     summary="Modifier un departement",
+    auth=AdminJWTAuth(),
 )
 def update_department(request, department_id: int, payload: DepartmentIn):
     try:
@@ -310,6 +327,7 @@ def update_department(request, department_id: int, payload: DepartmentIn):
     "/departments/{department_id}/",
     response={204: None},
     summary="Supprimer un departement",
+    auth=AdminJWTAuth(),
 )
 def delete_department(request, department_id: int):
     try:
@@ -319,7 +337,7 @@ def delete_department(request, department_id: int):
         raise HttpError(404, "Departement introuvable.") from exc
     except ProtectedError as exc:
         raise HttpError(
-            400, "Ce departement est utilise par une autre entite."
+            409, "Ce departement est utilise par une autre entite."
         ) from exc
 
     return 204, None
@@ -342,7 +360,9 @@ def list_levels_select(request):
     ]
 
 
-@router.post("/levels/", response={201: LevelOut}, summary="Creer un niveau")
+@router.post(
+    "/levels/", response={201: LevelOut}, summary="Creer un niveau", auth=AdminJWTAuth()
+)
 def create_level(request, payload: LevelIn):
     level = Level(**payload.model_dump())
     return 201, save_validated(level)
@@ -352,6 +372,7 @@ def create_level(request, payload: LevelIn):
     "/levels/sync/",
     response={202: dict},
     summary="Synchroniser les niveaux depuis Pegase",
+    auth=AdminJWTAuth(),
 )
 def sync_levels_from_pegase(request):
     task_id = enqueue_sync_pegase_levels()
@@ -366,6 +387,7 @@ def sync_levels_from_pegase(request):
     "/levels/import-errors/",
     response=PagedResponse[RawImportOut],
     summary="Liste des erreurs d'import Pegase des niveaux",
+    auth=AdminJWTAuth(),
 )
 def list_level_import_errors(request, pagination: PaginationQuery = Query(...)):
     latest_ids = (
@@ -388,6 +410,7 @@ def list_level_import_errors(request, pagination: PaginationQuery = Query(...)):
     "/levels/import-errors/{raw_import_id}/force-overwrite/",
     response=RawImportOut,
     summary="Forcer la mise a jour d'un niveau en conflit",
+    auth=AdminJWTAuth(),
 )
 def force_overwrite_level_import(request, raw_import_id: int):
     try:
@@ -419,6 +442,7 @@ def force_overwrite_level_import(request, raw_import_id: int):
     "/levels/import-errors/{raw_import_id}/ignore/",
     response=RawImportOut,
     summary="Marquer une erreur d'import niveau comme traitee",
+    auth=AdminJWTAuth(),
 )
 def ignore_level_import(request, raw_import_id: int):
     try:
@@ -442,7 +466,12 @@ def ignore_level_import(request, raw_import_id: int):
     return raw_import
 
 
-@router.put("/levels/{level_id}/", response=LevelOut, summary="Modifier un niveau")
+@router.put(
+    "/levels/{level_id}/",
+    response=LevelOut,
+    summary="Modifier un niveau",
+    auth=AdminJWTAuth(),
+)
 def update_level(request, level_id: int, payload: LevelIn):
     try:
         level = Level.objects.get(pk=level_id)
@@ -456,7 +485,10 @@ def update_level(request, level_id: int, payload: LevelIn):
 
 
 @router.delete(
-    "/levels/{level_id}/", response={204: None}, summary="Supprimer un niveau"
+    "/levels/{level_id}/",
+    response={204: None},
+    summary="Supprimer un niveau",
+    auth=AdminJWTAuth(),
 )
 def delete_level(request, level_id: int):
     try:
@@ -499,7 +531,12 @@ def list_parcours_select(request):
     return [SelectOption(id=p.id, label=f"{p.code} – {p.label}") for p in qs]
 
 
-@router.post("/parcours/", response={201: ParcoursOut}, summary="Creer un parcours")
+@router.post(
+    "/parcours/",
+    response={201: ParcoursOut},
+    summary="Creer un parcours",
+    auth=AdminJWTAuth(),
+)
 def create_parcours(request, payload: ParcoursIn):
     parcours = Parcours(**payload.model_dump())
     return 201, save_validated(parcours)
@@ -509,6 +546,7 @@ def create_parcours(request, payload: ParcoursIn):
     "/parcours/{parcours_id}/",
     response=ParcoursOut,
     summary="Modifier un parcours",
+    auth=AdminJWTAuth(),
 )
 def update_parcours(request, parcours_id: int, payload: ParcoursIn):
     try:
@@ -526,6 +564,7 @@ def update_parcours(request, parcours_id: int, payload: ParcoursIn):
     "/parcours/{parcours_id}/",
     response={204: None},
     summary="Supprimer un parcours",
+    auth=AdminJWTAuth(),
 )
 def delete_parcours(request, parcours_id: int):
     try:

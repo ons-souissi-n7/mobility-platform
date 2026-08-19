@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
@@ -15,6 +16,14 @@ class GenderChoice(models.TextChoices):
 class Student(TimeStampedModel):
     id = models.BigAutoField(primary_key=True)
     ine = models.CharField(max_length=11, unique=True, verbose_name="INE")
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="student_profile",
+        verbose_name="Compte utilisateur",
+    )
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = PgEncryptedTextField(blank=True)

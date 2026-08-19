@@ -29,6 +29,9 @@ from .tasks import enqueue_import_excel_internships, enqueue_sync_eudonet_intern
 
 router = Router()
 
+ACADEMIC_YEAR_NOT_FOUND = "Année introuvable."
+IMPORT_ERROR_NOT_FOUND = "Erreur d'import introuvable."
+
 
 class InternshipForcePayload(Schema):
     payload: dict
@@ -142,7 +145,7 @@ def create_internship(request, payload: InternshipIn):
 
 @router.post("/sync/", response={202: dict}, summary="Déclencher la sync Eudonet")
 def sync_internships_eudonet(request, year_id: int):
-    academic_year = get_or_404(AcademicYear, year_id, "Année introuvable.")
+    academic_year = get_or_404(AcademicYear, year_id, ACADEMIC_YEAR_NOT_FOUND)
     task_id = enqueue_sync_eudonet_internships(academic_year.pk)
     log_action(
         request,
@@ -164,7 +167,7 @@ def import_internships_excel(request, year_id: int, file: UploadedFile = File(..
     file_bytes = file.read()
     if len(file_bytes) > 5 * 1024 * 1024:
         raise HttpError(400, "Fichier trop volumineux (max 5 Mo).")
-    academic_year = get_or_404(AcademicYear, year_id, "Année introuvable.")
+    academic_year = get_or_404(AcademicYear, year_id, ACADEMIC_YEAR_NOT_FOUND)
     task_id = enqueue_import_excel_internships(
         academic_year.pk, file_bytes, file.name or "upload.xlsx"
     )
@@ -254,7 +257,7 @@ def export_internships(
 def download_internship_template(request, year_id: int):
     from .services.excel_template import generate_internship_template
 
-    academic_year = get_or_404(AcademicYear, year_id, "Année introuvable.")
+    academic_year = get_or_404(AcademicYear, year_id, ACADEMIC_YEAR_NOT_FOUND)
     file_bytes = generate_internship_template(academic_year)
     label_slug = academic_year.label.replace("/", "-")
     response = HttpResponse(
@@ -317,7 +320,7 @@ def retry_import_error(request, raw_import_id: int):
             status=RawImportStatus.FAILED,
         )
     except RawImport.DoesNotExist as exc:
-        raise HttpError(404, "Erreur d'import introuvable.") from exc
+        raise HttpError(404, IMPORT_ERROR_NOT_FOUND) from exc
 
     from app.integrations.eudonet import EudonetInternship
     from app.shared.validators import DomainValidationError
@@ -365,7 +368,7 @@ def retry_import_error(request, raw_import_id: int):
     summary="Ajouter comme nouvel enregistrement sans modifier l'existant",
 )
 def add_import_error_as_new(request, raw_import_id: int):
-    raw = get_or_404(RawImport, raw_import_id, "Erreur d'import introuvable.")
+    raw = get_or_404(RawImport, raw_import_id, IMPORT_ERROR_NOT_FOUND)
 
     from app.integrations.eudonet import EudonetInternship
     from app.shared.validators import DomainValidationError
@@ -436,7 +439,7 @@ def add_import_error_as_new(request, raw_import_id: int):
     summary="Ignorer une erreur d'import",
 )
 def ignore_import_error(request, raw_import_id: int):
-    raw = get_or_404(RawImport, raw_import_id, "Erreur d'import introuvable.")
+    raw = get_or_404(RawImport, raw_import_id, IMPORT_ERROR_NOT_FOUND)
     now = timezone.now()
     RawImport.objects.filter(
         source=raw.source,
@@ -455,7 +458,7 @@ def ignore_import_error(request, raw_import_id: int):
     summary="Forcer l'import avec payload corrigé",
 )
 def force_import_error(request, raw_import_id: int, body: InternshipForcePayload):
-    raw = get_or_404(RawImport, raw_import_id, "Erreur d'import introuvable.")
+    raw = get_or_404(RawImport, raw_import_id, IMPORT_ERROR_NOT_FOUND)
 
     raw.payload = {**raw.payload, **body.payload}
     raw.save(update_fields=["payload", "updated_at"])

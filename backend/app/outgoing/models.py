@@ -64,6 +64,7 @@ class Assignment(TimeStampedModel):
         target=AssignmentStatus.VALIDATED,
     )
     def validate(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
     @transition(
@@ -72,6 +73,7 @@ class Assignment(TimeStampedModel):
         target=AssignmentStatus.PUBLISHED,
     )
     def publish(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
     @transition(
@@ -80,6 +82,7 @@ class Assignment(TimeStampedModel):
         target=AssignmentStatus.CANCELLED,
     )
     def cancel(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
 

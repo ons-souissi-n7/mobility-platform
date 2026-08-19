@@ -300,16 +300,17 @@ class AgreementYearDepartment(TimeStampedModel):
             raise ValidationError(
                 {"adjusted_places": "adjusted_places ne peut pas être négatif"}
             )
-        if self.agreement_department_id and self.agreement_year_id:
-            if (
-                self.agreement_department.agreement_id
-                != self.agreement_year.agreement_id
-            ):
-                raise ValidationError(
-                    {
-                        "agreement_department": "Ce département n'appartient pas à cet accord."
-                    }
-                )
+        if (
+            self.agreement_department_id
+            and self.agreement_year_id
+            and self.agreement_department.agreement_id
+            != self.agreement_year.agreement_id
+        ):
+            raise ValidationError(
+                {
+                    "agreement_department": "Ce département n'appartient pas à cet accord."
+                }
+            )
 
     def get_effective_quota(self) -> int:
         """Retourne le quota ajusté s'il est renseigné, sinon le quota estimé."""

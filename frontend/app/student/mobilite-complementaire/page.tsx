@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { getCurrentIne } from "@/lib/auth";
 import {
   declareComplementaryMobility,
   fetchComplementaryCountries,
@@ -21,7 +21,7 @@ const EMPTY_FORM = {
 };
 
 export default function MobiliteComplementairePage() {
-  const { ine } = useParams<{ ine: string }>();
+  const ine = getCurrentIne();
 
   // Profile + enrolled years (for the top year selector)
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -79,7 +79,7 @@ export default function MobiliteComplementairePage() {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent) {
     e.preventDefault();
     setFormError("");
     setFormSuccess("");
@@ -290,10 +290,12 @@ export default function MobiliteComplementairePage() {
             >
               Pays de destination *
             </label>
+            {/* Pas d'attribut `required` natif : la validation JS de handleSubmit
+                (ligne ~96) affiche un message dédié — le natif bloquerait le submit
+                event avant que ce message ne s'affiche jamais. */}
             <select
               id="country_id"
               name="country_id"
-              required
               value={form.country_id}
               onChange={handleFieldChange}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
@@ -376,12 +378,14 @@ export default function MobiliteComplementairePage() {
                 (PDF, JPEG, PNG, WEBP — max 10 Mo)
               </span>
             </label>
+            {/* Pas d'attribut `required` natif : la validation JS de handleSubmit
+                (ligne ~92) affiche un message dédié — le natif bloquerait le submit
+                event avant que ce message ne s'affiche jamais. */}
             <input
               id="document"
               name="document"
               type="file"
               ref={fileRef}
-              required
               accept=".pdf,.jpg,.jpeg,.png,.webp"
               className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-md file:border-0 file:bg-[#1E3A8A] file:px-4 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-[#1E3A8A]/90"
             />

@@ -11,6 +11,8 @@ from pydantic import field_validator
 from app.academic.models import AcademicYear
 from app.alerts.models import AlertLevel, SystemAlert
 from app.audit.logger import log_action
+from app.auth.authentication import AdminJWTAuth
+from app.auth.permissions import require_student_owns
 from app.reference.models import Country
 from app.students.models import Student
 
@@ -18,6 +20,8 @@ from .models import ComplementaryMobility, MobilityStatus
 from .services.minio_service import delete_document, get_presigned_url, upload_document
 
 router = Router()
+
+MOBILITY_NOT_FOUND = "Mobilité introuvable."
 
 ALLOWED_MIME_TYPES = {
     "application/pdf",
@@ -154,6 +158,7 @@ def list_countries(request):
     response=list[ComplementaryMobilityOut],
     summary="Lister les mobilités complémentaires d'un étudiant",
 )
+@require_student_owns()
 def list_student_mobilities(request, ine: str, year_id: int | None = None):
     student = _get_student(ine)
     qs = ComplementaryMobility.objects.filter(student=student).select_related(
@@ -169,6 +174,7 @@ def list_student_mobilities(request, ine: str, year_id: int | None = None):
     response={201: ComplementaryMobilityOut},
     summary="Déclarer une mobilité complémentaire",
 )
+@require_student_owns()
 def declare_mobility(
     request,
     ine: str,
@@ -248,7 +254,7 @@ def _get_pending_mobility(mobility_id: int) -> ComplementaryMobility:
             "student", "academic_year", "destination_country"
         ).get(pk=mobility_id)
     except ComplementaryMobility.DoesNotExist as exc:
-        raise HttpError(404, "Mobilité introuvable.") from exc
+        raise HttpError(404, MOBILITY_NOT_FOUND) from exc
     if mob.status != MobilityStatus.PENDING:
         raise HttpError(409, "La mobilité n'est pas en attente de validation.")
     return mob
@@ -258,6 +264,7 @@ def _get_pending_mobility(mobility_id: int) -> ComplementaryMobility:
     "/",
     response=PagedOut,
     summary="Lister toutes les mobilités complémentaires (admin)",
+    auth=AdminJWTAuth(),
 )
 def list_all_mobilities(
     request,
@@ -295,6 +302,7 @@ def list_all_mobilities(
     "/{mobility_id}/validate/",
     response={200: ComplementaryMobilityOut},
     summary="Valider une mobilité complémentaire (admin)",
+    auth=AdminJWTAuth(),
 )
 def validate_mobility(request, mobility_id: int):
     mob = _get_pending_mobility(mobility_id)
@@ -320,6 +328,7 @@ def validate_mobility(request, mobility_id: int):
     "/{mobility_id}/reject/",
     response={200: ComplementaryMobilityOut},
     summary="Rejeter une mobilité complémentaire (admin)",
+    auth=AdminJWTAuth(),
 )
 def reject_mobility(request, mobility_id: int, payload: RejectIn):
     mob = _get_pending_mobility(mobility_id)
@@ -347,6 +356,7 @@ def reject_mobility(request, mobility_id: int, payload: RejectIn):
     "/{mobility_id}/",
     response=ComplementaryMobilityOut,
     summary="Modifier le statut / motif d'une mobilité complémentaire (admin)",
+    auth=AdminJWTAuth(),
 )
 def update_mobility(request, mobility_id: int, payload: MobilityEditIn):
     valid_statuses = {
@@ -366,7 +376,7 @@ def update_mobility(request, mobility_id: int, payload: MobilityEditIn):
             "student", "academic_year", "destination_country"
         ).get(pk=mobility_id)
     except ComplementaryMobility.DoesNotExist as exc:
-        raise HttpError(404, "Mobilité introuvable.") from exc
+        raise HttpError(404, MOBILITY_NOT_FOUND) from exc
     rejection_reason = (
         payload.rejection_reason.strip()
         if payload.status == MobilityStatus.REJECTED
@@ -401,6 +411,7 @@ def update_mobility(request, mobility_id: int, payload: MobilityEditIn):
     "/{mobility_id}/",
     response={204: None},
     summary="Supprimer une mobilité complémentaire (admin)",
+    auth=AdminJWTAuth(),
 )
 def delete_mobility(request, mobility_id: int):
     try:
@@ -408,7 +419,7 @@ def delete_mobility(request, mobility_id: int):
             "student", "academic_year"
         ).get(pk=mobility_id)
     except ComplementaryMobility.DoesNotExist as exc:
-        raise HttpError(404, "Mobilité introuvable.") from exc
+        raise HttpError(404, MOBILITY_NOT_FOUND) from exc
     log_action(
         request,
         action="delete_complementary_mobility",

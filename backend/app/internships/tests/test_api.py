@@ -15,9 +15,12 @@ from app.reference.models import Country
 from app.students.models import Student
 
 
-@pytest.fixture()
+@pytest.fixture
 def client():
-    return TestClient(router)
+    from app.auth.test_utils import make_test_jwt
+
+    token = make_test_jwt(role="admin")
+    return TestClient(router, headers={"Authorization": f"Bearer {token}"})
 
 
 def _make_failed_raw(payload: dict, year=None) -> RawImport:

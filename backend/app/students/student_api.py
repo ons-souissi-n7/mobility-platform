@@ -2,6 +2,7 @@ from ninja import Router
 from ninja.errors import HttpError
 
 from app.academic.models import AcademicYear
+from app.auth.permissions import require_student_owns
 from app.mobility.models import AgreementYear
 from app.outgoing.models import AssignmentResult, AssignmentStatus, SlotType
 from app.shared.excel_utils import format_university_label
@@ -18,18 +19,20 @@ from .schemas import (
 
 router = Router()
 
+STUDENT_NOT_FOUND = "Étudiant introuvable."
+
 
 @router.get(
     "/{ine}/profile/",
     response=StudentProfileOut,
     summary="Profil étudiant et années d'inscription",
 )
+@require_student_owns()
 def get_student_profile(request, ine: str):
-    # TODO: auth — restrict to authenticated student matching this INE
     try:
         student = Student.objects.get(ine=ine)
     except Student.DoesNotExist as exc:
-        raise HttpError(404, "Étudiant introuvable.") from exc
+        raise HttpError(404, STUDENT_NOT_FOUND) from exc
 
     enrollments = (
         AnnualEnrollment.objects.filter(student=student)
@@ -58,12 +61,12 @@ def get_student_profile(request, ine: str):
     response=list[StudentAgreementOut],
     summary="Accords éligibles au profil de l'étudiant",
 )
+@require_student_owns()
 def get_student_agreements(request, ine: str, year_id: int | None = None):
-    # TODO: auth — restrict to authenticated student matching this INE
     try:
         student = Student.objects.get(ine=ine)
     except Student.DoesNotExist as exc:
-        raise HttpError(404, "Étudiant introuvable.") from exc
+        raise HttpError(404, STUDENT_NOT_FOUND) from exc
 
     if year_id:
         try:
@@ -148,12 +151,12 @@ def get_student_agreements(request, ine: str, year_id: int | None = None):
     response=list[StudentWishItemOut],
     summary="Vœux de l'étudiant pour une année",
 )
+@require_student_owns()
 def get_student_wishes(request, ine: str, year_id: int | None = None):
-    # TODO: auth — restrict to authenticated student matching this INE
     try:
         student = Student.objects.get(ine=ine)
     except Student.DoesNotExist as exc:
-        raise HttpError(404, "Étudiant introuvable.") from exc
+        raise HttpError(404, STUDENT_NOT_FOUND) from exc
 
     filters: dict = {"student": student}
     if year_id:
@@ -198,8 +201,8 @@ def get_student_wishes(request, ine: str, year_id: int | None = None):
     response=StudentAssignmentOut,
     summary="Résultat d'affectation d'un étudiant",
 )
+@require_student_owns()
 def get_student_assignment(request, ine: str, year_id: int | None = None):
-    # TODO: auth — restrict to authenticated student matching this INE
     filters: dict = {
         "annual_enrollment__student__ine": ine,
         "assignment__status": AssignmentStatus.PUBLISHED,

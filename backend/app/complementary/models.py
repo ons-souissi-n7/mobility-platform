@@ -76,6 +76,7 @@ class ComplementaryMobility(TimeStampedModel):
         target=MobilityStatus.VALIDATED,
     )
     def validate(self) -> None:
+        # Corps intentionnellement vide : @transition gère seul le changement d'état.
         pass
 
     @transition(

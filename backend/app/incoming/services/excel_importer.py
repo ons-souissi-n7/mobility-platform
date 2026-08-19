@@ -21,17 +21,23 @@ from .date_utils import _parse_date
 
 logger = logging.getLogger(__name__)
 
+# Noms de colonnes réutilisés à la fois dans _COLUMNS (en-têtes attendus) et
+# lors de la lecture/comparaison des valeurs plus bas dans ce module.
+_COL_UNIV_ORIGINE = "UNIV ORIGINE"
+_COL_DATE_NAISSANCE = "DATE NAISSANCE"
+_COL_MAIL_ENSEEIHT = "MAIL ENSEEIHT"
+
 _COLUMNS = [
     "DEPARTEMENT",
     "CIVILITE",
     "NOM",
     "PRENOM",
     "PAYS",
-    "UNIV ORIGINE",
-    "DATE NAISSANCE",
+    _COL_UNIV_ORIGINE,
+    _COL_DATE_NAISSANCE,
     "CADRE",
     "MAIL",
-    "MAIL ENSEEIHT",
+    _COL_MAIL_ENSEEIHT,
     "DUREE",
     "ANNEE",
     "PARCOURS",
@@ -138,7 +144,7 @@ def import_incoming_from_excel(
             row, col_idx, row_number, source_file, "", report, academic_year
         )
 
-        birth_date = _parse_date(_get_raw(row, "DATE NAISSANCE"))
+        birth_date = _parse_date(_get_raw(row, _COL_DATE_NAISSANCE))
 
         # Check duplicate
         existing_student = (
@@ -170,12 +176,12 @@ def import_incoming_from_excel(
                     "DEPARTEMENT": existing_student.department.code
                     if existing_student.department
                     else "",
-                    "DATE NAISSANCE": str(existing_student.birth_date)
+                    _COL_DATE_NAISSANCE: str(existing_student.birth_date)
                     if existing_student.birth_date
                     else "",
-                    "UNIV ORIGINE": existing_student.origin_university_name or "",
+                    _COL_UNIV_ORIGINE: existing_student.origin_university_name or "",
                     "MAIL": existing_student.personal_email or "",
-                    "MAIL ENSEEIHT": existing_student.n7_email or "",
+                    _COL_MAIL_ENSEEIHT: existing_student.n7_email or "",
                     "DUREE": existing_student.duration or "",
                     "CADRE": existing_student.mobility_category.name
                     if existing_student.mobility_category
@@ -208,7 +214,7 @@ def import_incoming_from_excel(
                 code__iexact=dept_code
             ).first()
 
-        univ_name = _get(row, "UNIV ORIGINE")
+        univ_name = _get(row, _COL_UNIV_ORIGINE)
         if univ_name not in univ_cache:
             univ_cache[univ_name] = (
                 PartnerUniversity.objects.filter(name__iexact=univ_name).first()
@@ -251,7 +257,7 @@ def import_incoming_from_excel(
                 birth_date=birth_date,
                 mobility_category=cat_cache.get(cat_name),
                 personal_email=_get(row, "MAIL"),
-                n7_email=_get(row, "MAIL ENSEEIHT"),
+                n7_email=_get(row, _COL_MAIL_ENSEEIHT),
                 duration=_get(row, "DUREE"),
                 level=level_cache.get(level_code),
                 parcours=parcours_cache.get(parcours_code),
@@ -293,12 +299,12 @@ def import_incoming_from_excel(
                         "DEPARTEMENT": existing.department.code
                         if existing.department
                         else "",
-                        "DATE NAISSANCE": str(existing.birth_date)
+                        _COL_DATE_NAISSANCE: str(existing.birth_date)
                         if existing.birth_date
                         else "",
-                        "UNIV ORIGINE": existing.origin_university_name or "",
+                        _COL_UNIV_ORIGINE: existing.origin_university_name or "",
                         "MAIL": existing.personal_email or "",
-                        "MAIL ENSEEIHT": existing.n7_email or "",
+                        _COL_MAIL_ENSEEIHT: existing.n7_email or "",
                         "DUREE": existing.duration or "",
                         "CADRE": existing.mobility_category.name
                         if existing.mobility_category

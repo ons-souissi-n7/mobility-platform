@@ -13,6 +13,11 @@ l'application.
 
 L'année « courante » n'est volontairement pas créée : c'est à l'utilisateur de la
 créer depuis l'interface une fois l'historique en place.
+
+`random` sert uniquement à générer des étudiants/vœux de démonstration
+plausibles (jamais un token, un mot de passe ou une décision de sécurité) —
+la graine (`--seed`) est même paramétrable pour reproduire un jeu de données.
+Sans objet pour les hotspots Sonar "pseudorandom number generator" (S2245).
 """
 
 import random
@@ -133,7 +138,12 @@ NATIONALITY_POOL = [
     "CH",
     "GB",
 ]
-LEVEL_WEIGHTS = [("ING", 5), ("M1", 2), ("M2", 2), ("L3", 1)]
+# Codes réels du référentiel niveaux (app/reference/fixtures/levels.json) :
+# 1ING/2ING/3ING, 1M/2M, 1DOC/2DOC/3DOC — "ING"/"M1"/"M2"/"L3" seuls n'existent
+# pas, ce qui provoquait un level_id NULL (IntegrityError) à la création des
+# inscriptions. Cursus ingénieur dominant (mobilité sortante concentrée en
+# 2ING/3ING, cf. seed_dev_data), quelques Master pour la diversité.
+LEVEL_WEIGHTS = [("2ING", 5), ("3ING", 3), ("1ING", 2), ("1M", 1), ("2M", 1)]
 
 HISTORICAL_LABELS = ["2022-2023", "2023-2024", "2024-2025"]
 
@@ -168,7 +178,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         labels = options["labels"] or HISTORICAL_LABELS
         n_per_dept = options["students_per_dept"]
-        random.seed(options["seed"])
+        random.seed(options["seed"])  # NOSONAR (S2245) — donnée de démo
 
         with transaction.atomic():
             self._wipe_year_scoped_data()
@@ -377,12 +387,16 @@ class Command(BaseCommand):
         for dept in depts:
             parcours_list = parcours_by_dept.get(dept.code, [])
             for i in range(1, n_per_dept + 1):
-                is_female = random.random() < 0.45
-                first = random.choice(FIRST_NAMES_F if is_female else FIRST_NAMES_M)
-                last = random.choice(LAST_NAMES)
+                is_female = random.random() < 0.45  # NOSONAR (S2245) — donnée de démo
+                first = random.choice(  # NOSONAR (S2245) — donnée de démo
+                    FIRST_NAMES_F if is_female else FIRST_NAMES_M
+                )
+                last = random.choice(LAST_NAMES)  # NOSONAR (S2245) — donnée de démo
                 ine = f"{start_year}{dept.code}{i:03d}"
-                iso2 = random.choice(NATIONALITY_POOL)
-                level_code = random.choices(
+                iso2 = random.choice(  # NOSONAR (S2245) — donnée de démo
+                    NATIONALITY_POOL
+                )
+                level_code = random.choices(  # NOSONAR (S2245) — donnée de démo
                     [c for c, _ in LEVEL_WEIGHTS], weights=[w for _, w in LEVEL_WEIGHTS]
                 )[0]
                 level = levels_by_code.get(level_code)
@@ -395,15 +409,30 @@ class Command(BaseCommand):
                     gender=GenderChoice.FEMALE if is_female else GenderChoice.MALE,
                     nationality=countries.get(iso2),
                 )
+                parcours_choice = (
+                    random.choice(parcours_list)  # NOSONAR (S2245) — donnée de démo
+                    if parcours_list
+                    else None
+                )
+                gpa_value = round(
+                    random.uniform(2.4, 3.95),
+                    2,  # NOSONAR (S2245) — donnée de démo
+                )
+                is_alternant_value = (
+                    random.random() < 0.25  # NOSONAR (S2245) — donnée de démo
+                )
+                is_scholarship_value = (
+                    random.random() < 0.2  # NOSONAR (S2245) — donnée de démo
+                )
                 enrollment = AnnualEnrollment.objects.create(
                     student=student,
                     academic_year=year,
                     department=dept,
                     level=level,
-                    parcours=random.choice(parcours_list) if parcours_list else None,
-                    gpa=round(random.uniform(2.4, 3.95), 2),
-                    is_alternant=random.random() < 0.25,
-                    is_scholarship=random.random() < 0.2,
+                    parcours=parcours_choice,
+                    gpa=gpa_value,
+                    is_alternant=is_alternant_value,
+                    is_scholarship=is_scholarship_value,
                 )
                 enrollments.append(enrollment)
         return enrollments
@@ -422,8 +451,11 @@ class Command(BaseCommand):
             ]
             if not eligible:
                 continue
-            n = min(len(eligible), random.randint(1, 3))
-            chosen = random.sample(eligible, n)
+            n = min(
+                len(eligible),
+                random.randint(1, 3),  # NOSONAR (S2245) — donnée de démo
+            )
+            chosen = random.sample(eligible, n)  # NOSONAR (S2245) — donnée de démo
             for rank, ay in enumerate(chosen, start=1):
                 StudentWish.objects.create(
                     annual_enrollment=enrollment, agreement_year=ay, rank=rank
@@ -463,6 +495,12 @@ class Command(BaseCommand):
         if assignment and assignment.status == AssignmentStatus.VALIDATED:
             assignment.publish()
             assignment.save(update_fields=["status", "updated_at"])
+
+        # close() exige source=FINALIZATION — finalize_cti() est l'étape
+        # intermédiaire obligatoire entre PUBLISHED et CLOSED (cf. FSM
+        # academic.models.AcademicYear), sans quoi TransitionNotAllowed.
+        year.finalize_cti()
+        year.save(update_fields=["status", "updated_at"])
 
         year.close()
         year.closed_at = timezone.make_aware(
