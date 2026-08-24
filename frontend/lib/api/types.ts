@@ -498,6 +498,16 @@ export type StudentWishItem = {
   country_iso2: string;
 };
 
+export type StudentRecommendation = {
+  agreement_year_id: number;
+  agreement_name: string;
+  university_name: string;
+  country_name: string;
+  country_iso2: string;
+  score: number | null;
+  model_based: boolean;
+};
+
 export type Internship = {
   id: number;
   student_id: number;

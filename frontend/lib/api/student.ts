@@ -5,6 +5,7 @@ import type {
   StudentAgreement,
   StudentAssignment,
   StudentProfile,
+  StudentRecommendation,
   StudentWishItem,
 } from "./types";
 
@@ -63,6 +64,16 @@ export async function fetchStudentWishes(
     ? `${publicApiBaseUrl}/student/${ine}/wishes/?year_id=${yearId}`
     : `${publicApiBaseUrl}/student/${ine}/wishes/`;
   return (await clientFetch<StudentWishItem[]>(url)) ?? [];
+}
+
+export async function fetchStudentRecommendations(
+  ine: string,
+  yearId?: number,
+): Promise<StudentRecommendation[]> {
+  const url = yearId
+    ? `${publicApiBaseUrl}/student/${ine}/recommendations/?year_id=${yearId}`
+    : `${publicApiBaseUrl}/student/${ine}/recommendations/`;
+  return (await clientFetch<StudentRecommendation[]>(url)) ?? [];
 }
 
 export async function fetchStudentAssignment(

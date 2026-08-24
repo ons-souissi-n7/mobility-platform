@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Clock, ExternalLink, FileText, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, Eye, FileText, Loader2, XCircle } from "lucide-react";
 import { ErrorBanner } from "@/components/ui/alert";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
@@ -11,10 +11,8 @@ import { Toolbar } from "@/components/ui/toolbar";
 import {
   fetchComplementaryMobilitiesAdmin,
   rejectMobility,
-  updateComplementaryMobility,
   validateMobility,
 } from "@/lib/api/complementary";
-import { ActionButtons } from "@/components/ui/action-buttons";
 import type { AcademicYear, ComplementaryMobility } from "@/lib/api/types";
 import { formatDateShort } from "@/lib/utils";
 import { MobilityStatusBadge } from "./status-badge";
@@ -31,14 +29,6 @@ const STATUS_OPTIONS = [
 type RejectModal = {
   mobilityId: number;
   reason: string;
-  submitting: boolean;
-  error: string;
-};
-
-type EditModal = {
-  mobility: ComplementaryMobility;
-  status: string;
-  rejectionReason: string;
   submitting: boolean;
   error: string;
 };
@@ -78,7 +68,7 @@ export function ComplementaryWorkspace({
   const [modal, setModal] = useState<RejectModal | null>(null);
 
   const { confirm, dialog: confirmDialog } = useConfirm();
-  const [editModal, setEditModal] = useState<EditModal | null>(null);
+  const [viewModal, setViewModal] = useState<ComplementaryMobility | null>(null);
 
   const selectedYear = academicYears.find((y) => y.id === selectedYearId) ?? null;
   const isReadOnly = !!selectedYear && selectedYear.status === "closed";
@@ -172,29 +162,6 @@ export function ComplementaryWorkspace({
   }
 
   // ── Edit ─────────────────────────────────────────────────────────────────
-
-  async function handleEditSubmit(e: React.SubmitEvent) {
-    e.preventDefault();
-    if (!editModal) return;
-    setEditModal((m) => m && { ...m, submitting: true, error: "" });
-    try {
-      const updated = await updateComplementaryMobility(
-        editModal.mobility.id,
-        editModal.status,
-        editModal.rejectionReason,
-      );
-      setMobilities((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-      setEditModal(null);
-    } catch (err) {
-      setEditModal((m) =>
-        m && {
-          ...m,
-          submitting: false,
-          error: err instanceof Error ? err.message : "Erreur lors de la modification.",
-        },
-      );
-    }
-  }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -391,6 +358,14 @@ export function ComplementaryWorkspace({
 
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setViewModal(m)}
+                          title="Voir le détail"
+                          className="w-fit rounded-md border border-gray-200 p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
                         {m.status === "pending" && !closedYearIds.has(m.academic_year_id) && (
                           <div className="flex items-center gap-2">
                             <button
@@ -424,19 +399,6 @@ export function ComplementaryWorkspace({
                             </button>
                           </div>
                         )}
-                        <ActionButtons
-                          onEdit={() =>
-                            setEditModal({
-                              mobility: m,
-                              status: m.status,
-                              rejectionReason: m.rejection_reason ?? "",
-                              submitting: false,
-                              error: "",
-                            })
-                          }
-                          editDisabled={actionLoading === m.id || closedYearIds.has(m.academic_year_id)}
-                          editDisabledTitle={closedYearIds.has(m.academic_year_id) ? "Année clôturée" : "Action en cours"}
-                        />
                       </div>
                     </td>
                   </tr>
@@ -455,85 +417,70 @@ export function ComplementaryWorkspace({
         </div>
       )}
 
-      {/* Modal édition */}
-      {editModal && (
+      {/* Modal détail */}
+      {viewModal && (
         <Modal
-          title="Modifier la mobilité"
-          description="Modifiez le statut et, si nécessaire, le motif de rejet."
-          onClose={() => setEditModal(null)}
+          title={`${viewModal.student_last_name} ${viewModal.student_first_name}`}
+          description={viewModal.student_ine}
+          onClose={() => setViewModal(null)}
         >
-          <form onSubmit={handleEditSubmit} className="space-y-4">
-            {editModal.error && (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {editModal.error}
+          <div className="space-y-5">
+            <div>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Déclaration
+              </h3>
+              <div className="space-y-2 text-sm">
+                <DetailRow label="Type d'expérience" value={viewModal.experience_type} />
+                <DetailRow
+                  label="Destination"
+                  value={
+                    viewModal.destination_institution
+                      ? `${viewModal.destination_institution} (${viewModal.destination_country_name})`
+                      : viewModal.destination_country_name
+                  }
+                />
+                <DetailRow
+                  label="Période"
+                  value={`${formatDateShort(viewModal.start_date)} → ${formatDateShort(viewModal.end_date)}`}
+                />
+                <DetailRow label="Année universitaire" value={viewModal.academic_year_label} />
               </div>
-            )}
+            </div>
 
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-700" htmlFor="complementary-status-select">
-                Statut *
-              </label>
-              <select
-                id="complementary-status-select"
-                required
-                value={editModal.status}
-                onChange={(e) =>
-                  setEditModal((m) =>
-                    m && {
-                      ...m,
-                      status: e.target.value,
-                      rejectionReason: e.target.value !== "rejected" ? "" : m.rejectionReason,
-                    },
-                  )
-                }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
-              >
-                <option value="pending">En attente</option>
-                <option value="validated">Validée</option>
-                <option value="rejected">Rejetée</option>
-              </select>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Statut
+              </h3>
+              <MobilityStatusBadge status={viewModal.status} />
+              {viewModal.status === "rejected" && viewModal.rejection_reason && (
+                <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {viewModal.rejection_reason}
+                </p>
+              )}
             </div>
 
-            {editModal.status === "rejected" && (
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700" htmlFor="complementary-edit-rejection-reason">
-                  Motif du rejet *
-                </label>
-                <textarea
-                  id="complementary-edit-rejection-reason"
-                  required
-                  rows={3}
-                  value={editModal.rejectionReason}
-                  onChange={(e) =>
-                    setEditModal((m) => m && { ...m, rejectionReason: e.target.value })
-                  }
-                  placeholder="Indiquez le motif du rejet…"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A8A]"
-                />
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setEditModal(null)}
-                disabled={editModal.submitting}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Annuler
-              </button>
-              <button
-                type="submit"
-                disabled={
-                  editModal.submitting ||
-                  (editModal.status === "rejected" && !editModal.rejectionReason.trim())
-                }
-                className="rounded-md bg-[#1E3A8A] px-4 py-2 text-sm font-medium text-white hover:bg-[#1e40af] disabled:opacity-50"
-              >
-                {editModal.submitting ? "Enregistrement…" : "Enregistrer"}
-              </button>
+            <div>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Justificatif
+              </h3>
+              {viewModal.document_url ? (
+                <a
+                  href={viewModal.document_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-[#1E3A8A] hover:bg-gray-50"
+                >
+                  <FileText className="h-4 w-4" />
+                  {viewModal.document_name || "Ouvrir le justificatif"}
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              ) : (
+                <p className="text-sm italic text-gray-400">
+                  Aucun justificatif disponible (peut-être expiré ou supprimé après rejet).
+                </p>
+              )}
             </div>
-          </form>
+          </div>
         </Modal>
       )}
 
@@ -586,6 +533,15 @@ export function ComplementaryWorkspace({
           </form>
         </Modal>
       )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: Readonly<{ label: string; value: string }>) {
+  return (
+    <div className="flex gap-3">
+      <span className="w-36 shrink-0 text-xs text-gray-500">{label}</span>
+      <span className="text-sm text-gray-900">{value || "—"}</span>
     </div>
   );
 }

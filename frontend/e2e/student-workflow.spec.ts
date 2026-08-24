@@ -7,7 +7,7 @@
  *   ✓ Navigation latérale (sidebar — tous les liens)
  *   ✓ Tableau de bord (durée de mobilité CTI)
  *   ✓ Accords disponibles (tableau, colonnes, sélecteur d'année)
- *   ✓ Recommandations (page en cours de développement)
+ *   ✓ Recommandations (classement des destinations, ou message selon la phase)
  *   ✓ Ma mobilité (Mes vœux + Mon résultat selon l'état de l'année)
  *   ✓ Redirection /voeux → /mobilite
  *   ✓ Mobilité complémentaire (formulaire, validation, déclarations)
@@ -223,11 +223,24 @@ test.describe("Page recommandations", () => {
     await expect(page.locator("body")).not.toContainText("404");
   });
 
-  test("Le placeholder 'à développer' est présent (fonctionnalité future)", async ({ page }) => {
-    // Cette page est intentionnellement un placeholder pour le sprint suivant
+  test("Le titre et la description de la page sont visibles", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: "Recommandations" })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByText(/classement des destinations/i)).toBeVisible();
+  });
+
+  test("Un contenu cohérent avec la phase de l'année s'affiche", async ({ page }) => {
+    // Avant l'ouverture de la phase "recommendation" : message d'attente.
+    // À partir de cette phase et pour toutes les phases suivantes (le
+    // classement reste consultable en lecture seule une fois publié) :
+    // classement, ou liste vide si aucune destination n'est éligible.
     await expect(
-      page.getByText(/recommandations.*à développer/i)
-        .or(page.getByText("Recommandations — à développer")),
+      page
+        .locator("ol li")
+        .first()
+        .or(page.getByText(/aucune recommandation fournie actuellement/i))
+        .or(page.getByText(/Aucune destination éligible/i)),
     ).toBeVisible({ timeout: 10_000 });
   });
 });
