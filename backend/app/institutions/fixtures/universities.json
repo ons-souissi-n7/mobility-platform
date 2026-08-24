@@ -138,5 +138,565 @@
       "country": 16,
       "last_sync_moveon": null
     }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 8,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Imperial College London",
+      "short_name": "Imperial",
+      "translated_name": "Imperial College de Londres",
+      "erasmus_code": "",
+      "city": "Londres",
+      "url": "",
+      "email": "",
+      "country": 11,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 9,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "University of Tokyo",
+      "short_name": "UTokyo",
+      "translated_name": "Universite de Tokyo",
+      "erasmus_code": "",
+      "city": "Tokyo",
+      "url": "",
+      "email": "",
+      "country": 7,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 10,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Instituto Superior Tecnico",
+      "short_name": "IST Lisboa",
+      "translated_name": "Institut Superieur Technique de Lisbonne",
+      "erasmus_code": "P LISBOA03",
+      "city": "Lisbonne",
+      "url": "",
+      "email": "",
+      "country": 12,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 11,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Technical University of Denmark",
+      "short_name": "DTU",
+      "translated_name": "Universite Technique du Danemark",
+      "erasmus_code": "DK LYNGBY01",
+      "city": "Lyngby",
+      "url": "",
+      "email": "",
+      "country": 29,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 12,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Norwegian University of Science and Technology",
+      "short_name": "NTNU",
+      "translated_name": "Universite Norvegienne de Sciences et Technologie",
+      "erasmus_code": "N TRONDHE01",
+      "city": "Trondheim",
+      "url": "",
+      "email": "",
+      "country": 17,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 13,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "University of Melbourne",
+      "short_name": "Melbourne",
+      "translated_name": "Universite de Melbourne",
+      "erasmus_code": "",
+      "city": "Melbourne",
+      "url": "",
+      "email": "",
+      "country": 9,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 14,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Korea Advanced Institute of Science and Technology",
+      "short_name": "KAIST",
+      "translated_name": "Institut Coreen des Sciences et Technologies Avancees",
+      "erasmus_code": "",
+      "city": "Daejeon",
+      "url": "",
+      "email": "",
+      "country": 20,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 15,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "National University of Singapore",
+      "short_name": "NUS",
+      "translated_name": "Universite Nationale de Singapour",
+      "erasmus_code": "",
+      "city": "Singapour",
+      "url": "",
+      "email": "",
+      "country": 38,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 16,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Vrije Universiteit Brussel",
+      "short_name": "VUB",
+      "translated_name": "Universite Libre de Bruxelles (neerlandophone)",
+      "erasmus_code": "B BRUSSEL04",
+      "city": "Bruxelles",
+      "url": "",
+      "email": "",
+      "country": 14,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 17,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Warsaw University of Technology",
+      "short_name": "WUT",
+      "translated_name": "Universite Polytechnique de Varsovie",
+      "erasmus_code": "PL WARSZAW02",
+      "city": "Varsovie",
+      "url": "",
+      "email": "",
+      "country": 32,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 18,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Chalmers University of Technology",
+      "short_name": "Chalmers",
+      "translated_name": "Universite Technique Chalmers",
+      "erasmus_code": "S GOTEBOR02",
+      "city": "Goteborg",
+      "url": "",
+      "email": "",
+      "country": 16,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 19,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "RWTH Aachen University",
+      "short_name": "RWTH Aachen",
+      "translated_name": "Universite Technique RWTH d'Aix-la-Chapelle",
+      "erasmus_code": "D AACHEN01",
+      "city": "Aix-la-Chapelle",
+      "url": "",
+      "email": "",
+      "country": 3,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 20,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Universitat Politecnica de Catalunya",
+      "short_name": "UPC Barcelona",
+      "translated_name": "Universite Polytechnique de Catalogne",
+      "erasmus_code": "E BARCELO03",
+      "city": "Barcelone",
+      "url": "",
+      "email": "",
+      "country": 4,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 21,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Georgia Institute of Technology",
+      "short_name": "Georgia Tech",
+      "translated_name": "Institut de Technologie de Georgie",
+      "erasmus_code": "",
+      "city": "Atlanta",
+      "url": "",
+      "email": "",
+      "country": 5,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 22,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "University of Toronto",
+      "short_name": "U Toronto",
+      "translated_name": "Universite de Toronto",
+      "erasmus_code": "",
+      "city": "Toronto",
+      "url": "",
+      "email": "",
+      "country": 6,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 23,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Tsinghua University",
+      "short_name": "Tsinghua",
+      "translated_name": "Universite Tsinghua",
+      "erasmus_code": "",
+      "city": "Pekin",
+      "url": "",
+      "email": "",
+      "country": 18,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 24,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Indian Institute of Technology Bombay",
+      "short_name": "IIT Bombay",
+      "translated_name": "Institut Indien de Technologie de Bombay",
+      "erasmus_code": "",
+      "city": "Bombay",
+      "url": "",
+      "email": "",
+      "country": 19,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 25,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "University of Cape Town",
+      "short_name": "UCT",
+      "translated_name": "Universite du Cap",
+      "erasmus_code": "",
+      "city": "Le Cap",
+      "url": "",
+      "email": "",
+      "country": 51,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 26,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Pontificia Universidad Catolica de Chile",
+      "short_name": "PUC Chile",
+      "translated_name": "Universite Pontificale Catholique du Chili",
+      "erasmus_code": "",
+      "city": "Santiago",
+      "url": "",
+      "email": "",
+      "country": 27,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 27,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Universidade de Sao Paulo",
+      "short_name": "USP",
+      "translated_name": "Universite de Sao Paulo",
+      "erasmus_code": "",
+      "city": "Sao Paulo",
+      "url": "",
+      "email": "",
+      "country": 8,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 28,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Czech Technical University in Prague",
+      "short_name": "CTU Prague",
+      "translated_name": "Universite Technique Tcheque de Prague",
+      "erasmus_code": "CZ PRAHA03",
+      "city": "Prague",
+      "url": "",
+      "email": "",
+      "country": 33,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 29,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Budapest University of Technology and Economics",
+      "short_name": "BME",
+      "translated_name": "Universite de Technologie et d'Economie de Budapest",
+      "erasmus_code": "HU BUDAPES03",
+      "city": "Budapest",
+      "url": "",
+      "email": "",
+      "country": 35,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 30,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Aalto University",
+      "short_name": "Aalto",
+      "translated_name": "Universite Aalto",
+      "erasmus_code": "SF HELSINK04",
+      "city": "Espoo",
+      "url": "",
+      "email": "",
+      "country": 30,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 31,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Trinity College Dublin",
+      "short_name": "TCD",
+      "translated_name": "Trinity College de Dublin",
+      "erasmus_code": "IRLDUBLIN01",
+      "city": "Dublin",
+      "url": "",
+      "email": "",
+      "country": 31,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 32,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Istanbul Technical University",
+      "short_name": "ITU",
+      "translated_name": "Universite Technique d'Istanbul",
+      "erasmus_code": "TR ISTANBU06",
+      "city": "Istanbul",
+      "url": "",
+      "email": "",
+      "country": 36,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 33,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "King Abdullah University of Science and Technology",
+      "short_name": "KAUST",
+      "translated_name": "Universite Roi Abdallah des Sciences et Technologies",
+      "erasmus_code": "",
+      "city": "Thuwal",
+      "url": "",
+      "email": "",
+      "country": 37,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 34,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Universiti Teknologi Malaysia",
+      "short_name": "UTM",
+      "translated_name": "Universite Technologique de Malaisie",
+      "erasmus_code": "",
+      "city": "Johor Bahru",
+      "url": "",
+      "email": "",
+      "country": 72,
+      "last_sync_moveon": null
+    }
+  },
+  {
+    "model": "institutions.partneruniversity",
+    "pk": 35,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "University of Auckland",
+      "short_name": "Auckland",
+      "translated_name": "Universite d'Auckland",
+      "erasmus_code": "",
+      "city": "Auckland",
+      "url": "",
+      "email": "",
+      "country": 45,
+      "last_sync_moveon": null
+    }
   }
 ]

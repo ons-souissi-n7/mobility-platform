@@ -150,7 +150,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "SN",
-        3.65,
+        18.25,
     ),
     (
         "Léa",
@@ -160,7 +160,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "SN",
-        3.82,
+        19.1,
     ),
     (
         "Nicolas",
@@ -170,7 +170,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "SN",
-        3.10,
+        15.5,
     ),
     (
         "Camille",
@@ -180,7 +180,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "SN",
-        3.45,
+        17.25,
     ),
     (
         "Julien",
@@ -190,7 +190,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "SN",
-        2.90,
+        14.5,
     ),
     (
         "Sophie",
@@ -200,7 +200,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "SN",
-        3.95,
+        19.75,
     ),
     (
         "Maxime",
@@ -210,7 +210,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "SN",
-        2.70,
+        13.5,
     ),
     (
         "Lucie",
@@ -220,7 +220,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "SN",
-        3.50,
+        17.5,
     ),
     (
         "Lucas",
@@ -230,7 +230,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "SN",
-        3.20,
+        16.0,
     ),
     (
         "Clara",
@@ -240,7 +240,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "SN",
-        2.80,
+        14.0,
     ),
     (
         "Carlos",
@@ -250,7 +250,7 @@ FISE_STUDENTS = [
         "M",
         "ES",
         "SN",
-        3.35,
+        16.75,
     ),
     (
         "Yuki",
@@ -260,7 +260,7 @@ FISE_STUDENTS = [
         "F",
         "JP",
         "SN",
-        3.78,
+        18.9,
     ),
     (
         "Mehdi",
@@ -270,7 +270,7 @@ FISE_STUDENTS = [
         "M",
         "MA",
         "SN",
-        3.05,
+        15.25,
     ),
     (
         "Ana",
@@ -280,7 +280,7 @@ FISE_STUDENTS = [
         "F",
         "PT",
         "SN",
-        3.40,
+        17.0,
     ),
     # ── 3EA ──
     (
@@ -291,7 +291,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "3EA",
-        3.55,
+        17.75,
     ),
     (
         "Marie",
@@ -301,7 +301,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "3EA",
-        3.70,
+        18.5,
     ),
     (
         "Antoine",
@@ -311,7 +311,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "3EA",
-        3.85,
+        19.25,
     ),
     (
         "Claire",
@@ -321,7 +321,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "3EA",
-        3.00,
+        15.0,
     ),
     (
         "Romain",
@@ -331,7 +331,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "3EA",
-        2.85,
+        14.25,
     ),
     (
         "Elisa",
@@ -341,7 +341,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "3EA",
-        3.25,
+        16.25,
     ),
     (
         "Baptiste",
@@ -351,7 +351,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "3EA",
-        3.75,
+        18.75,
     ),
     (
         "Valentin",
@@ -361,7 +361,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "3EA",
-        3.15,
+        15.75,
     ),
     (
         "Jan",
@@ -371,7 +371,7 @@ FISE_STUDENTS = [
         "M",
         "PL",
         "3EA",
-        3.20,
+        16.0,
     ),
     (
         "Emma",
@@ -381,7 +381,7 @@ FISE_STUDENTS = [
         "F",
         "DE",
         "3EA",
-        3.60,
+        18.0,
     ),
     (
         "Omar",
@@ -391,7 +391,7 @@ FISE_STUDENTS = [
         "M",
         "MA",
         "3EA",
-        2.95,
+        14.75,
     ),
     (
         "Elena",
@@ -401,7 +401,7 @@ FISE_STUDENTS = [
         "F",
         "PL",
         "3EA",
-        3.30,
+        16.5,
     ),
     # ── MF2E ──
     (
@@ -412,7 +412,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "MF2E",
-        3.40,
+        17.0,
     ),
     (
         "Julie",
@@ -422,7 +422,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "MF2E",
-        3.10,
+        15.5,
     ),
     (
         "Florian",
@@ -432,7 +432,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "MF2E",
-        3.60,
+        18.0,
     ),
     (
         "Aurélie",
@@ -442,7 +442,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "MF2E",
-        2.75,
+        13.75,
     ),
     (
         "Kevin",
@@ -452,7 +452,7 @@ FISE_STUDENTS = [
         "M",
         "FR",
         "MF2E",
-        3.80,
+        19.0,
     ),
     (
         "Manon",
@@ -462,7 +462,7 @@ FISE_STUDENTS = [
         "F",
         "FR",
         "MF2E",
-        3.25,
+        16.25,
     ),
     (
         "Marco",
@@ -472,7 +472,7 @@ FISE_STUDENTS = [
         "M",
         "IT",
         "MF2E",
-        3.15,
+        15.75,
     ),
     (
         "Astrid",
@@ -482,7 +482,7 @@ FISE_STUDENTS = [
         "F",
         "DK",
         "MF2E",
-        3.55,
+        17.75,
     ),
     (
         "Ricardo",
@@ -492,7 +492,7 @@ FISE_STUDENTS = [
         "M",
         "PT",
         "MF2E",
-        2.90,
+        14.5,
     ),
 ]
 
@@ -507,7 +507,7 @@ FISA_STUDENTS = [
         "M",
         "FR",
         "SN",
-        3.55,
+        17.75,
     ),
     (
         "Amina",
@@ -517,7 +517,7 @@ FISA_STUDENTS = [
         "F",
         "FR",
         "SN",
-        3.88,
+        19.4,
     ),
     (
         "Théo",
@@ -527,7 +527,7 @@ FISA_STUDENTS = [
         "M",
         "FR",
         "SN",
-        2.95,
+        14.75,
     ),
     (
         "Pauline",
@@ -537,7 +537,7 @@ FISA_STUDENTS = [
         "F",
         "FR",
         "SN",
-        3.30,
+        16.5,
     ),
     (
         "Alexis",
@@ -547,7 +547,7 @@ FISA_STUDENTS = [
         "M",
         "FR",
         "SN",
-        3.70,
+        18.5,
     ),
     (
         "Lars",
@@ -557,7 +557,7 @@ FISA_STUDENTS = [
         "M",
         "SE",
         "SN",
-        3.45,
+        17.25,
     ),
     (
         "Fatima",
@@ -567,7 +567,7 @@ FISA_STUDENTS = [
         "F",
         "MA",
         "SN",
-        3.10,
+        15.5,
     ),
     # ── 3EA ──
     (
@@ -578,7 +578,7 @@ FISA_STUDENTS = [
         "M",
         "FR",
         "3EA",
-        3.25,
+        16.25,
     ),
     (
         "Chloé",
@@ -588,7 +588,7 @@ FISA_STUDENTS = [
         "F",
         "FR",
         "3EA",
-        3.60,
+        18.0,
     ),
     (
         "Sébastien",
@@ -598,7 +598,7 @@ FISA_STUDENTS = [
         "M",
         "FR",
         "3EA",
-        2.85,
+        14.25,
     ),
     (
         "Anaïs",
@@ -608,7 +608,7 @@ FISA_STUDENTS = [
         "F",
         "FR",
         "3EA",
-        3.00,
+        15.0,
     ),
     (
         "Mathieu",
@@ -618,7 +618,7 @@ FISA_STUDENTS = [
         "M",
         "FR",
         "3EA",
-        3.75,
+        18.75,
     ),
     (
         "Tomás",
@@ -628,7 +628,7 @@ FISA_STUDENTS = [
         "M",
         "ES",
         "3EA",
-        3.20,
+        16.0,
     ),
     (
         "Ingrid",
@@ -638,7 +638,7 @@ FISA_STUDENTS = [
         "F",
         "NO",
         "3EA",
-        3.50,
+        17.5,
     ),
     (
         "David",
@@ -648,7 +648,7 @@ FISA_STUDENTS = [
         "M",
         "CA",
         "3EA",
-        3.40,
+        17.0,
     ),
     # ── MF2E ──
     (
@@ -659,7 +659,7 @@ FISA_STUDENTS = [
         "M",
         "FR",
         "MF2E",
-        3.35,
+        16.75,
     ),
     (
         "Océane",
@@ -669,7 +669,7 @@ FISA_STUDENTS = [
         "F",
         "FR",
         "MF2E",
-        2.80,
+        14.0,
     ),
     (
         "Rémi",
@@ -679,7 +679,7 @@ FISA_STUDENTS = [
         "M",
         "FR",
         "MF2E",
-        3.60,
+        18.0,
     ),
     (
         "Nadia",
@@ -689,7 +689,7 @@ FISA_STUDENTS = [
         "F",
         "MA",
         "MF2E",
-        2.95,
+        14.75,
     ),
     (
         "Pietro",
@@ -699,7 +699,7 @@ FISA_STUDENTS = [
         "M",
         "IT",
         "MF2E",
-        3.10,
+        15.5,
     ),
 ]
 

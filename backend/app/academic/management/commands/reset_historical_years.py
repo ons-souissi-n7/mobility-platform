@@ -27,125 +27,19 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-FIRST_NAMES_F = [
-    "Léa",
-    "Camille",
-    "Sophie",
-    "Lucie",
-    "Clara",
-    "Marie",
-    "Claire",
-    "Elisa",
-    "Emma",
-    "Anaïs",
-    "Chloé",
-    "Pauline",
-    "Manon",
-    "Julie",
-    "Aurélie",
-    "Océane",
-    "Nadia",
-    "Amina",
-    "Ana",
-    "Yuki",
-    "Elena",
-    "Astrid",
-    "Ingrid",
-    "Fatima",
-]
-FIRST_NAMES_M = [
-    "Alexandre",
-    "Nicolas",
-    "Julien",
-    "Maxime",
-    "Lucas",
-    "Thomas",
-    "Antoine",
-    "Romain",
-    "Baptiste",
-    "Valentin",
-    "Thibault",
-    "Théo",
-    "Alexis",
-    "Quentin",
-    "Sébastien",
-    "Mathieu",
-    "Carlos",
-    "Mehdi",
-    "Jan",
-    "Omar",
-    "Marco",
-    "Pietro",
-    "Tomás",
-    "David",
-    "Lars",
-    "Ricardo",
-]
-LAST_NAMES = [
-    "MARTIN",
-    "DUPONT",
-    "BERNARD",
-    "PETIT",
-    "MOREAU",
-    "LAURENT",
-    "SIMON",
-    "MICHEL",
-    "GARCIA",
-    "ARNAUD",
-    "LEROY",
-    "DUBOIS",
-    "GAUTHIER",
-    "ROUSSEAU",
-    "FONTAINE",
-    "VINCENT",
-    "MERCIER",
-    "PICARD",
-    "KOWALSKI",
-    "MULLER",
-    "BENNANI",
-    "POPESCU",
-    "BONNET",
-    "LEBRUN",
-    "MASSON",
-    "CARON",
-    "RENARD",
-    "GIRARD",
-    "BIANCHI",
-    "HANSEN",
-    "GOMES",
-    "TANAKA",
-    "SILVA",
-    "CHEN",
-    "LARSEN",
-]
-NATIONALITY_POOL = [
-    "FR",
-    "FR",
-    "FR",
-    "FR",
-    "FR",
-    "ES",
-    "DE",
-    "IT",
-    "PT",
-    "PL",
-    "SE",
-    "DK",
-    "NO",
-    "CA",
-    "MA",
-    "JP",
-    "CH",
-    "GB",
-]
-# Codes réels du référentiel niveaux (app/reference/fixtures/levels.json) :
-# 1ING/2ING/3ING, 1M/2M, 1DOC/2DOC/3DOC — "ING"/"M1"/"M2"/"L3" seuls n'existent
-# pas, ce qui provoquait un level_id NULL (IntegrityError) à la création des
-# inscriptions. Cursus ingénieur dominant (mobilité sortante concentrée en
-# 2ING/3ING, cf. seed_dev_data), quelques Master pour la diversité.
-LEVEL_WEIGHTS = [("2ING", 5), ("3ING", 3), ("1ING", 2), ("1M", 1), ("2M", 1)]
+from app.academic.management.commands._demo_students import (
+    NATIONALITY_POOL,
+    create_demo_students,
+    create_demo_wishes,
+)
 
-HISTORICAL_LABELS = ["2022-2023", "2023-2024", "2024-2025"]
+HISTORICAL_LABELS = [
+    "2020-2021",
+    "2021-2022",
+    "2022-2023",
+    "2023-2024",
+    "2024-2025",
+]
 
 
 class Command(BaseCommand):
@@ -165,8 +59,9 @@ class Command(BaseCommand):
         parser.add_argument(
             "--students-per-dept",
             type=int,
-            default=10,
-            help="Nombre d'étudiants créés par département et par année (défaut: 10)",
+            default=35,
+            help="Nombre d'étudiants créés par département et par année (défaut: 35, "
+            "soit ~105 étudiants/an pour les 3 départements)",
         )
         parser.add_argument(
             "--seed",
@@ -174,14 +69,53 @@ class Command(BaseCommand):
             default=42,
             help="Graine aléatoire pour la reproductibilité (défaut: 42)",
         )
+        parser.add_argument(
+            "--append",
+            action="store_true",
+            help="N'efface rien : ajoute les années listées par --labels à celles "
+            "déjà en base, sans toucher aux données existantes (étudiants, vœux, "
+            "affectations, autres années). Nécessite --labels explicite pour "
+            "éviter d'ajouter par erreur les 5 années par défaut.",
+        )
 
     def handle(self, *args, **options):
+        append = options["append"]
         labels = options["labels"] or HISTORICAL_LABELS
         n_per_dept = options["students_per_dept"]
         random.seed(options["seed"])  # NOSONAR (S2245) — donnée de démo
 
+        if append and not options["labels"]:
+            self.stderr.write(
+                self.style.ERROR(
+                    "--append requiert --labels explicite (ex: --labels 2020-2021 "
+                    "2021-2022) pour éviter d'ajouter par erreur les 5 années par "
+                    "défaut en plus de celles déjà en base."
+                )
+            )
+            return
+
         with transaction.atomic():
-            self._wipe_year_scoped_data()
+            if append:
+                from app.academic.models import AcademicYear
+
+                existing = set(
+                    AcademicYear.objects.filter(label__in=labels).values_list(
+                        "label", flat=True
+                    )
+                )
+                if existing:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"Déjà en base, ignorées : {', '.join(sorted(existing))}"
+                        )
+                    )
+                    labels = [label for label in labels if label not in existing]
+                if not labels:
+                    self.stdout.write("Rien à ajouter.")
+                    return
+            else:
+                self._wipe_year_scoped_data()
+
             depts, levels_by_code, parcours_by_dept, countries = (
                 self._load_reference_data()
             )
@@ -352,116 +286,18 @@ class Command(BaseCommand):
                 )
 
         # ── Étudiants + inscriptions ───────────────────────────────────────
-        enrollments = self._create_students(
-            year,
-            start_year,
-            n_per_dept,
-            depts,
-            levels_by_code,
-            parcours_by_dept,
-            countries,
+        enrollments = create_demo_students(
+            year, depts, levels_by_code, parcours_by_dept, countries, n_per_dept
         )
 
         # ── Vœux ────────────────────────────────────────────────────────────
-        n_wishes = self._create_wishes(enrollments, dept_to_ays)
+        n_wishes = create_demo_wishes(enrollments, dept_to_ays)
         self.stdout.write(
             f"  Étudiants créés : {len(enrollments)} — Vœux créés : {n_wishes}"
         )
 
         # ── FSM : mener la campagne jusqu'à publication puis clôture ────────
         self._run_campaign(year, end_date)
-
-    def _create_students(
-        self,
-        year,
-        start_year,
-        n_per_dept,
-        depts,
-        levels_by_code,
-        parcours_by_dept,
-        countries,
-    ):
-        from app.students.models import AnnualEnrollment, GenderChoice, Student
-
-        enrollments = []
-        for dept in depts:
-            parcours_list = parcours_by_dept.get(dept.code, [])
-            for i in range(1, n_per_dept + 1):
-                is_female = random.random() < 0.45  # NOSONAR (S2245) — donnée de démo
-                first = random.choice(  # NOSONAR (S2245) — donnée de démo
-                    FIRST_NAMES_F if is_female else FIRST_NAMES_M
-                )
-                last = random.choice(LAST_NAMES)  # NOSONAR (S2245) — donnée de démo
-                ine = f"{start_year}{dept.code}{i:03d}"
-                iso2 = random.choice(  # NOSONAR (S2245) — donnée de démo
-                    NATIONALITY_POOL
-                )
-                level_code = random.choices(  # NOSONAR (S2245) — donnée de démo
-                    [c for c, _ in LEVEL_WEIGHTS], weights=[w for _, w in LEVEL_WEIGHTS]
-                )[0]
-                level = levels_by_code.get(level_code)
-
-                student = Student.objects.create(
-                    ine=ine,
-                    first_name=first,
-                    last_name=last,
-                    email=f"{first.lower()}.{last.lower()}.{ine}@etu.inp-toulouse.fr",
-                    gender=GenderChoice.FEMALE if is_female else GenderChoice.MALE,
-                    nationality=countries.get(iso2),
-                )
-                parcours_choice = (
-                    random.choice(parcours_list)  # NOSONAR (S2245) — donnée de démo
-                    if parcours_list
-                    else None
-                )
-                gpa_value = round(
-                    random.uniform(2.4, 3.95),
-                    2,  # NOSONAR (S2245) — donnée de démo
-                )
-                is_alternant_value = (
-                    random.random() < 0.25  # NOSONAR (S2245) — donnée de démo
-                )
-                is_scholarship_value = (
-                    random.random() < 0.2  # NOSONAR (S2245) — donnée de démo
-                )
-                enrollment = AnnualEnrollment.objects.create(
-                    student=student,
-                    academic_year=year,
-                    department=dept,
-                    level=level,
-                    parcours=parcours_choice,
-                    gpa=gpa_value,
-                    is_alternant=is_alternant_value,
-                    is_scholarship=is_scholarship_value,
-                )
-                enrollments.append(enrollment)
-        return enrollments
-
-    def _create_wishes(self, enrollments, dept_to_ays):
-        from app.students.models import StudentWish
-
-        created = 0
-        for enrollment in enrollments:
-            eligible = [
-                ay
-                for ay, allowed_level_ids in dept_to_ays.get(
-                    enrollment.department.code, []
-                )
-                if not allowed_level_ids or enrollment.level_id in allowed_level_ids
-            ]
-            if not eligible:
-                continue
-            n = min(
-                len(eligible),
-                random.randint(1, 3),  # NOSONAR (S2245) — donnée de démo
-            )
-            chosen = random.sample(eligible, n)  # NOSONAR (S2245) — donnée de démo
-            for rank, ay in enumerate(chosen, start=1):
-                StudentWish.objects.create(
-                    annual_enrollment=enrollment, agreement_year=ay, rank=rank
-                )
-                created += 1
-        return created
 
     def _run_campaign(self, year, end_date):
         from app.academic.models import AcademicYear

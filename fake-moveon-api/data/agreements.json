@@ -1,6 +1,5 @@
 [
   {
-    "moveon_relation_id": "REL-001",
     "reference": "REF-001",
     "name": "Erasmus outgoing agreement",
     "partner_university_moveon_id": 1001,
@@ -18,10 +17,19 @@
     "level": "Master",
     "formation": "SN",
     "created_at": "2025-09-01",
-    "updated_at": "2026-01-15"
+    "updated_at": "2026-01-15",
+    "moveon_id": "REL-001",
+    "inp_institutions": "ENSEEIHT",
+    "department_codes": [
+      "SN",
+      "3EA"
+    ],
+    "levels": [
+      "2ING",
+      "3ING"
+    ]
   },
   {
-    "moveon_relation_id": "REL-002",
     "reference": "REF-002",
     "name": "Exchange incoming agreement",
     "partner_university_moveon_id": 2001,
@@ -39,10 +47,19 @@
     "level": "Bachelor",
     "formation": "CS",
     "created_at": "2025-09-01",
-    "updated_at": "2026-01-15"
+    "updated_at": "2026-01-15",
+    "moveon_id": "REL-002",
+    "inp_institutions": "ENSEEIHT",
+    "department_codes": [
+      "3EA",
+      "MF2E"
+    ],
+    "levels": [
+      "2ING",
+      "3ING"
+    ]
   },
   {
-    "moveon_relation_id": "REL-003",
     "reference": "REF-003",
     "name": "Industry internship agreement",
     "partner_university_moveon_id": 2002,
@@ -60,10 +77,18 @@
     "level": "Master",
     "formation": "ME",
     "created_at": "2025-09-01",
-    "updated_at": "2026-01-15"
+    "updated_at": "2026-01-15",
+    "moveon_id": "REL-003",
+    "inp_institutions": "ENSEEIHT",
+    "department_codes": [
+      "SN"
+    ],
+    "levels": [
+      "1M",
+      "2M"
+    ]
   },
   {
-    "moveon_relation_id": "REL-004",
     "reference": "REF-004",
     "name": "Joint double degree",
     "partner_university_moveon_id": 2003,
@@ -81,7 +106,20 @@
     "level": "Master",
     "formation": "EE",
     "created_at": "2025-09-01",
-    "updated_at": "2026-01-15"
+    "updated_at": "2026-01-15",
+    "moveon_id": "REL-004",
+    "inp_institutions": "ENSEEIHT",
+    "department_codes": [
+      "SN",
+      "3EA",
+      "MF2E"
+    ],
+    "levels": [
+      "2ING",
+      "3ING",
+      "1M",
+      "2M"
+    ]
   },
   {
     "moveon_relation_id": "REL-005",
@@ -103,5 +141,125 @@
     "formation": "",
     "created_at": "2025-09-01",
     "updated_at": "2026-01-15"
+  },
+  {
+    "moveon_id": "REL-006",
+    "reference": "REF-006",
+    "name": "Erasmus+ KTH Stockholm 2026-2027",
+    "partner_university_moveon_id": 2004,
+    "relation_type": "Erasmus",
+    "framework": "Erasmus Enseignement",
+    "direction": "outgoing",
+    "status": "active",
+    "is_active": true,
+    "start_date": "2026-09-01",
+    "end_date": "2027-08-31",
+    "start_academic_year": "2026-2027",
+    "end_academic_year": "2027-2028",
+    "discipline": "Engineering",
+    "isced": "071",
+    "level": "Master",
+    "formation": "SN",
+    "inp_institutions": "ENSEEIHT",
+    "department_codes": [
+      "SN",
+      "3EA"
+    ],
+    "levels": [
+      "2ING",
+      "3ING"
+    ],
+    "created_at": "2026-09-01",
+    "updated_at": "2026-09-01"
+  },
+  {
+    "moveon_id": "REL-007",
+    "reference": "REF-007",
+    "name": "Convention PUC Chile 2026-2027",
+    "partner_university_moveon_id": 2005,
+    "relation_type": "Exchange",
+    "framework": "Erasmus Enseignement",
+    "direction": "outgoing",
+    "status": "active",
+    "is_active": true,
+    "start_date": "2026-09-01",
+    "end_date": "2027-08-31",
+    "start_academic_year": "2026-2027",
+    "end_academic_year": "2027-2028",
+    "discipline": "Engineering",
+    "isced": "071",
+    "level": "Master",
+    "formation": "MF2E",
+    "inp_institutions": "ENSEEIHT",
+    "department_codes": [
+      "MF2E"
+    ],
+    "levels": [
+      "2ING",
+      "3ING"
+    ],
+    "created_at": "2026-09-01",
+    "updated_at": "2026-09-01"
+  },
+  {
+    "moveon_id": "REL-008",
+    "reference": "REF-008",
+    "name": "University of Trento 2026-2027",
+    "partner_university_moveon_id": 1359,
+    "relation_type": "Erasmus",
+    "framework": "Erasmus Enseignement",
+    "direction": "outgoing",
+    "status": "active",
+    "is_active": true,
+    "start_date": "2026-09-01",
+    "end_date": "2027-08-31",
+    "start_academic_year": "2026-2027",
+    "end_academic_year": "2027-2028",
+    "discipline": "Engineering",
+    "isced": "071",
+    "level": "Ingenieur",
+    "formation": "3EA",
+    "inp_institutions": "ENSEEIHT",
+    "department_codes": [
+      "3EA"
+    ],
+    "levels": [
+      "1M",
+      "2ING",
+      "3ING"
+    ],
+    "created_at": "2026-09-01",
+    "updated_at": "2026-09-01"
+  },
+  {
+    "moveon_id": "REL-009",
+    "reference": "REF-009",
+    "name": "University of Klagenfurt 2026-2027",
+    "partner_university_moveon_id": 1349,
+    "relation_type": "Erasmus",
+    "framework": "Erasmus Enseignement",
+    "direction": "outgoing",
+    "status": "active",
+    "is_active": true,
+    "start_date": "2026-09-01",
+    "end_date": "2027-08-31",
+    "start_academic_year": "2026-2027",
+    "end_academic_year": "2027-2028",
+    "discipline": "Engineering",
+    "isced": "071",
+    "level": "Master",
+    "formation": "SN",
+    "inp_institutions": "ENSEEIHT",
+    "department_codes": [
+      "SN",
+      "MF2E"
+    ],
+    "levels": [
+      "2ING",
+      "3ING",
+      "2M"
+    ],
+    "created_at": "2026-09-01",
+    "updated_at": "2026-09-01"
   }
 ]

@@ -1,45 +1,672 @@
 [
-  {"Individu": "DUBOIS Lea",         "Numéro étudiant": "01234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 1",         "Statut Sélection": "Candidat", "Crée le": "03/11/2025 10:12", "Dernière modification le": "03/11/2025 10:12"},
-  {"Individu": "DUBOIS Lea",         "Numéro étudiant": "01234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Erasmus outgoing agreement",           "Statut Sélection": "Candidat", "Crée le": "03/11/2025 10:14", "Dernière modification le": "03/11/2025 10:14"},
-  {"Individu": "DUBOIS Lea",         "Numéro étudiant": "01234567890", "Période de début": "Semestre 2 - 2026/27", "No": 3, "Offre de séjour": "Accord Erasmus UNITN 2",        "Statut Sélection": "Candidat", "Crée le": "03/11/2025 10:16", "Dernière modification le": "03/11/2025 10:16"},
-
-  {"Individu": "FONTAINE Amandine",  "Numéro étudiant": "71234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 1",     "Statut Sélection": "Candidat", "Crée le": "05/11/2025 09:30", "Dernière modification le": "12/01/2026 14:00"},
-  {"Individu": "FONTAINE Amandine",  "Numéro étudiant": "71234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Accord Erasmus UNITN 2",         "Statut Sélection": "Candidat", "Crée le": "05/11/2025 09:32", "Dernière modification le": "05/11/2025 09:32"},
-
-  {"Individu": "FOURNIER Axel",      "Numéro étudiant": "31234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Accord Erasmus UNITN depts",          "Statut Sélection": "Candidat", "Crée le": "10/11/2025 11:00", "Dernière modification le": "10/11/2025 11:00"},
-  {"Individu": "FOURNIER Axel",      "Numéro étudiant": "31234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "UNIVERSEH KTH Exchange",      "Statut Sélection": "Candidat", "Crée le": "10/11/2025 11:02", "Dernière modification le": "10/11/2025 11:02"},
-
-  {"Individu": "GARCIA Nathan",      "Numéro étudiant": "11234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "UNIVERSEH KTH Mobility 2","Statut Sélection": "Candidat", "Crée le": "07/11/2025 08:45", "Dernière modification le": "07/11/2025 08:45"},
-  {"Individu": "GARCIA Nathan",      "Numéro étudiant": "11234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Accord Erasmus UNITN 3",  "Statut Sélection": "Candidat", "Crée le": "07/11/2025 08:47", "Dernière modification le": "07/11/2025 08:47"},
-
-  {"Individu": "GIRARD Theo",        "Numéro étudiant": "51234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 1",         "Statut Sélection": "Candidat", "Crée le": "14/11/2025 16:20", "Dernière modification le": "14/11/2025 16:20"},
-  {"Individu": "GIRARD Theo",        "Numéro étudiant": "51234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Accord Erasmus UNITN 5",            "Statut Sélection": "Candidat", "Crée le": "14/11/2025 16:22", "Dernière modification le": "14/11/2025 16:22"},
-
-  {"Individu": "HASSAN Amira",       "Numéro étudiant": "92234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "UNIVERSEH KTH Exchange",      "Statut Sélection": "Candidat", "Crée le": "18/11/2025 10:05", "Dernière modification le": "18/11/2025 10:05"},
-  {"Individu": "HASSAN Amira",       "Numéro étudiant": "92234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Accord Erasmus UNITN depts",          "Statut Sélection": "Candidat", "Crée le": "18/11/2025 10:07", "Dernière modification le": "18/11/2025 10:07"},
-  {"Individu": "HASSAN Amira",       "Numéro étudiant": "92234567890", "Période de début": "Semestre 2 - 2026/27", "No": 3, "Offre de séjour": "Accord Erasmus UNITN 4",   "Statut Sélection": "Candidat", "Crée le": "18/11/2025 10:09", "Dernière modification le": "18/11/2025 10:09"},
-
-  {"Individu": "MARCHAL Antoine",    "Numéro étudiant": "82234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "UNIVERSEH KTH SN Exchange", "Statut Sélection": "Candidat", "Crée le": "20/11/2025 14:30", "Dernière modification le": "20/11/2025 14:30"},
-  {"Individu": "MARCHAL Antoine",    "Numéro étudiant": "82234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Erasmus outgoing agreement",           "Statut Sélection": "Candidat", "Crée le": "20/11/2025 14:32", "Dernière modification le": "20/11/2025 14:32"},
-
-  {"Individu": "MOREL Ines",         "Numéro étudiant": "41234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 2",         "Statut Sélection": "Candidat", "Crée le": "25/11/2025 09:15", "Dernière modification le": "25/11/2025 09:15"},
-  {"Individu": "MOREL Ines",         "Numéro étudiant": "41234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Accord Erasmus UNITN 1",     "Statut Sélection": "Candidat", "Crée le": "25/11/2025 09:17", "Dernière modification le": "25/11/2025 09:17"},
-
-  {"Individu": "NGUYEN Minh",        "Numéro étudiant": "03234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 2",        "Statut Sélection": "Candidat", "Crée le": "28/11/2025 11:45", "Dernière modification le": "28/11/2025 11:45"},
-  {"Individu": "NGUYEN Minh",        "Numéro étudiant": "03234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "UNIVERSEH KTH Mobility 2","Statut Sélection": "Candidat", "Crée le": "28/11/2025 11:47", "Dernière modification le": "28/11/2025 11:47"},
-  {"Individu": "NGUYEN Minh",        "Numéro étudiant": "03234567890", "Période de début": "Semestre 2 - 2026/27", "No": 3, "Offre de séjour": "UNIVERSEH KTH Exchange",      "Statut Sélection": "Candidat", "Crée le": "28/11/2025 11:50", "Dernière modification le": "28/11/2025 11:50"},
-
-  {"Individu": "RENAUD Vincent",     "Numéro étudiant": "61234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 1",         "Statut Sélection": "Candidat", "Crée le": "02/12/2025 10:00", "Dernière modification le": "02/12/2025 10:00"},
-  {"Individu": "RENAUD Vincent",     "Numéro étudiant": "61234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Accord Erasmus UNITN 3",  "Statut Sélection": "Candidat", "Crée le": "02/12/2025 10:02", "Dernière modification le": "02/12/2025 10:02"},
-
-  {"Individu": "ROUX Camille",       "Numéro étudiant": "21234567890", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 4",   "Statut Sélection": "Candidat", "Crée le": "06/11/2025 15:00", "Dernière modification le": "06/11/2025 15:00"},
-  {"Individu": "ROUX Camille",       "Numéro étudiant": "21234567890", "Période de début": "Semestre 2 - 2026/27", "No": 2, "Offre de séjour": "Accord Erasmus UNITN depts",          "Statut Sélection": "Candidat", "Crée le": "06/11/2025 15:02", "Dernière modification le": "06/11/2025 15:02"},
-
-  {"Individu": "INCLUS EarlyBird",   "Numéro étudiant": "TST-INCLUS-01", "Période de début": "Semestre 1 - 2025/26", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 1",       "Statut Sélection": "Candidat", "Crée le": "15/11/2024 10:00", "Dernière modification le": "15/11/2024 10:00"},
-  {"Individu": "INCLUS SansCreation","Numéro étudiant": "TST-INCLUS-02", "Période de début": "Semestre 2 - 2026/27", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 1",       "Statut Sélection": "Candidat", "Crée le": "",                "Dernière modification le": "10/10/2025 14:00"},
-
-  {"Individu": "EXCLU TropTot",      "Numéro étudiant": "TST-EXCLU-01", "Période de début": "Semestre 2 - 2025/26", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 1",        "Statut Sélection": "Candidat", "Crée le": "10/07/2024 08:00", "Dernière modification le": "10/07/2024 08:00"},
-  {"Individu": "EXCLU AvantCampagne","Numéro étudiant": "TST-EXCLU-02", "Période de début": "Semestre 2 - 2025/26", "No": 1, "Offre de séjour": "Accord Erasmus UNITN 2",      "Statut Sélection": "Candidat", "Crée le": "01/04/2024 11:00", "Dernière modification le": "01/04/2024 11:00"},
-  {"Individu": "EXCLU AncienneAnnee","Numéro étudiant": "TST-EXCLU-03", "Période de début": "Semestre 2 - 2023/24", "No": 1, "Offre de séjour": "UNIVERSEH KTH Exchange",     "Statut Sélection": "Candidat", "Crée le": "12/11/2023 09:30", "Dernière modification le": "12/11/2023 09:30"},
-  {"Individu": "EXCLU VieuxRecord",  "Numéro étudiant": "TST-EXCLU-04", "Période de début": "Semestre 2 - 2022/23", "No": 1, "Offre de séjour": "Accord Erasmus UNITN depts",         "Statut Sélection": "Candidat", "Crée le": "15/11/2022 10:00", "Dernière modification le": "15/11/2022 10:00"}
+  {
+    "Individu": "DUBOIS Lea",
+    "Numéro étudiant": "01234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 1",
+    "Statut Sélection": "Candidat",
+    "Crée le": "03/11/2025 10:12",
+    "Dernière modification le": "03/11/2025 10:12"
+  },
+  {
+    "Individu": "DUBOIS Lea",
+    "Numéro étudiant": "01234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "Erasmus outgoing agreement",
+    "Statut Sélection": "Candidat",
+    "Crée le": "03/11/2025 10:14",
+    "Dernière modification le": "03/11/2025 10:14"
+  },
+  {
+    "Individu": "DUBOIS Lea",
+    "Numéro étudiant": "01234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 3,
+    "Offre de séjour": "Accord Erasmus UNITN 2",
+    "Statut Sélection": "Candidat",
+    "Crée le": "03/11/2025 10:16",
+    "Dernière modification le": "03/11/2025 10:16"
+  },
+  {
+    "Individu": "FONTAINE Amandine",
+    "Numéro étudiant": "71234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 1",
+    "Statut Sélection": "Candidat",
+    "Crée le": "05/11/2025 09:30",
+    "Dernière modification le": "12/01/2026 14:00"
+  },
+  {
+    "Individu": "FONTAINE Amandine",
+    "Numéro étudiant": "71234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "Accord Erasmus UNITN 2",
+    "Statut Sélection": "Candidat",
+    "Crée le": "05/11/2025 09:32",
+    "Dernière modification le": "05/11/2025 09:32"
+  },
+  {
+    "Individu": "FOURNIER Axel",
+    "Numéro étudiant": "31234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN depts",
+    "Statut Sélection": "Candidat",
+    "Crée le": "10/11/2025 11:00",
+    "Dernière modification le": "10/11/2025 11:00"
+  },
+  {
+    "Individu": "FOURNIER Axel",
+    "Numéro étudiant": "31234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "UNIVERSEH KTH Exchange",
+    "Statut Sélection": "Candidat",
+    "Crée le": "10/11/2025 11:02",
+    "Dernière modification le": "10/11/2025 11:02"
+  },
+  {
+    "Individu": "GARCIA Nathan",
+    "Numéro étudiant": "11234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "UNIVERSEH KTH Mobility 2",
+    "Statut Sélection": "Candidat",
+    "Crée le": "07/11/2025 08:45",
+    "Dernière modification le": "07/11/2025 08:45"
+  },
+  {
+    "Individu": "GARCIA Nathan",
+    "Numéro étudiant": "11234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "Accord Erasmus UNITN 3",
+    "Statut Sélection": "Candidat",
+    "Crée le": "07/11/2025 08:47",
+    "Dernière modification le": "07/11/2025 08:47"
+  },
+  {
+    "Individu": "GIRARD Theo",
+    "Numéro étudiant": "51234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 1",
+    "Statut Sélection": "Candidat",
+    "Crée le": "14/11/2025 16:20",
+    "Dernière modification le": "14/11/2025 16:20"
+  },
+  {
+    "Individu": "GIRARD Theo",
+    "Numéro étudiant": "51234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "Accord Erasmus UNITN 5",
+    "Statut Sélection": "Candidat",
+    "Crée le": "14/11/2025 16:22",
+    "Dernière modification le": "14/11/2025 16:22"
+  },
+  {
+    "Individu": "HASSAN Amira",
+    "Numéro étudiant": "92234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "UNIVERSEH KTH Exchange",
+    "Statut Sélection": "Candidat",
+    "Crée le": "18/11/2025 10:05",
+    "Dernière modification le": "18/11/2025 10:05"
+  },
+  {
+    "Individu": "HASSAN Amira",
+    "Numéro étudiant": "92234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "Accord Erasmus UNITN depts",
+    "Statut Sélection": "Candidat",
+    "Crée le": "18/11/2025 10:07",
+    "Dernière modification le": "18/11/2025 10:07"
+  },
+  {
+    "Individu": "HASSAN Amira",
+    "Numéro étudiant": "92234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 3,
+    "Offre de séjour": "Accord Erasmus UNITN 4",
+    "Statut Sélection": "Candidat",
+    "Crée le": "18/11/2025 10:09",
+    "Dernière modification le": "18/11/2025 10:09"
+  },
+  {
+    "Individu": "MARCHAL Antoine",
+    "Numéro étudiant": "82234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "UNIVERSEH KTH SN Exchange",
+    "Statut Sélection": "Candidat",
+    "Crée le": "20/11/2025 14:30",
+    "Dernière modification le": "20/11/2025 14:30"
+  },
+  {
+    "Individu": "MARCHAL Antoine",
+    "Numéro étudiant": "82234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "Erasmus outgoing agreement",
+    "Statut Sélection": "Candidat",
+    "Crée le": "20/11/2025 14:32",
+    "Dernière modification le": "20/11/2025 14:32"
+  },
+  {
+    "Individu": "MOREL Ines",
+    "Numéro étudiant": "41234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 2",
+    "Statut Sélection": "Candidat",
+    "Crée le": "25/11/2025 09:15",
+    "Dernière modification le": "25/11/2025 09:15"
+  },
+  {
+    "Individu": "MOREL Ines",
+    "Numéro étudiant": "41234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "Accord Erasmus UNITN 1",
+    "Statut Sélection": "Candidat",
+    "Crée le": "25/11/2025 09:17",
+    "Dernière modification le": "25/11/2025 09:17"
+  },
+  {
+    "Individu": "NGUYEN Minh",
+    "Numéro étudiant": "03234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 2",
+    "Statut Sélection": "Candidat",
+    "Crée le": "28/11/2025 11:45",
+    "Dernière modification le": "28/11/2025 11:45"
+  },
+  {
+    "Individu": "NGUYEN Minh",
+    "Numéro étudiant": "03234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "UNIVERSEH KTH Mobility 2",
+    "Statut Sélection": "Candidat",
+    "Crée le": "28/11/2025 11:47",
+    "Dernière modification le": "28/11/2025 11:47"
+  },
+  {
+    "Individu": "NGUYEN Minh",
+    "Numéro étudiant": "03234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 3,
+    "Offre de séjour": "UNIVERSEH KTH Exchange",
+    "Statut Sélection": "Candidat",
+    "Crée le": "28/11/2025 11:50",
+    "Dernière modification le": "28/11/2025 11:50"
+  },
+  {
+    "Individu": "RENAUD Vincent",
+    "Numéro étudiant": "61234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 1",
+    "Statut Sélection": "Candidat",
+    "Crée le": "02/12/2025 10:00",
+    "Dernière modification le": "02/12/2025 10:00"
+  },
+  {
+    "Individu": "RENAUD Vincent",
+    "Numéro étudiant": "61234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "Accord Erasmus UNITN 3",
+    "Statut Sélection": "Candidat",
+    "Crée le": "02/12/2025 10:02",
+    "Dernière modification le": "02/12/2025 10:02"
+  },
+  {
+    "Individu": "ROUX Camille",
+    "Numéro étudiant": "21234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 4",
+    "Statut Sélection": "Candidat",
+    "Crée le": "06/11/2025 15:00",
+    "Dernière modification le": "06/11/2025 15:00"
+  },
+  {
+    "Individu": "ROUX Camille",
+    "Numéro étudiant": "21234567890",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 2,
+    "Offre de séjour": "Accord Erasmus UNITN depts",
+    "Statut Sélection": "Candidat",
+    "Crée le": "06/11/2025 15:02",
+    "Dernière modification le": "06/11/2025 15:02"
+  },
+  {
+    "Individu": "INCLUS EarlyBird",
+    "Numéro étudiant": "TST-INCLUS-01",
+    "Période de début": "Semestre 1 - 2025/26",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 1",
+    "Statut Sélection": "Candidat",
+    "Crée le": "15/11/2024 10:00",
+    "Dernière modification le": "15/11/2024 10:00"
+  },
+  {
+    "Individu": "INCLUS SansCreation",
+    "Numéro étudiant": "TST-INCLUS-02",
+    "Période de début": "Semestre 2 - 2026/27",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 1",
+    "Statut Sélection": "Candidat",
+    "Crée le": "",
+    "Dernière modification le": "10/10/2025 14:00"
+  },
+  {
+    "Individu": "EXCLU TropTot",
+    "Numéro étudiant": "TST-EXCLU-01",
+    "Période de début": "Semestre 2 - 2025/26",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 1",
+    "Statut Sélection": "Candidat",
+    "Crée le": "10/07/2024 08:00",
+    "Dernière modification le": "10/07/2024 08:00"
+  },
+  {
+    "Individu": "EXCLU AvantCampagne",
+    "Numéro étudiant": "TST-EXCLU-02",
+    "Période de début": "Semestre 2 - 2025/26",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN 2",
+    "Statut Sélection": "Candidat",
+    "Crée le": "01/04/2024 11:00",
+    "Dernière modification le": "01/04/2024 11:00"
+  },
+  {
+    "Individu": "EXCLU AncienneAnnee",
+    "Numéro étudiant": "TST-EXCLU-03",
+    "Période de début": "Semestre 2 - 2023/24",
+    "No": 1,
+    "Offre de séjour": "UNIVERSEH KTH Exchange",
+    "Statut Sélection": "Candidat",
+    "Crée le": "12/11/2023 09:30",
+    "Dernière modification le": "12/11/2023 09:30"
+  },
+  {
+    "Individu": "EXCLU VieuxRecord",
+    "Numéro étudiant": "TST-EXCLU-04",
+    "Période de début": "Semestre 2 - 2022/23",
+    "No": 1,
+    "Offre de séjour": "Accord Erasmus UNITN depts",
+    "Statut Sélection": "Candidat",
+    "Crée le": "15/11/2022 10:00",
+    "Dernière modification le": "15/11/2022 10:00"
+  },
+  {
+    "Individu": "PETIT Louis",
+    "Numéro étudiant": "20260100001",
+    "No": 1,
+    "Offre de séjour": "Erasmus outgoing agreement",
+    "Offre de séjour ID": "REL-001",
+    "Statut Sélection": "Candidat",
+    "Crée le": "01/10/2026 09:00",
+    "Dernière modification le": "01/11/2026 09:00"
+  },
+  {
+    "Individu": "ROBIN Emma",
+    "Numéro étudiant": "20260100002",
+    "No": 1,
+    "Offre de séjour": "Exchange incoming agreement",
+    "Offre de séjour ID": "REL-002",
+    "Statut Sélection": "Candidat",
+    "Crée le": "02/10/2026 09:01",
+    "Dernière modification le": "02/11/2026 09:01"
+  },
+  {
+    "Individu": "ROBIN Emma",
+    "Numéro étudiant": "20260100002",
+    "No": 2,
+    "Offre de séjour": "Industry internship agreement",
+    "Offre de séjour ID": "REL-003",
+    "Statut Sélection": "Candidat",
+    "Crée le": "02/10/2026 09:01",
+    "Dernière modification le": "02/11/2026 09:01"
+  },
+  {
+    "Individu": "MOULIN Gabriel",
+    "Numéro étudiant": "20260100003",
+    "No": 1,
+    "Offre de séjour": "Industry internship agreement",
+    "Offre de séjour ID": "REL-003",
+    "Statut Sélection": "Candidat",
+    "Crée le": "03/10/2026 09:02",
+    "Dernière modification le": "03/11/2026 09:02"
+  },
+  {
+    "Individu": "MOULIN Gabriel",
+    "Numéro étudiant": "20260100003",
+    "No": 2,
+    "Offre de séjour": "Joint double degree",
+    "Offre de séjour ID": "REL-004",
+    "Statut Sélection": "Candidat",
+    "Crée le": "03/10/2026 09:02",
+    "Dernière modification le": "03/11/2026 09:02"
+  },
+  {
+    "Individu": "MOULIN Gabriel",
+    "Numéro étudiant": "20260100003",
+    "No": 3,
+    "Offre de séjour": "Erasmus+ KTH Stockholm 2026-2027",
+    "Offre de séjour ID": "REL-006",
+    "Statut Sélection": "Candidat",
+    "Crée le": "03/10/2026 09:02",
+    "Dernière modification le": "03/11/2026 09:02"
+  },
+  {
+    "Individu": "FAURE Jade",
+    "Numéro étudiant": "20260100004",
+    "No": 1,
+    "Offre de séjour": "Joint double degree",
+    "Offre de séjour ID": "REL-004",
+    "Statut Sélection": "Candidat",
+    "Crée le": "04/10/2026 09:03",
+    "Dernière modification le": "04/11/2026 09:03"
+  },
+  {
+    "Individu": "ANDRE Raphael",
+    "Numéro étudiant": "20260100005",
+    "No": 1,
+    "Offre de séjour": "Erasmus+ KTH Stockholm 2026-2027",
+    "Offre de séjour ID": "REL-006",
+    "Statut Sélection": "Candidat",
+    "Crée le": "05/10/2026 09:04",
+    "Dernière modification le": "05/11/2026 09:04"
+  },
+  {
+    "Individu": "ANDRE Raphael",
+    "Numéro étudiant": "20260100005",
+    "No": 2,
+    "Offre de séjour": "Convention PUC Chile 2026-2027",
+    "Offre de séjour ID": "REL-007",
+    "Statut Sélection": "Candidat",
+    "Crée le": "05/10/2026 09:04",
+    "Dernière modification le": "05/11/2026 09:04"
+  },
+  {
+    "Individu": "MERCIER Alice",
+    "Numéro étudiant": "20260100006",
+    "No": 1,
+    "Offre de séjour": "Convention PUC Chile 2026-2027",
+    "Offre de séjour ID": "REL-007",
+    "Statut Sélection": "Candidat",
+    "Crée le": "06/10/2026 09:05",
+    "Dernière modification le": "06/11/2026 09:05"
+  },
+  {
+    "Individu": "MERCIER Alice",
+    "Numéro étudiant": "20260100006",
+    "No": 2,
+    "Offre de séjour": "University of Trento 2026-2027",
+    "Offre de séjour ID": "REL-008",
+    "Statut Sélection": "Candidat",
+    "Crée le": "06/10/2026 09:05",
+    "Dernière modification le": "06/11/2026 09:05"
+  },
+  {
+    "Individu": "MERCIER Alice",
+    "Numéro étudiant": "20260100006",
+    "No": 3,
+    "Offre de séjour": "University of Klagenfurt 2026-2027",
+    "Offre de séjour ID": "REL-009",
+    "Statut Sélection": "Candidat",
+    "Crée le": "06/10/2026 09:05",
+    "Dernière modification le": "06/11/2026 09:05"
+  },
+  {
+    "Individu": "BLANC Arthur",
+    "Numéro étudiant": "20260200007",
+    "No": 1,
+    "Offre de séjour": "University of Trento 2026-2027",
+    "Offre de séjour ID": "REL-008",
+    "Statut Sélection": "Candidat",
+    "Crée le": "07/10/2026 09:06",
+    "Dernière modification le": "07/11/2026 09:06"
+  },
+  {
+    "Individu": "GUERIN Rose",
+    "Numéro étudiant": "20260200008",
+    "No": 1,
+    "Offre de séjour": "University of Klagenfurt 2026-2027",
+    "Offre de séjour ID": "REL-009",
+    "Statut Sélection": "Candidat",
+    "Crée le": "08/10/2026 09:07",
+    "Dernière modification le": "08/11/2026 09:07"
+  },
+  {
+    "Individu": "GUERIN Rose",
+    "Numéro étudiant": "20260200008",
+    "No": 2,
+    "Offre de séjour": "Erasmus outgoing agreement",
+    "Offre de séjour ID": "REL-001",
+    "Statut Sélection": "Candidat",
+    "Crée le": "08/10/2026 09:07",
+    "Dernière modification le": "08/11/2026 09:07"
+  },
+  {
+    "Individu": "MULLER Jules",
+    "Numéro étudiant": "20260200009",
+    "No": 1,
+    "Offre de séjour": "Erasmus outgoing agreement",
+    "Offre de séjour ID": "REL-001",
+    "Statut Sélection": "Candidat",
+    "Crée le": "09/10/2026 09:08",
+    "Dernière modification le": "09/11/2026 09:08"
+  },
+  {
+    "Individu": "MULLER Jules",
+    "Numéro étudiant": "20260200009",
+    "No": 2,
+    "Offre de séjour": "Exchange incoming agreement",
+    "Offre de séjour ID": "REL-002",
+    "Statut Sélection": "Candidat",
+    "Crée le": "09/10/2026 09:08",
+    "Dernière modification le": "09/11/2026 09:08"
+  },
+  {
+    "Individu": "MULLER Jules",
+    "Numéro étudiant": "20260200009",
+    "No": 3,
+    "Offre de séjour": "Industry internship agreement",
+    "Offre de séjour ID": "REL-003",
+    "Statut Sélection": "Candidat",
+    "Crée le": "09/10/2026 09:08",
+    "Dernière modification le": "09/11/2026 09:08"
+  },
+  {
+    "Individu": "HENRY Anna",
+    "Numéro étudiant": "20260200010",
+    "No": 1,
+    "Offre de séjour": "Exchange incoming agreement",
+    "Offre de séjour ID": "REL-002",
+    "Statut Sélection": "Candidat",
+    "Crée le": "10/10/2026 09:09",
+    "Dernière modification le": "10/11/2026 09:09"
+  },
+  {
+    "Individu": "ROBERT Adam",
+    "Numéro étudiant": "20260200011",
+    "No": 1,
+    "Offre de séjour": "Industry internship agreement",
+    "Offre de séjour ID": "REL-003",
+    "Statut Sélection": "Candidat",
+    "Crée le": "11/10/2026 09:10",
+    "Dernière modification le": "11/11/2026 09:10"
+  },
+  {
+    "Individu": "ROBERT Adam",
+    "Numéro étudiant": "20260200011",
+    "No": 2,
+    "Offre de séjour": "Joint double degree",
+    "Offre de séjour ID": "REL-004",
+    "Statut Sélection": "Candidat",
+    "Crée le": "11/10/2026 09:10",
+    "Dernière modification le": "11/11/2026 09:10"
+  },
+  {
+    "Individu": "DUVAL Louise",
+    "Numéro étudiant": "20260200012",
+    "No": 1,
+    "Offre de séjour": "Joint double degree",
+    "Offre de séjour ID": "REL-004",
+    "Statut Sélection": "Candidat",
+    "Crée le": "12/10/2026 09:11",
+    "Dernière modification le": "12/11/2026 09:11"
+  },
+  {
+    "Individu": "DUVAL Louise",
+    "Numéro étudiant": "20260200012",
+    "No": 2,
+    "Offre de séjour": "Erasmus+ KTH Stockholm 2026-2027",
+    "Offre de séjour ID": "REL-006",
+    "Statut Sélection": "Candidat",
+    "Crée le": "12/10/2026 09:11",
+    "Dernière modification le": "12/11/2026 09:11"
+  },
+  {
+    "Individu": "DUVAL Louise",
+    "Numéro étudiant": "20260200012",
+    "No": 3,
+    "Offre de séjour": "Convention PUC Chile 2026-2027",
+    "Offre de séjour ID": "REL-007",
+    "Statut Sélection": "Candidat",
+    "Crée le": "12/10/2026 09:11",
+    "Dernière modification le": "12/11/2026 09:11"
+  },
+  {
+    "Individu": "JOLY Sacha",
+    "Numéro étudiant": "20260300013",
+    "No": 1,
+    "Offre de séjour": "Erasmus+ KTH Stockholm 2026-2027",
+    "Offre de séjour ID": "REL-006",
+    "Statut Sélection": "Candidat",
+    "Crée le": "13/10/2026 09:12",
+    "Dernière modification le": "13/11/2026 09:12"
+  },
+  {
+    "Individu": "GAY Zoe",
+    "Numéro étudiant": "20260300014",
+    "No": 1,
+    "Offre de séjour": "Convention PUC Chile 2026-2027",
+    "Offre de séjour ID": "REL-007",
+    "Statut Sélection": "Candidat",
+    "Crée le": "14/10/2026 09:13",
+    "Dernière modification le": "14/11/2026 09:13"
+  },
+  {
+    "Individu": "GAY Zoe",
+    "Numéro étudiant": "20260300014",
+    "No": 2,
+    "Offre de séjour": "University of Trento 2026-2027",
+    "Offre de séjour ID": "REL-008",
+    "Statut Sélection": "Candidat",
+    "Crée le": "14/10/2026 09:13",
+    "Dernière modification le": "14/11/2026 09:13"
+  },
+  {
+    "Individu": "ROLLAND Noe",
+    "Numéro étudiant": "20260300015",
+    "No": 1,
+    "Offre de séjour": "University of Trento 2026-2027",
+    "Offre de séjour ID": "REL-008",
+    "Statut Sélection": "Candidat",
+    "Crée le": "15/10/2026 09:14",
+    "Dernière modification le": "15/11/2026 09:14"
+  },
+  {
+    "Individu": "ROLLAND Noe",
+    "Numéro étudiant": "20260300015",
+    "No": 2,
+    "Offre de séjour": "University of Klagenfurt 2026-2027",
+    "Offre de séjour ID": "REL-009",
+    "Statut Sélection": "Candidat",
+    "Crée le": "15/10/2026 09:14",
+    "Dernière modification le": "15/11/2026 09:14"
+  },
+  {
+    "Individu": "ROLLAND Noe",
+    "Numéro étudiant": "20260300015",
+    "No": 3,
+    "Offre de séjour": "Erasmus outgoing agreement",
+    "Offre de séjour ID": "REL-001",
+    "Statut Sélection": "Candidat",
+    "Crée le": "15/10/2026 09:14",
+    "Dernière modification le": "15/11/2026 09:14"
+  },
+  {
+    "Individu": "CLEMENT Mila",
+    "Numéro étudiant": "20260300016",
+    "No": 1,
+    "Offre de séjour": "University of Klagenfurt 2026-2027",
+    "Offre de séjour ID": "REL-009",
+    "Statut Sélection": "Candidat",
+    "Crée le": "16/10/2026 09:15",
+    "Dernière modification le": "16/11/2026 09:15"
+  },
+  {
+    "Individu": "MOREL Eden",
+    "Numéro étudiant": "20260300017",
+    "No": 1,
+    "Offre de séjour": "Erasmus outgoing agreement",
+    "Offre de séjour ID": "REL-001",
+    "Statut Sélection": "Candidat",
+    "Crée le": "17/10/2026 09:16",
+    "Dernière modification le": "17/11/2026 09:16"
+  },
+  {
+    "Individu": "MOREL Eden",
+    "Numéro étudiant": "20260300017",
+    "No": 2,
+    "Offre de séjour": "Exchange incoming agreement",
+    "Offre de séjour ID": "REL-002",
+    "Statut Sélection": "Candidat",
+    "Crée le": "17/10/2026 09:16",
+    "Dernière modification le": "17/11/2026 09:16"
+  },
+  {
+    "Individu": "PAYET Lina",
+    "Numéro étudiant": "20260300018",
+    "No": 1,
+    "Offre de séjour": "Exchange incoming agreement",
+    "Offre de séjour ID": "REL-002",
+    "Statut Sélection": "Candidat",
+    "Crée le": "18/10/2026 09:17",
+    "Dernière modification le": "18/11/2026 09:17"
+  },
+  {
+    "Individu": "PAYET Lina",
+    "Numéro étudiant": "20260300018",
+    "No": 2,
+    "Offre de séjour": "Industry internship agreement",
+    "Offre de séjour ID": "REL-003",
+    "Statut Sélection": "Candidat",
+    "Crée le": "18/10/2026 09:17",
+    "Dernière modification le": "18/11/2026 09:17"
+  },
+  {
+    "Individu": "PAYET Lina",
+    "Numéro étudiant": "20260300018",
+    "No": 3,
+    "Offre de séjour": "Joint double degree",
+    "Offre de séjour ID": "REL-004",
+    "Statut Sélection": "Candidat",
+    "Crée le": "18/10/2026 09:17",
+    "Dernière modification le": "18/11/2026 09:17"
+  }
 ]

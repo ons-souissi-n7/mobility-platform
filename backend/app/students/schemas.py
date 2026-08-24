@@ -249,3 +249,13 @@ class StudentWishItemOut(Schema):
     university_name: str
     country_name: str
     country_iso2: str
+
+
+class StudentRecommendationOut(Schema):
+    agreement_year_id: int
+    agreement_name: str
+    university_name: str
+    country_name: str
+    country_iso2: str
+    score: float | None
+    model_based: bool

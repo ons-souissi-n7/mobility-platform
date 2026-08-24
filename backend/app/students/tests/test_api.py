@@ -12,7 +12,7 @@ from app.institutions.models import PartnerUniversity
 from app.mobility.models import Agreement, AgreementYear
 from app.outgoing.models import Assignment, AssignmentResult, AssignmentStatus, SlotType
 from app.reference.models import Country, CTIRegion, Department, Level
-from app.students.models import AnnualEnrollment, Student
+from app.students.models import AnnualEnrollment, Student, StudentWish
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -796,6 +796,145 @@ class TestGetStudentAssignment:
         assert "UPM Madrid" in data["university_name"]
         assert data["country_name"] == "Espagne"
         assert data["override_reason"] == "Meilleure adéquation pédagogique"
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/student/{ine}/recommendations/
+# ---------------------------------------------------------------------------
+
+
+def _make_current_year_with_agreement():
+    year = AcademicYear.objects.create(
+        label="2026-2027", start_date=date(2026, 9, 1), end_date=date(2027, 8, 31)
+    )
+    dept = Department.objects.create(code="SN", name="Sciences du Numerique")
+    level = Level.objects.create(code="3A", name="Troisieme annee")
+    ay = _make_agreement_year(year)
+    ay.agreement.levels.add(level)
+    return year, dept, level, ay
+
+
+@pytest.mark.django_db
+class TestGetStudentRecommendations:
+    def setup_method(self):
+        self.client = Client()
+
+    def test_returns_404_for_unknown_student(self):
+        response = self.client.get("/api/v1/student/UNKNOWN/recommendations/")
+        assert response.status_code == 404
+
+    def test_cold_start_ranks_by_gpa_without_historical_data(self):
+        year, dept, level, ay = _make_current_year_with_agreement()
+        student = Student.objects.create(
+            ine="26SN001TST", first_name="Alice", last_name="Martin"
+        )
+        AnnualEnrollment.objects.create(
+            student=student,
+            academic_year=year,
+            department=dept,
+            level=level,
+            gpa="15.50",
+        )
+
+        response = self.client.get("/api/v1/student/26SN001TST/recommendations/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["model_based"] is False
+        assert data[0]["score"] is None
+        assert data[0]["agreement_year_id"] == ay.id
+
+    def test_ineligible_level_is_excluded(self):
+        year, dept, _level, _ay = _make_current_year_with_agreement()
+        other_level = Level.objects.create(code="1A", name="Premiere annee")
+        student = Student.objects.create(
+            ine="26SN002TST", first_name="Bob", last_name="Durand"
+        )
+        AnnualEnrollment.objects.create(
+            student=student,
+            academic_year=year,
+            department=dept,
+            level=other_level,
+            gpa="12.00",
+        )
+
+        response = self.client.get("/api/v1/student/26SN002TST/recommendations/")
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_model_based_ranking_with_sufficient_history(self):
+        # Historique clôturé : 40 vœux pour le même accord, moitié affectée,
+        # moitié non — assez pour dépasser MIN_OBSERVATIONS (30) avec les
+        # deux classes représentées.
+        past_year = AcademicYear.objects.create(
+            label="2023-2024", start_date=date(2023, 9, 1), end_date=date(2024, 8, 31)
+        )
+        AcademicYear.objects.filter(pk=past_year.pk).update(status="closed")
+        past_year = AcademicYear.objects.get(pk=past_year.pk)
+        dept = Department.objects.create(code="3EA", name="Electronique")
+        level = Level.objects.create(code="2A", name="Deuxieme annee")
+        past_ay = _make_agreement_year(past_year)
+        past_assignment = Assignment.objects.create(academic_year=past_year)
+
+        for i in range(40):
+            student = Student.objects.create(
+                ine=f"23EA{i:04d}TT"[:11], first_name=f"S{i}", last_name="Test"
+            )
+            enrollment = AnnualEnrollment.objects.create(
+                student=student,
+                academic_year=past_year,
+                department=dept,
+                level=level,
+                # GPA croissant avec i, corrélé linéairement à l'affectation
+                # ci-dessous : signal réellement apprenable (contrairement à
+                # une alternance pure), nécessaire pour passer le seuil MIN_AUC.
+                gpa=f"{10.0 + i * 0.2:.2f}",
+            )
+            StudentWish.objects.create(
+                annual_enrollment=enrollment, agreement_year=past_ay, rank=1
+            )
+            is_assigned = i >= 20  # moitié des GPA les plus hauts affectée
+            AssignmentResult.objects.create(
+                assignment=past_assignment,
+                annual_enrollment=enrollment,
+                slot_type=SlotType.DEPT if is_assigned else SlotType.UNASSIGNED,
+                agreement_year=past_ay if is_assigned else None,
+                assigned_rank=1 if is_assigned else None,
+            )
+
+        # Année courante : même accord (même Agreement, nouvelle AgreementYear)
+        # pour que le taux historique calculé ci-dessus s'applique.
+        current_year = AcademicYear.objects.create(
+            label="2026-2027", start_date=date(2026, 9, 1), end_date=date(2027, 8, 31)
+        )
+        current_ay = AgreementYear.objects.create(
+            agreement=past_ay.agreement,
+            academic_year=current_year,
+            is_active=True,
+            n7_places=5,
+        )
+        student = Student.objects.create(
+            ine="26EA0001TST", first_name="Cand", last_name="Idate"
+        )
+        AnnualEnrollment.objects.create(
+            student=student,
+            academic_year=current_year,
+            department=dept,
+            level=level,
+            gpa="16.00",
+        )
+
+        response = self.client.get("/api/v1/student/26EA0001TST/recommendations/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["model_based"] is True
+        assert data[0]["score"] is not None
+        assert 0.0 <= data[0]["score"] <= 1.0
+        assert data[0]["agreement_year_id"] == current_ay.id
 
 
 # ---------------------------------------------------------------------------

@@ -175,5 +175,832 @@
         7
       ]
     }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 8,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention Imperial College London",
+      "partner_university": 8,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2019-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 3,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Hors Erasmus depuis le Brexit",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 9,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention University of Tokyo",
+      "partner_university": 9,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2021-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 10,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ IST Lisboa",
+      "partner_university": 10,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 11,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ DTU Lyngby",
+      "partner_university": 11,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2022-09-01",
+      "valid_until": "2028-08-31",
+      "inp_total_places": 3,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 12,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ NTNU Trondheim",
+      "partner_university": 12,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2023-09-01",
+      "valid_until": "2028-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "Nouvel accord signe en 2023",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 13,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention University of Melbourne",
+      "partner_university": 13,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 14,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention KAIST",
+      "partner_university": 14,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2021-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 15,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention NUS Singapour",
+      "partner_university": 15,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2022-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 16,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ VUB Bruxelles",
+      "partner_university": 16,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2019-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 17,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ Warsaw Univ. of Tech.",
+      "partner_university": 17,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 3,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 18,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ Chalmers Goteborg",
+      "partner_university": 18,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2018-09-01",
+      "valid_until": "2028-08-31",
+      "inp_total_places": 3,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 19,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ RWTH Aachen",
+      "partner_university": 19,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2019-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 4,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 20,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ UPC Barcelone",
+      "partner_university": 20,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2021-09-01",
+      "valid_until": "2028-08-31",
+      "inp_total_places": 3,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 21,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention Georgia Tech (Exchange)",
+      "partner_university": 21,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2019-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 22,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention University of Toronto",
+      "partner_university": 22,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 23,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention Tsinghua University",
+      "partner_university": 23,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2021-09-01",
+      "valid_until": "2028-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 24,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention IIT Bombay",
+      "partner_university": 24,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2022-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 25,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention University of Cape Town",
+      "partner_university": 25,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 26,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention PUC Chile",
+      "partner_university": 26,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2021-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 27,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention USP Sao Paulo",
+      "partner_university": 27,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2019-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 28,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ CTU Prague",
+      "partner_university": 28,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 3,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 29,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ BME Budapest",
+      "partner_university": 29,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2021-09-01",
+      "valid_until": "2028-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 30,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ Aalto University",
+      "partner_university": 30,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2022-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 3,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 31,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ Trinity College Dublin",
+      "partner_university": 31,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2019-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 32,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Erasmus+ Istanbul Tech. Univ.",
+      "partner_university": 32,
+      "category": 1,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 3,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 33,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention KAUST",
+      "partner_university": 33,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2022-09-01",
+      "valid_until": "2028-08-31",
+      "inp_total_places": 1,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        4,
+        5
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 34,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention UTM Malaysia",
+      "partner_university": 34,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2021-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 35,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Convention University of Auckland",
+      "partner_university": 35,
+      "category": 2,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Hors Erasmus - financement etudiant",
+      "last_sync_moveon": null,
+      "levels": [
+        5,
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 36,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Double diplome TU Munchen",
+      "partner_university": 1,
+      "category": 3,
+      "direction": "outgoing",
+      "valid_from": "2021-09-01",
+      "valid_until": "2028-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Double diplome ingenieur",
+      "last_sync_moveon": null,
+      "levels": [
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 37,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Double diplome RWTH Aachen",
+      "partner_university": 19,
+      "category": 3,
+      "direction": "outgoing",
+      "valid_from": "2020-09-01",
+      "valid_until": "2027-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "Double diplome ingenieur",
+      "last_sync_moveon": null,
+      "levels": [
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 38,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Double diplome Politecnico di Milano",
+      "partner_university": 5,
+      "category": 3,
+      "direction": "outgoing",
+      "valid_from": "2019-09-01",
+      "valid_until": "2026-08-31",
+      "inp_total_places": 2,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Double diplome ingenieur",
+      "last_sync_moveon": null,
+      "levels": [
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 39,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Double diplome UPC Barcelone",
+      "partner_university": 20,
+      "category": 3,
+      "direction": "outgoing",
+      "valid_from": "2022-09-01",
+      "valid_until": "2029-08-31",
+      "inp_total_places": 1,
+      "inp_institutions": "ENSEEIHT",
+      "remarks": "Double diplome ingenieur",
+      "last_sync_moveon": null,
+      "levels": [
+        7
+      ]
+    }
+  },
+  {
+    "model": "mobility.agreement",
+    "pk": 40,
+    "fields": {
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "",
+      "updated_by": "",
+      "moveon_id": null,
+      "name": "Double diplome Georgia Tech",
+      "partner_university": 21,
+      "category": 3,
+      "direction": "outgoing",
+      "valid_from": "2021-09-01",
+      "valid_until": "2028-08-31",
+      "inp_total_places": 1,
+      "inp_institutions": "INP Toulouse",
+      "remarks": "Double diplome ingenieur",
+      "last_sync_moveon": null,
+      "levels": [
+        7
+      ]
+    }
   }
 ]

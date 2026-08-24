@@ -157,8 +157,8 @@ des mobilités complémentaires. Idempotent pour `seed_dev_data` /
 données liées aux années (jamais les référentiels).
 
 ```bash
-# 1. Historique : 3 années clôturées (2022-2023 → 2024-2025), ~10 étudiants
-#    par département et par année, affectations réelles via Gale-Shapley
+# 1. Historique : 5 années clôturées (2020-2021 → 2024-2025), ~35 étudiants
+#    par département et par année (~105/an), affectations réelles via Gale-Shapley
 docker compose -f docker-compose.dev.yml run --rm backend python manage.py reset_historical_years
 
 # 2. Année courante 2025-2026 (ouverte aux vœux) — pas de commande dédiée,
@@ -176,7 +176,7 @@ year.start_candidature(); year.save(update_fields=['status', 'updated_at'])
 # 3. 55 étudiants + vœux + 5 accords supplémentaires pour 2025-2026
 docker compose -f docker-compose.dev.yml run --rm backend python manage.py seed_dev_data
 
-# 4. Entrants, stages, mobilités complémentaires sur les 4 années
+# 4. Entrants (~60 à 130/an), stages, mobilités complémentaires sur les 6 années
 docker compose -f docker-compose.dev.yml run --rm backend python manage.py seed_mobility_data
 ```
 
@@ -216,6 +216,13 @@ docker compose -f docker-compose.dev.yml run --rm --no-deps backend python manag
 ```bash
 docker compose -f docker-compose.dev.yml run --rm backend python manage.py migrate
 docker compose -f docker-compose.dev.yml run --rm backend pytest --cov=. --cov-report=xml --cov-fail-under=80 -v
+docker compose -f docker-compose.dev.yml run --rm backend pytest --cov=. --cov-report=html --cov-fail-under=80 -q
+```
+
+Le rapport HTML est écrit dans `backend/htmlcov/` (bind-mount, donc accessible côté hôte). Ouvre-le via :
+
+```
+backend/htmlcov/index.html
 ```
 
 **Si tu comptes lancer SonarQube ensuite (section 7)**, une étape supplémentaire

@@ -16,4 +16,5 @@ Pillow==12.3.0
 openpyxl==3.1.5
 minio==7.2.15
 msgpack==1.2.1
+scikit-learn==1.5.2
 setuptools==78.1.1

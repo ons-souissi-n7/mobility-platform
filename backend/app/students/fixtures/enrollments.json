@@ -12,7 +12,7 @@
       "department": 1,
       "level": 2,
       "parcours": 1,
-      "gpa": "2.90"
+      "gpa": "14.50"
     }
   },
   {
@@ -28,7 +28,7 @@
       "department": 1,
       "level": 5,
       "parcours": 1,
-      "gpa": "3.04"
+      "gpa": "15.20"
     }
   },
   {
@@ -44,7 +44,7 @@
       "department": 1,
       "level": 7,
       "parcours": 1,
-      "gpa": "3.16"
+      "gpa": "15.80"
     }
   },
   {
@@ -60,7 +60,7 @@
       "department": 2,
       "level": 2,
       "parcours": 3,
-      "gpa": "3.22"
+      "gpa": "16.10"
     }
   },
   {
@@ -76,7 +76,7 @@
       "department": 2,
       "level": 5,
       "parcours": 3,
-      "gpa": "3.34"
+      "gpa": "16.70"
     }
   },
   {
@@ -92,7 +92,7 @@
       "department": 2,
       "level": 7,
       "parcours": 3,
-      "gpa": "3.44"
+      "gpa": "17.20"
     }
   },
   {
@@ -108,7 +108,7 @@
       "department": 3,
       "level": 2,
       "parcours": 5,
-      "gpa": "2.76"
+      "gpa": "13.80"
     }
   },
   {
@@ -124,7 +124,7 @@
       "department": 3,
       "level": 5,
       "parcours": 5,
-      "gpa": "2.86"
+      "gpa": "14.30"
     }
   },
   {
@@ -140,7 +140,7 @@
       "department": 3,
       "level": 7,
       "parcours": 5,
-      "gpa": "2.98"
+      "gpa": "14.90"
     }
   },
   {
@@ -156,7 +156,7 @@
       "department": 1,
       "level": 2,
       "parcours": 2,
-      "gpa": "3.50"
+      "gpa": "17.50"
     }
   },
   {
@@ -172,7 +172,7 @@
       "department": 1,
       "level": 5,
       "parcours": 2,
-      "gpa": "3.58"
+      "gpa": "17.90"
     }
   },
   {
@@ -188,7 +188,7 @@
       "department": 1,
       "level": 7,
       "parcours": 2,
-      "gpa": "3.64"
+      "gpa": "18.20"
     }
   },
   {
@@ -204,7 +204,7 @@
       "department": 2,
       "level": 2,
       "parcours": 4,
-      "gpa": "2.58"
+      "gpa": "12.90"
     }
   },
   {
@@ -220,7 +220,7 @@
       "department": 2,
       "level": 5,
       "parcours": 4,
-      "gpa": "2.70"
+      "gpa": "13.50"
     }
   },
   {
@@ -236,7 +236,7 @@
       "department": 2,
       "level": 7,
       "parcours": 4,
-      "gpa": "2.82"
+      "gpa": "14.10"
     }
   },
   {
@@ -252,7 +252,7 @@
       "department": 1,
       "level": 5,
       "parcours": 1,
-      "gpa": "3.12"
+      "gpa": "15.60"
     }
   },
   {
@@ -268,7 +268,7 @@
       "department": 1,
       "level": 7,
       "parcours": 1,
-      "gpa": "3.26"
+      "gpa": "16.30"
     }
   },
   {
@@ -284,7 +284,7 @@
       "department": 2,
       "level": 5,
       "parcours": 3,
-      "gpa": "2.94"
+      "gpa": "14.70"
     }
   },
   {
@@ -300,7 +300,7 @@
       "department": 2,
       "level": 7,
       "parcours": 3,
-      "gpa": "3.02"
+      "gpa": "15.10"
     }
   },
   {
@@ -316,7 +316,7 @@
       "department": 1,
       "level": 1,
       "parcours": 1,
-      "gpa": "3.36"
+      "gpa": "16.80"
     }
   },
   {
@@ -332,7 +332,7 @@
       "department": 1,
       "level": 4,
       "parcours": 1,
-      "gpa": "3.48"
+      "gpa": "17.40"
     }
   },
   {
@@ -348,7 +348,7 @@
       "department": 2,
       "level": 1,
       "parcours": 3,
-      "gpa": "3.06"
+      "gpa": "15.30"
     }
   },
   {
@@ -364,7 +364,7 @@
       "department": 2,
       "level": 4,
       "parcours": 3,
-      "gpa": "3.16"
+      "gpa": "15.80"
     }
   },
   {
@@ -380,7 +380,7 @@
       "department": 1,
       "level": 2,
       "parcours": 1,
-      "gpa": "3.18"
+      "gpa": "15.90"
     }
   },
   {
@@ -396,7 +396,7 @@
       "department": 1,
       "level": 5,
       "parcours": 1,
-      "gpa": "3.28"
+      "gpa": "16.40"
     }
   },
   {
@@ -412,7 +412,7 @@
       "department": 2,
       "level": 2,
       "parcours": 4,
-      "gpa": "2.64"
+      "gpa": "13.20"
     }
   },
   {
@@ -428,7 +428,7 @@
       "department": 2,
       "level": 5,
       "parcours": 4,
-      "gpa": "2.80"
+      "gpa": "14.00"
     }
   },
   {
@@ -444,7 +444,7 @@
       "department": 3,
       "level": 2,
       "parcours": 5,
-      "gpa": "3.24"
+      "gpa": "16.20"
     }
   },
   {
@@ -460,7 +460,7 @@
       "department": 3,
       "level": 5,
       "parcours": 5,
-      "gpa": "3.38"
+      "gpa": "16.90"
     }
   },
   {
@@ -476,7 +476,7 @@
       "department": 1,
       "level": 2,
       "parcours": 2,
-      "gpa": "2.92"
+      "gpa": "14.60"
     }
   },
   {
@@ -492,7 +492,7 @@
       "department": 2,
       "level": 2,
       "parcours": 3,
-      "gpa": "3.08"
+      "gpa": "15.40"
     }
   },
   {
@@ -508,7 +508,7 @@
       "department": 1,
       "level": 1,
       "parcours": 1,
-      "gpa": "3.42"
+      "gpa": "17.10"
     }
   }
 ]
