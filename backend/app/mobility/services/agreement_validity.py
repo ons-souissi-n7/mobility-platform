@@ -8,9 +8,14 @@ def is_agreement_active_for_year(
     agreement: Agreement, academic_year: AcademicYear
 ) -> bool:
     """
-    Checks AgreementYear.is_active if an instance exists (manual override),
-    otherwise falls back to date-based validity check.
+    Un accord supprimé n'est jamais actif, quel que soit l'état de son
+    instance (y compris une instance validée, jamais retouchée après
+    suppression pour préserver l'historique). Sinon, on respecte l'état
+    manuel (AgreementYear.is_active) si une instance existe, à défaut on
+    retombe sur la validité par date de l'accord.
     """
+    if agreement.deleted_at is not None:
+        return False
     try:
         instance = AgreementYear.objects.get(
             agreement=agreement, academic_year=academic_year

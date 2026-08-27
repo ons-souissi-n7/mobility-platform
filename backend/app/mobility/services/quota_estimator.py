@@ -26,40 +26,90 @@ class InitResult:
     skipped_existing: int = 0
 
 
+def _default_duration_weeks(
+    agreement: Agreement, academic_year: AcademicYear
+) -> int | None:
+    """Durée par défaut d'une nouvelle instance : reprise de la dernière
+    instance antérieure de ce même accord (comme les quotas département,
+    l'admin n'a pas à la ressaisir chaque année sauf s'il veut la changer) ;
+    à défaut, la durée par défaut définie sur l'accord lui-même.
+    """
+    last = (
+        AgreementYear.objects.filter(
+            agreement=agreement,
+            academic_year__start_date__lt=academic_year.start_date,
+        )
+        .exclude(duration_weeks__isnull=True)
+        .order_by("-academic_year__start_date")
+        .first()
+    )
+    if last is not None:
+        return last.duration_weeks
+    return agreement.duration_weeks
+
+
+def _ensure_agreement_year_instance(
+    agreement: Agreement, academic_year: AcademicYear, result: InitResult
+) -> None:
+    auto_active = is_within_validity(agreement, academic_year)
+
+    inp = agreement.inp_total_places
+    instance, created = AgreementYear.objects.get_or_create(
+        agreement=agreement,
+        academic_year=academic_year,
+        defaults={
+            "is_active": auto_active,
+            "inp_total_places": inp,
+            "n7_places": estimate_n7_from_inp(
+                agreement, inp_places=inp, current_year=academic_year
+            ),
+            "duration_weeks": _default_duration_weeks(agreement, academic_year),
+        },
+    )
+
+    if not created:
+        result.skipped_existing += 1
+        _ensure_department_quotas(instance)
+        return
+
+    result.year_instances_created += 1
+    if auto_active:
+        redistribute_department_quotas(instance)
+        result.department_quotas_created += AgreementYearDepartment.objects.filter(
+            agreement_year=instance
+        ).count()
+
+
 def initialize_new_year_mobility(new_year: AcademicYear) -> InitResult:
     result = InitResult()
 
-    for agreement in Agreement.objects.prefetch_related(
+    for agreement in Agreement.objects.filter(deleted_at__isnull=True).prefetch_related(
         "agreement_departments__department"
-    ).all():
+    ):
         result.agreements_processed += 1
+        _ensure_agreement_year_instance(agreement, new_year, result)
 
-        auto_active = is_within_validity(agreement, new_year)
+    return result
 
-        inp = agreement.inp_total_places
-        instance, created = AgreementYear.objects.get_or_create(
-            agreement=agreement,
-            academic_year=new_year,
-            defaults={
-                "is_active": auto_active,
-                "inp_total_places": inp,
-                "n7_places": estimate_n7_from_inp(
-                    agreement, inp_places=inp, current_year=new_year
-                ),
-            },
-        )
 
-        if not created:
-            result.skipped_existing += 1
-            _ensure_department_quotas(instance)
-            continue
+def initialize_agreement_years(agreement: Agreement) -> InitResult:
+    """Crée les instances (AgreementYear) manquantes pour un accord nouvellement créé
+    ou modifié, sur toutes les années académiques encore ouvertes (non clôturées).
 
-        result.year_instances_created += 1
-        if auto_active:
-            redistribute_department_quotas(instance)
-            result.department_quotas_created += AgreementYearDepartment.objects.filter(
-                agreement_year=instance
-            ).count()
+    Symétrique à `initialize_new_year_mobility` : celle-ci propage une nouvelle année
+    à tous les accords existants, celle-ci propage un nouvel accord à toutes les
+    années déjà en cours. Les années clôturées ne sont jamais rétro-alimentées.
+    Un accord supprimé (deleted_at renseigné) n'obtient plus de nouvelle instance.
+    """
+    result = InitResult()
+    if agreement.deleted_at is not None:
+        return result
+
+    for academic_year in AcademicYear.objects.exclude(
+        status=AcademicYear.CampaignStatus.CLOSED
+    ):
+        result.agreements_processed += 1
+        _ensure_agreement_year_instance(agreement, academic_year, result)
 
     return result
 
@@ -82,7 +132,19 @@ def redistribute_department_quotas(instance: AgreementYear) -> None:
         return
 
     weights = {ad.department_id: 0 for ad in constrained}
-    history = _dept_weights_from_history(instance.agreement, instance.academic_year)
+    history, is_fallback = _dept_weights_from_history(
+        instance.agreement, instance.academic_year
+    )
+    # L'historique hérité d'un accord sœur (même université partenaire) n'est
+    # appliqué que s'il couvre TOUS les départements contraints de ce nouvel
+    # accord ; sinon un département jamais observé chez ce partenaire se
+    # verrait attribuer un poids nul par simple absence de donnée (100 %/0 %
+    # au lieu d'un vrai signal d'absence de demande) — on repart alors sur
+    # une répartition équitable. L'historique PROPRE à l'accord, lui, reste
+    # appliqué tel quel : un département à 0 dans son propre historique est
+    # une information réelle, pas une lacune du repli.
+    if is_fallback and not all(dept_id in history for dept_id in weights):
+        history = {}
     for dept_id, w in history.items():
         if dept_id in weights:
             weights[dept_id] = w
@@ -120,7 +182,7 @@ def ensure_dept_quotas_on_activation(instance: AgreementYear) -> None:
 
 def _dept_weights_from_history(
     agreement: Agreement, current_year: AcademicYear
-) -> dict[int, int]:
+) -> tuple[dict[int, int], bool]:
     """Calcule les poids par département à partir de l'historique des voeux
     et des affectations sur les `YEARS_BACK` dernières années fermées.
 
@@ -128,6 +190,12 @@ def _dept_weights_from_history(
     2. Si aucun historique propre (accord nouveau ou extension), on agrège
        l'historique de tous les accords avec la même université partenaire :
        un nouvel accord est traité comme une extension de l'existant.
+
+    Retourne (poids, is_fallback) : is_fallback indique si les poids
+    proviennent du repli "même université partenaire" (cas 2) plutôt que de
+    l'historique propre de l'accord (cas 1) — l'appelant s'en sert pour ne
+    pas appliquer un repli qui ne couvrirait pas tous les départements
+    contraints du nouvel accord.
     """
     from django.db.models import Count
 
@@ -144,7 +212,7 @@ def _dept_weights_from_history(
     )
 
     if not past_years:
-        return {}
+        return {}, False
 
     wish_counts: dict[int, int] = dict(
         StudentWish.objects.filter(
@@ -168,7 +236,8 @@ def _dept_weights_from_history(
 
     # Aucun historique propre → accord nouveau ou extension : on utilise
     # l'historique agrégé de tous les accords avec la même université partenaire.
-    if not wish_counts and not assign_counts:
+    is_fallback = not wish_counts and not assign_counts
+    if is_fallback:
         wish_counts = dict(
             StudentWish.objects.filter(
                 agreement_year__agreement__partner_university=agreement.partner_university,
@@ -189,10 +258,11 @@ def _dept_weights_from_history(
         )
 
     all_dept_ids = set(wish_counts) | set(assign_counts)
-    return {
+    weights = {
         dept_id: wish_counts.get(dept_id, 0) + assign_counts.get(dept_id, 0)
         for dept_id in all_dept_ids
     }
+    return weights, is_fallback
 
 
 def _hamilton(total: int, weights: dict[int, int]) -> dict[int, int]:

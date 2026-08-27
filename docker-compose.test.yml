@@ -45,13 +45,56 @@ services:
       BACKEND_PUBLIC_URL: http://backend:8000
       # Redirection post-auth → frontend interne
       FRONTEND_PUBLIC_URL: http://frontend:3000
+      # La suite E2E s'authentifie UNE SEULE FOIS (global-setup.ts, storageState
+      # réutilisé par tous les tests) et tourne en un seul worker séquentiel
+      # (playwright.config.ts) : la suite complète dure ~17 min, largement plus
+      # que les 15 min par défaut de JWT_EXPIRY_MINUTES. Sans cette surcharge,
+      # les derniers tests de la suite échouent en cascade (redirection vers
+      # /login) simplement parce que le token s'est expiré en cours de run —
+      # jamais un vrai bug applicatif. Ne s'applique qu'à cet environnement de
+      # test : la valeur de production (15 min, .env) n'est pas modifiée.
+      JWT_EXPIRY_MINUTES: "60"
+      # `runserver` (dev server) spawns a new thread per browser keep-alive
+      # connection, and each thread holds its own DB connection open for
+      # conn_max_age (600s in base.py). Under an E2E run's concurrent SSR +
+      # polling traffic, that many long-lived connections blow through
+      # Postgres' default max_connections (100) — requests then fail with
+      # "sorry, too many clients already", surfacing as random timeouts/500s
+      # across unrelated pages. Closing the connection after each request
+      # (test DB only — dev/prod keep conn_max_age=600) avoids the buildup.
+      CONN_MAX_AGE: "0"
     depends_on:
       db-test:
         condition: service_healthy
+    # db-test repart d'une base vierge à chaque run (pas de volume persistant,
+    # cf. plus haut) : contrairement à docker-compose.dev.yml, les référentiels
+    # et les données de démo (pays/départements/niveaux/parcours/universités/
+    # catégories/accords/année 2025-2026/55 étudiants dont le compte E2E
+    # etudiant@etud.n7.fr — ine 203EA05FISA, cf. STUDENT_DATA_2526 dans
+    # seed_dev_data.py) ne sont donc jamais chargés — README.md documente ce
+    # loaddata + seed_dev_data comme des étapes manuelles "premier démarrage"
+    # qui supposent une base persistante. Sans elles, tout test s'appuyant
+    # dessus échoue (countries/universities vides, étudiant introuvable...).
+    # On les rejoue ici avant chaque run.
+    #
+    # reset_fixture_sequences (commande custom, cf. son docstring) : loaddata
+    # insère ces fixtures avec des PK explicites, ce qui ne fait PAS avancer
+    # les séquences Postgres — sans ce reset, le premier accord/année créé
+    # ensuite par seed_dev_data ou par un test E2E (via l'UI ou l'API) retente
+    # la PK 1 et lève une IntegrityError. `sqlsequencereset | psql` ferait la
+    # même chose mais psql n'est pas installé dans cette image.
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py loaddata app/reference/fixtures/countries.json app/reference/fixtures/departments.json app/reference/fixtures/levels.json app/reference/fixtures/parcours.json app/institutions/fixtures/universities.json app/mobility/fixtures/mobility_categories.json app/mobility/fixtures/agreements.json app/mobility/fixtures/agreement_departments.json app/academic/fixtures/academic_years.json &&
+             python manage.py reset_fixture_sequences reference institutions mobility academic &&
+             python manage.py seed_dev_data &&
+             python manage.py seed_test_accounts_2627 &&
+             python manage.py runserver 0.0.0.0:8000"
 
   worker:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-mobility}:${POSTGRES_PASSWORD:-mobility_secret}@db-test:5432/mobility_test
+      CONN_MAX_AGE: "0"
     depends_on:
       db-test:
         condition: service_healthy
@@ -85,8 +128,8 @@ services:
     volumes:
       - ./frontend/e2e:/app/e2e
       - ./frontend/playwright.config.ts:/app/playwright.config.ts
-      - ./frontend/playwright-report:/app/playwright-report
-      - ./frontend/test-results:/app/test-results
+      - playwright_report:/app/playwright-report
+      - playwright_test_results:/app/test-results
     environment:
       E2E_BASE_URL: http://frontend:3000
       E2E_API_URL: http://backend:8000/api/v1
@@ -124,8 +167,8 @@ services:
     volumes:
       - ./frontend/e2e:/app/e2e
       - ./frontend/playwright.config.ts:/app/playwright.config.ts
-      - ./frontend/playwright-report:/app/playwright-report
-      - ./frontend/test-results:/app/test-results
+      - playwright_report:/app/playwright-report
+      - playwright_test_results:/app/test-results
     environment:
       E2E_BASE_URL: http://frontend:3000
       E2E_API_URL: http://backend:8000/api/v1
@@ -161,9 +204,19 @@ services:
     ports:
       - "9323:9323"
     volumes:
-      - ./frontend/playwright-report:/app/playwright-report
-      - ./frontend/test-results:/app/test-results
+      - playwright_report:/app/playwright-report
+      - playwright_test_results:/app/test-results
     command: npx playwright show-report playwright-report --host 0.0.0.0 --port 9323
 
 volumes:
   frontend_next_e2e:
+  # Volumes nommés (plutôt que bind mounts vers l'hôte Windows) pour
+  # playwright-report/ et test-results/ : les traces Playwright tournent avec
+  # trace: "on" en CI (un trace.zip par test, pas seulement les échecs), et le
+  # bind mount vers un chemin Windows fait perdre en route des chown/écritures
+  # concurrentes (EACCES/ENOENT aléatoires sur les traces, cf. incident du
+  # 2026-08-25). Un volume nommé vit entièrement dans la VM Linux de Docker
+  # Desktop → permissions POSIX fiables. Le report reste consultable via le
+  # service "playwright-report" (npx playwright show-report, port 9323).
+  playwright_report:
+  playwright_test_results:

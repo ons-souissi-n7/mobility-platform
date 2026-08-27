@@ -47,6 +47,30 @@ export async function apiPost<T>(page: Page, path: string, data: unknown = {}): 
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/**
+ * POST multipart (upload de fichier) authentifié — utilisé pour créer des
+ * données de test via l'API (ex. mobilité complémentaire avec justificatif)
+ * sans passer par le formulaire, quand ce n'est pas le formulaire lui-même
+ * qui est sous test.
+ */
+export async function apiPostMultipart<T>(
+  page: Page,
+  path: string,
+  file: { name: string; mimeType: string; buffer: Buffer },
+  fieldName = "document",
+): Promise<T> {
+  const token = await getAuthToken(page);
+  const resp = await page.request.post(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    multipart: { [fieldName]: file },
+  });
+  if (!resp.ok()) {
+    throw new Error(`POST(multipart) ${path} → HTTP ${resp.status()} : ${await resp.text()}`);
+  }
+  const text = await resp.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
 export async function apiDelete(page: Page, path: string): Promise<void> {
   const token = await getAuthToken(page);
   const resp = await page.request.delete(`${API_BASE}${path}`, {
@@ -278,4 +302,98 @@ export async function deleteAgreementViaApi(
   agreementId: number,
 ): Promise<void> {
   await apiDelete(page, `/mobility/agreements/${agreementId}/`);
+}
+
+// ── Référentiels : valeurs valides pour construire des jeux de test ────────
+
+/**
+ * Renvoie une année universitaire "utilisable" (non clôturée si possible,
+ * sinon la plus récente) — réutilise la même logique que les composants
+ * frontend (ex. ComplementaryWorkspace.defaultYear).
+ */
+export async function getUsableAcademicYear(
+  page: Page,
+): Promise<AcademicYearData> {
+  const years = await apiGet<AcademicYearData[]>(page, "/academic/years/");
+  if (years.length === 0) {
+    throw new Error("getUsableAcademicYear : aucune année universitaire en base");
+  }
+  return years.find((y) => y.status !== "closed") ?? years[years.length - 1];
+}
+
+export interface ReferenceFixtures {
+  countryNameFr: string;
+  countryId: number;
+  departmentCode: string;
+  departmentId: number;
+  levelCode: string;
+  levelId: number;
+  parcoursCode: string;
+  universityName: string;
+  universityId: number;
+  categoryName: string;
+}
+
+/**
+ * Récupère un jeu de valeurs de référence valides (pays, département, niveau,
+ * parcours, université, catégorie de mobilité) — nécessaires pour construire
+ * une ligne d'import Excel ou tout autre enregistrement lié aux référentiels.
+ * Suppose que ces référentiels sont déjà peuplés (comme le reste de la suite
+ * E2E, cf. seedGpaAndQuotas), typiquement via une synchronisation Pégase/MoveON
+ * antérieure dans la même campagne de tests.
+ */
+export async function getReferenceFixtures(page: Page): Promise<ReferenceFixtures> {
+  const [countries, departments, levels, parcoursList, universities, categories] =
+    await Promise.all([
+      apiGet<Array<{ id: number; name_fr: string }>>(page, "/reference/countries/"),
+      apiGet<Array<{ id: number; code: string }>>(page, "/reference/departments/"),
+      apiGet<Array<{ id: number; code: string }>>(page, "/reference/levels/"),
+      apiGet<Array<{ id: number; code: string; department_id: number }>>(
+        page,
+        "/reference/parcours/",
+      ),
+      apiGet<{ results: Array<{ id: number; name: string }> }>(
+        page,
+        "/institutions/universities/?page_size=1",
+      ),
+      apiGet<Array<{ id: number; name: string }>>(page, "/mobility/agreement-categories/"),
+    ]);
+
+  if (!countries.length || !departments.length || !levels.length || !parcoursList.length) {
+    throw new Error(
+      "getReferenceFixtures : référentiels de base vides — attendu déjà peuplé (pays/départements/niveaux/parcours)",
+    );
+  }
+
+  const department = departments[0];
+  const parcours =
+    parcoursList.find((p) => p.department_id === department.id) ?? parcoursList[0];
+
+  let university = universities.results[0];
+  if (!university) {
+    university = await apiPost(page, "/institutions/universities/", {
+      name: `E2E University ${Date.now().toString(36)}`,
+      country_id: countries[0].id,
+    });
+  }
+
+  let category = categories[0];
+  if (!category) {
+    category = await apiPost(page, "/mobility/agreement-categories/", {
+      name: `E2E-CAT-${Date.now().toString(36)}`,
+    });
+  }
+
+  return {
+    countryNameFr: countries[0].name_fr,
+    countryId: countries[0].id,
+    departmentCode: department.code,
+    departmentId: department.id,
+    levelCode: levels[0].code,
+    levelId: levels[0].id,
+    parcoursCode: parcours.code,
+    universityName: university.name,
+    universityId: university.id,
+    categoryName: category.name,
+  };
 }

@@ -54,5 +54,29 @@
     "relation_types": "Offre de séjour",
     "created_at": "2025-09-01",
     "updated_at": "2026-01-15"
+  },
+  {
+    "is_active": true,
+    "moveon_framework_id": "2",
+    "name": "Erasmus",
+    "relation_types": "Offre de séjour",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
+  },
+  {
+    "is_active": true,
+    "moveon_framework_id": "3",
+    "name": "DD",
+    "relation_types": "Offre de séjour",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
+  },
+  {
+    "is_active": true,
+    "moveon_framework_id": "4",
+    "name": "Stage Industrie",
+    "relation_types": "Offre de séjour",
+    "created_at": "2025-09-01",
+    "updated_at": "2026-01-15"
   }
 ]

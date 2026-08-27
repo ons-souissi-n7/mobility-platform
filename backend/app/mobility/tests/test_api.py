@@ -1,6 +1,8 @@
+import io
 import json
 from datetime import date
 
+import openpyxl
 import pytest
 from django.test import Client
 
@@ -280,6 +282,138 @@ class TestMobilityAgreementAPI:
         )
 
         assert response.status_code == 404
+
+    def test_create_agreement_with_duration_weeks(self):
+        payload = {
+            "name": "Agreement with duration",
+            "partner_university_id": self.university.id,
+            "direction": "outgoing",
+            "inp_total_places": 6,
+            "inp_institutions": "N7",
+            "remarks": "",
+            "duration_weeks": 24,
+            "department_ids": [],
+            "level_ids": [],
+        }
+
+        response = self.client.post(
+            "/api/v1/mobility/agreements/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 201
+        assert response.json()["duration_weeks"] == 24
+        assert (
+            Agreement.objects.get(name="Agreement with duration").duration_weeks == 24
+        )
+
+    def test_create_agreement_without_duration_weeks_defaults_to_null(self):
+        payload = {
+            "name": "Agreement without duration",
+            "partner_university_id": self.university.id,
+            "direction": "outgoing",
+            "inp_total_places": 6,
+            "inp_institutions": "N7",
+            "remarks": "",
+            "department_ids": [],
+            "level_ids": [],
+        }
+
+        response = self.client.post(
+            "/api/v1/mobility/agreements/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 201
+        assert response.json()["duration_weeks"] is None
+
+    def test_update_agreement_duration_weeks(self):
+        payload = {
+            "name": self.agreement.name,
+            "partner_university_id": self.university.id,
+            "direction": "outgoing",
+            "inp_total_places": 10,
+            "inp_institutions": "N7",
+            "remarks": "",
+            "duration_weeks": 16,
+            "department_ids": [],
+            "level_ids": [],
+        }
+
+        response = self.client.put(
+            f"/api/v1/mobility/agreements/{self.agreement.id}/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["duration_weeks"] == 16
+        self.agreement.refresh_from_db()
+        assert self.agreement.duration_weeks == 16
+
+    def test_create_agreement_year_with_duration_weeks_override(self):
+        year2 = AcademicYear.objects.create(
+            label="2027-2028",
+            start_date=date(2027, 9, 1),
+            end_date=date(2028, 8, 31),
+        )
+        payload = {
+            "agreement_id": self.agreement.id,
+            "academic_year_id": year2.id,
+            "is_active": True,
+            "n7_places": 3,
+            "duration_weeks": 8,
+        }
+
+        response = self.client.post(
+            "/api/v1/mobility/agreement-years/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 201
+        assert response.json()["duration_weeks"] == 8
+
+    def test_export_agreements_excel_includes_duration_header_and_value(self):
+        self.agreement.duration_weeks = 20
+        self.agreement.save(update_fields=["duration_weeks"])
+
+        response = self.client.get("/api/v1/mobility/agreements/export-excel/")
+
+        assert response.status_code == 200
+        wb = openpyxl.load_workbook(io.BytesIO(response.content))
+        ws = wb["Accords"]
+        headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+        assert "Durée (semaines)" in headers
+        duration_col = headers.index("Durée (semaines)")
+
+        rows = list(ws.iter_rows(min_row=2, values_only=True))
+        matching = [r for r in rows if r[0] == self.agreement.name]
+        assert len(matching) == 1
+        assert matching[0][duration_col] == 20
+
+    def test_export_agreements_excel_prefers_agreement_year_duration_override(self):
+        self.agreement.duration_weeks = 20
+        self.agreement.save(update_fields=["duration_weeks"])
+        self.year.duration_weeks = 6
+        self.year.save(update_fields=["duration_weeks"])
+
+        response = self.client.get(
+            f"/api/v1/mobility/agreements/export-excel/?year_label={self.academic_year.label}"
+        )
+
+        assert response.status_code == 200
+        wb = openpyxl.load_workbook(io.BytesIO(response.content))
+        ws = wb["Accords"]
+        headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+        duration_col = headers.index("Durée (semaines)")
+
+        rows = list(ws.iter_rows(min_row=2, values_only=True))
+        matching = [r for r in rows if r[0] == self.agreement.name]
+        assert len(matching) == 1
+        assert matching[0][duration_col] == 6
 
 
 @pytest.mark.django_db

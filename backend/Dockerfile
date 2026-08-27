@@ -30,20 +30,25 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y libpq5 \
     && adduser --system --ingroup appgroup appuser
 
 COPY --from=builder /venv /venv
-COPY . .
+
+# Copie explicite (pas de COPY . .) : seuls les fichiers/dossiers nécessaires
+# à l'exécution entrent dans l'image — ni tests/, ni pyproject.toml, ni
+# .env* éventuels non listés dans .dockerignore. Ajouter une ligne ici si un
+# nouveau dossier applicatif au premier niveau de backend/ est créé.
+COPY manage.py docker-entrypoint.prod.sh ./
+COPY app/ ./app/
+COPY config/ ./config/
 
 RUN SECRET_KEY=build-time-secret \
     JWT_SECRET_KEY=build-time-secret \
     PGCRYPTO_KEY=build-time-secret-32-characters-x \
     DATABASE_URL=sqlite:////tmp/build.sqlite3 \
     python manage.py collectstatic --noinput \
-    && chown -R appuser:appgroup /app
+    && chown -R appuser:appgroup /app \
+    && chmod +x docker-entrypoint.prod.sh
 
 USER appuser
 
 EXPOSE 8000
 
-CMD ["gunicorn", "config.asgi:application", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "2"]
+CMD ["./docker-entrypoint.prod.sh"]

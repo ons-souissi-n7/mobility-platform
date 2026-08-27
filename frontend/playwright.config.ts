@@ -57,7 +57,9 @@ export default defineConfig({
       testMatch: [
         "**/academic-year-lifecycle.spec.ts",
         "**/admin-workflow.spec.ts",
+        "**/admin-business-scenarios.spec.ts",
         "**/alerts.spec.ts",
+        "**/excel-import-export.spec.ts",
       ],
     },
 

@@ -9,7 +9,7 @@ import type { AcademicYear, CtiRegionRow, CtiStats } from "@/lib/api/types";
 
 // ─── Tables VII.D3 ────────────────────────────────────────────────────────────
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#1E3A8A]">
       {children}
@@ -17,7 +17,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function StatsTable({ head, rows }: { head: string[]; rows: (string | number)[][] }) {
+function StatsTable({ head, rows }: Readonly<{ head: string[]; rows: (string | number)[][] }>) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-xs">
@@ -55,7 +55,7 @@ function StatsTable({ head, rows }: { head: string[]; rows: (string | number)[][
   );
 }
 
-function RegionTable({ rows = [] }: { rows?: CtiRegionRow[] }) {
+function RegionTable({ rows = [] }: Readonly<{ rows?: CtiRegionRow[] }>) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-xs">
@@ -86,7 +86,7 @@ function RegionTable({ rows = [] }: { rows?: CtiRegionRow[] }) {
   );
 }
 
-function CtiKpiCard({ label, value }: { label: string; value: string }) {
+function CtiKpiCard({ label, value }: Readonly<{ label: string; value: string }>) {
   return (
     <div className="rounded-md border border-gray-200 bg-[#EFF6FF] px-4 py-3">
       <p className="text-xs text-gray-500">{label}</p>
@@ -97,7 +97,7 @@ function CtiKpiCard({ label, value }: { label: string; value: string }) {
 
 // ─── Visualisation VII.D3 ────────────────────────────────────────────────────
 
-function CtiStatsView({ stats }: { stats: CtiStats }) {
+function CtiStatsView({ stats }: Readonly<{ stats: CtiStats }>) {
   const excHead = ["", "< 1 sem. FISE", "< 1 sem. FISA", "1 semestre FISE", "1 semestre FISA", "> 1 sem. FISE", "> 1 sem. FISA"];
   const excRows = stats.exchanges.map((r) => [r.label, r.lt_fise, r.lt_fisa, r.eq_fise, r.eq_fisa, r.gt_fise, r.gt_fisa]);
 
@@ -162,7 +162,7 @@ function CtiStatsView({ stats }: { stats: CtiStats }) {
 
 // ─── Panneau principal ────────────────────────────────────────────────────────
 
-export function CtiExportPanel({ years }: { years: AcademicYear[] }) {
+export function CtiExportPanel({ years }: Readonly<{ years: AcademicYear[] }>) {
   const [selectedYearId, setSelectedYearId] = useState<number>(years[0]?.id ?? 0);
   const [stats, setStats]               = useState<CtiStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);

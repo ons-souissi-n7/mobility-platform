@@ -41,7 +41,7 @@ def get_student_profile(request, ine: str):
         raise HttpError(404, STUDENT_NOT_FOUND) from exc
 
     enrollments = (
-        AnnualEnrollment.objects.filter(student=student)
+        AnnualEnrollment.objects.filter(student=student, deleted_at__isnull=True)
         .select_related("academic_year")
         .order_by("-academic_year__start_date")
     )
@@ -81,7 +81,7 @@ def get_student_agreements(request, ine: str, year_id: int | None = None):
             raise HttpError(404, "Année académique introuvable.") from exc
     else:
         enrollment_latest = (
-            AnnualEnrollment.objects.filter(student=student)
+            AnnualEnrollment.objects.filter(student=student, deleted_at__isnull=True)
             .select_related("academic_year")
             .order_by("-academic_year__start_date")
             .first()
@@ -91,7 +91,9 @@ def get_student_agreements(request, ine: str, year_id: int | None = None):
         year_id = enrollment_latest.academic_year_id
 
     enrollment = (
-        AnnualEnrollment.objects.filter(student=student, academic_year_id=year_id)
+        AnnualEnrollment.objects.filter(
+            student=student, academic_year_id=year_id, deleted_at__isnull=True
+        )
         .select_related("department", "level")
         .first()
     )
@@ -139,7 +141,7 @@ def get_student_wishes(request, ine: str, year_id: int | None = None):
     except Student.DoesNotExist as exc:
         raise HttpError(404, STUDENT_NOT_FOUND) from exc
 
-    filters: dict = {"student": student}
+    filters: dict = {"student": student, "deleted_at__isnull": True}
     if year_id:
         filters["academic_year_id"] = year_id
 
@@ -196,7 +198,7 @@ def get_student_recommendations(request, ine: str, year_id: int | None = None):
             raise HttpError(404, "Année académique introuvable.") from exc
     else:
         enrollment_latest = (
-            AnnualEnrollment.objects.filter(student=student)
+            AnnualEnrollment.objects.filter(student=student, deleted_at__isnull=True)
             .order_by("-academic_year__start_date")
             .first()
         )
@@ -205,7 +207,9 @@ def get_student_recommendations(request, ine: str, year_id: int | None = None):
         year_id = enrollment_latest.academic_year_id
 
     enrollment = (
-        AnnualEnrollment.objects.filter(student=student, academic_year_id=year_id)
+        AnnualEnrollment.objects.filter(
+            student=student, academic_year_id=year_id, deleted_at__isnull=True
+        )
         .select_related("department", "level", "student__nationality")
         .first()
     )

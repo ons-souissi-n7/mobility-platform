@@ -45,7 +45,7 @@ const EDITABLE_FIELDS: Array<{ key: string; label: string; type?: string }> = [
   { key: "DUREE", label: "Durée" },
 ];
 
-function PayloadGrid({ payload }: { payload: Record<string, unknown> }) {
+function PayloadGrid({ payload }: Readonly<{ payload: Record<string, unknown> }>) {
   const entries = Object.entries(payload).filter(
     ([k, v]) => k !== "row_number" && v !== null && v !== undefined && v !== "",
   );

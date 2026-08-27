@@ -1,9 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { X, Lock } from "lucide-react";
+import { RotateCcw, Trash2, X } from "lucide-react";
 
+import { AgreementYearCell } from "@/components/mobility/agreement-year-cell";
 import type {
+  AcademicYear,
   Agreement,
   AgreementYear,
   AgreementYearDepartment,
@@ -64,6 +66,7 @@ function DirectionBadge({ direction }: { direction: string }) {
 // ── Main component ───────────────────────────────────────────────────────────
 
 type Props = {
+  academicYears: AcademicYear[];
   agreement: Agreement;
   allAgreementYears: AgreementYear[];
   allDeptQuotas: AgreementYearDepartment[];
@@ -72,9 +75,17 @@ type Props = {
   departments: Map<number, Department>;
   levels: Map<number, Level>;
   onClose: () => void;
+  onEditYear: (yi: AgreementYear, n7Places: number) => Promise<void>;
+  onEditYearDuration: (yi: AgreementYear, durationWeeks: number | null) => Promise<void>;
+  onEditYearInp: (yi: AgreementYear, inpPlaces: number) => Promise<void>;
+  onRestore: (agreement: Agreement) => Promise<void>;
+  onSaveDeptQuota: (dq: AgreementYearDepartment, places: number) => Promise<void>;
+  onToggleYearActive: (yi: AgreementYear) => Promise<void>;
+  onValidateYear: (yi: AgreementYear) => Promise<void>;
 };
 
 export function AgreementDetailModal({
+  academicYears,
   agreement,
   allAgreementYears,
   allDeptQuotas,
@@ -83,10 +94,21 @@ export function AgreementDetailModal({
   departments,
   levels,
   onClose,
+  onEditYear,
+  onEditYearDuration,
+  onEditYearInp,
+  onRestore,
+  onSaveDeptQuota,
+  onToggleYearActive,
+  onValidateYear,
 }: Readonly<Props>) {
   const yearInstances = allAgreementYears
     .filter((yi) => yi.agreement_id === agreement.id)
     .sort((a, b) => b.academic_year_label.localeCompare(a.academic_year_label));
+
+  const closedYearLabels = new Set(
+    academicYears.filter((y) => y.status === "closed").map((y) => y.label),
+  );
 
   const deptQuotasByYearId = new Map<number, AgreementYearDepartment[]>();
   for (const dq of allDeptQuotas) {
@@ -115,17 +137,39 @@ export function AgreementDetailModal({
         {/* Header */}
         <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">{agreement.name}</h2>
-            <p className="mt-1 text-sm text-gray-500">Détails de l&apos;accord de mobilité</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-bold text-gray-900">{agreement.name}</h2>
+              {agreement.deleted_at && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700">
+                  <Trash2 size={9} />
+                  Supprimé le {new Date(agreement.deleted_at).toLocaleDateString("fr-FR")}
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-gray-500">
+              Détails de l&apos;accord de mobilité — historique complet de toutes les années
+            </p>
           </div>
-          <button
-            className="rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-            onClick={onClose}
-            title="Fermer"
-            type="button"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <div className="flex items-center gap-2">
+            {agreement.deleted_at && (
+              <button
+                className="flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => void onRestore(agreement)}
+                type="button"
+              >
+                <RotateCcw size={12} />
+                Restaurer
+              </button>
+            )}
+            <button
+              className="rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              onClick={onClose}
+              title="Fermer"
+              type="button"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-6 px-6 py-5">
@@ -296,67 +340,38 @@ export function AgreementDetailModal({
           <hr className="border-gray-100" />
 
           {/* ── Instances annuelles ───────────────────────────────────── */}
-          <Section title="Instances annuelles">
+          <Section title="Historique complet — toutes les années">
             {yearInstances.length === 0 ? (
               <p className="text-sm italic text-gray-400">Aucune instance annuelle.</p>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-gray-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
-                    <tr>
-                      <th className="px-4 py-2">Année</th>
-                      <th className="px-4 py-2">Statut</th>
-                      <th className="px-4 py-2 text-right">Places N7</th>
-                      <th className="px-4 py-2">Quotas départements</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {yearInstances.map((yi) => {
-                      const quotas = deptQuotasByYearId.get(yi.id) ?? [];
-                      return (
-                        <tr key={yi.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-medium text-gray-900">
-                            {yi.academic_year_label}
-                          </td>
-                          <td className="px-4 py-3">
-                            {yi.is_validated ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                                <Lock size={9} /> Validé
-                              </span>
-                            ) : yi.is_active ? (
-                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                                Actif
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
-                                Inactif
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold text-[#1E3A8A]">
-                            {yi.n7_places}
-                          </td>
-                          <td className="px-4 py-3">
-                            {quotas.length > 0 ? (
-                              <div className="flex flex-wrap gap-1.5">
-                                {quotas.map((dq) => {
-                                  const dept = departments.get(dq.department_id);
-                                  return (
-                                    <span key={dq.id} className="rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-700">
-                                      {dept?.code ?? dq.department_id} : {dq.estimated_places}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <span className="text-xs italic text-gray-400">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="space-y-3">
+                {yearInstances.map((yi) => {
+                  const isClosed = closedYearLabels.has(yi.academic_year_label);
+                  return (
+                  <div key={yi.id} className="rounded-lg border border-gray-200 p-3">
+                    <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                      {yi.academic_year_label}
+                      {isClosed && (
+                        <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                          Clôturée
+                        </span>
+                      )}
+                    </p>
+                    <AgreementYearCell
+                      actionsDisabled={agreement.deleted_at !== null || isClosed}
+                      deptQuotas={deptQuotasByYearId.get(yi.id) ?? []}
+                      departmentById={departments}
+                      onEditYear={onEditYear}
+                      onEditYearDuration={onEditYearDuration}
+                      onEditYearInp={onEditYearInp}
+                      onSaveDeptQuota={onSaveDeptQuota}
+                      onToggleActive={onToggleYearActive}
+                      onValidateYear={onValidateYear}
+                      yearInstance={yi}
+                    />
+                  </div>
+                  );
+                })}
               </div>
             )}
           </Section>

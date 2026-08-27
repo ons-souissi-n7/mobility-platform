@@ -25,5 +25,68 @@
       "role": "student",
       "ine": "20SN010FISE"
     }
+  },
+  {
+    "username": "etudiant3@etud.n7.fr",
+    "password": "etudiant123",
+    "attributes": {
+      "email": "etudiant3@etud.n7.fr",
+      "role": "student",
+      "ine": "20SN030FISE"
+    }
+  },
+  {
+    "username": "etudiant4@etud.n7.fr",
+    "password": "etudiant123",
+    "attributes": {
+      "email": "etudiant4@etud.n7.fr",
+      "role": "student",
+      "ine": "20SN031FISA"
+    }
+  },
+  {
+    "username": "etudiant5@etud.n7.fr",
+    "password": "etudiant123",
+    "attributes": {
+      "email": "etudiant5@etud.n7.fr",
+      "role": "student",
+      "ine": "203EA30FISE"
+    }
+  },
+  {
+    "username": "etudiant6@etud.n7.fr",
+    "password": "etudiant123",
+    "attributes": {
+      "email": "etudiant6@etud.n7.fr",
+      "role": "student",
+      "ine": "203EA31FISA"
+    }
+  },
+    {
+    "username": "etudiant7@etud.n7.fr",
+    "password": "etudiant123",
+    "attributes": {
+      "email": "etudiant7@etud.n7.fr",
+      "role": "student",
+      "ine": "20260200012"
+    }
+  },
+  {
+    "username": "etudiant8@etud.n7.fr",
+    "password": "etudiant123",
+    "attributes": {
+      "email": "etudiant8@etud.n7.fr",
+      "role": "student",
+      "ine": "20260200011"
+    }
+  },
+  {
+    "username": "etudiant9@etud.n7.fr",
+    "password": "etudiant123",
+    "attributes": {
+      "email": "etudiant9@etud.n7.fr",
+      "role": "student",
+      "ine": "901234876"
+    }
   }
 ]

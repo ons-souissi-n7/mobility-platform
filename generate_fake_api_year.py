@@ -275,31 +275,48 @@ def _ddmmyyyy(iso_date: str) -> str:
 
 
 def build_internships(students: list, start_year: int) -> list:
+    # (entreprise, ville, pays réel = Country.name_fr, semaines) — couvre les 3
+    # tranches CTI (<3 mois <13 sem., 3-6 mois, >6 mois >=26 sem.) et les 6
+    # régions CTI (Europe, Canada/USA, Amérique, Asie/Moyen-Orient, Afrique,
+    # Océanie). Un stage FR est inclus volontairement (non-international, ne
+    # doit pas compter dans les stats).
     companies = [
-        ("Airbus", "Toulouse", "FR"), ("Siemens", "Munich", "DE"), ("ABB", "Zurich", "CH"),
-        ("Ericsson", "Stockholm", "SE"), ("Philips", "Amsterdam", "NL"),
+        ("Airbus", "Toulouse", "France", 20),
+        ("Siemens", "Munich", "Allemagne", 10),
+        ("ABB", "Zurich", "Suisse", 16),
+        ("Ericsson", "Stockholm", "Suède", 26),
+        ("Philips", "Amsterdam", "Pays-Bas", 13),
+        ("Iberdrola", "Madrid", "Espagne", 30),
+        ("OCP Group", "Casablanca", "Maroc", 12),
+        ("Toyota", "Nagoya", "Japon", 24),
+        ("Bombardier", "Montréal", "Canada", 36),
+        ("Embraer", "São Paulo", "Brésil", 18),
+        ("CSIRO", "Sydney", "Australie", 8),
+        ("Vodafone Egypt", "Le Caire", "Égypte", 40),
     ]
     internships = []
-    for i, s in enumerate(students[:6]):
-        company, city, iso2 = companies[i % len(companies)]
+    for i, s in enumerate(students):
+        company, city, country, weeks = companies[i % len(companies)]
         start = f"{start_year + 1}-03-01"
-        end = f"{start_year + 1}-08-31"
+        end_month = 3 + max(1, round(weeks / 4.33))
+        end_year = start_year + 1 if end_month <= 12 else start_year + 2
+        end = f"{end_year}-{((end_month - 1) % 12) + 1:02d}-28"
         internships.append(
             {
                 "N°INE": s["ine"],
                 "Libellé": f"Stage_{start_year + 1}",
                 "Raison sociale": company,
-                "Pays": city,
+                "Pays": country,
                 "Ville": city,
                 "Type": "Stage 3A",
                 "Statut": "9 Justificatif de fin de stage retourné",
                 "Date de début": _ddmmyyyy(start),
                 "Date de fin": _ddmmyyyy(end),
-                "Nb semaines dans l'entreprise": "24",
+                "Nb semaines dans l'entreprise": str(weeks),
                 "Tuteur pédagogique Ecole": "Pr. Demo",
                 "Tuteur technique entreprise": "M. Demo",
                 "Titre": f"Ingenieur {s['departement']}",
-                "Mobilité à l'international": "Oui",
+                "Mobilité à l'international": "Non" if country == "France" else "Oui",
                 "Composante": "ENSEEIHT",
                 "Modifié le": f"01/09/{start_year} 10:00",
             }

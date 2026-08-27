@@ -27,6 +27,8 @@ class TransformedStudent:
     gpa: float | None
     nationality_iso2: str | None
     source_id: str | None
+    is_alternant: bool | None = None
+    is_scholarship: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -56,6 +58,12 @@ def transform_student(payload: dict[str, Any]) -> TransformedStudent:
         normalize_country_code(nationality_raw) if nationality_raw else None
     )
 
+    # None = non renseigné (distinct de False) — voir StudentRow.is_alternant/
+    # is_scholarship : ne pas écraser une valeur existante avec un booléen
+    # implicite lorsque le payload ne renseigne pas explicitement le champ.
+    is_alternant = payload.get("is_alternant")
+    is_scholarship = payload.get("is_scholarship")
+
     return TransformedStudent(
         ine=ine,
         first_name=normalize_string(str(payload.get("first_name") or "")),
@@ -74,6 +82,8 @@ def transform_student(payload: dict[str, Any]) -> TransformedStudent:
         gpa=gpa,
         nationality_iso2=nationality_iso2,
         source_id=str(payload["source_id"]) if payload.get("source_id") else None,
+        is_alternant=is_alternant if isinstance(is_alternant, bool) else None,
+        is_scholarship=is_scholarship if isinstance(is_scholarship, bool) else None,
     )
 
 

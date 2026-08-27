@@ -656,5 +656,47 @@
     "nationalite": "DE",
     "date_creation": "2026-09-19",
     "date_modification": "2026-11-19"
+  },
+  {
+    "ine": "01234567890",
+    "nom": "DUBOIS",
+    "prenom": "Lea",
+    "email": "lea.dubois@etu.inp-toulouse.fr",
+    "sexe": "F",
+    "departement": "SN",
+    "niveau": "1M",
+    "parcours": "IA",
+    "moyenne": 3.4,
+    "nationalite": "FR",
+    "date_creation": "2026-09-01",
+    "date_modification": "2026-09-01"
+  },
+  {
+    "ine": "11234567890",
+    "nom": "GARCIA",
+    "prenom": "Nathan",
+    "email": "nathan.garcia@etu.inp-toulouse.fr",
+    "sexe": "M",
+    "departement": "3EA",
+    "niveau": "1M",
+    "parcours": "RT",
+    "moyenne": 3.05,
+    "nationalite": "FR",
+    "date_creation": "2026-09-03",
+    "date_modification": "2026-09-03"
+  },
+  {
+    "ine": "",
+    "nom": "SANSINE",
+    "prenom": "TestVide",
+    "email": "sansine.testvide@etu.inp-toulouse.fr",
+    "sexe": "M",
+    "departement": "SN",
+    "niveau": "2ING",
+    "parcours": "IA",
+    "moyenne": 3.1,
+    "nationalite": "FR",
+    "date_creation": "2026-09-20",
+    "date_modification": "2026-09-20"
   }
 ]

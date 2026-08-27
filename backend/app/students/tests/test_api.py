@@ -1,3 +1,4 @@
+import json
 from datetime import date
 from io import BytesIO
 
@@ -5,6 +6,7 @@ import openpyxl
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
+from django.utils import timezone
 
 from app.academic.models import AcademicYear
 from app.imports.models import RawImport, RawImportEntity, RawImportStatus
@@ -373,6 +375,158 @@ class TestListStudentsByYear:
         assert body["count"] == 1
         assert body["results"][0]["ine"] == "10000000001"
 
+    def test_soft_deleted_enrollment_excluded_by_default(self):
+        student = Student.objects.create(
+            ine="10000000001", first_name="A", last_name="A"
+        )
+        AnnualEnrollment.objects.create(
+            student=student,
+            academic_year=self.year,
+            department=self.dept,
+            level=self.level,
+            deleted_at=timezone.now(),
+        )
+
+        response = self.client.get(f"/api/v1/students/students/by-year/{self.year.id}/")
+
+        assert response.json()["count"] == 0
+
+    def test_soft_deleted_enrollment_visible_with_include_deleted(self):
+        student = Student.objects.create(
+            ine="10000000001", first_name="A", last_name="A"
+        )
+        AnnualEnrollment.objects.create(
+            student=student,
+            academic_year=self.year,
+            department=self.dept,
+            level=self.level,
+            deleted_at=timezone.now(),
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/by-year/{self.year.id}/?include_deleted=true"
+        )
+
+        body = response.json()
+        assert body["count"] == 1
+        assert body["results"][0]["deleted_at"] is not None
+
+
+@pytest.mark.django_db
+class TestDeleteRestoreEnrollment:
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        self.dept = Department.objects.create(code="SN", name="Sciences du Numerique")
+        self.level = Level.objects.create(code="3A", name="Troisieme annee")
+        self.student = Student.objects.create(
+            ine="12345678901", first_name="Jean", last_name="Martin"
+        )
+        self.enrollment = AnnualEnrollment.objects.create(
+            student=self.student,
+            academic_year=self.year,
+            department=self.dept,
+            level=self.level,
+        )
+
+    def test_delete_soft_deletes_not_hard_deletes(self):
+        response = self.client.delete(
+            f"/api/v1/students/students/enrollments/{self.enrollment.id}/"
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["deleted_at"] is not None
+        # History preserved — the row is still there, not gone.
+        assert AnnualEnrollment.objects.filter(pk=self.enrollment.id).exists()
+        self.enrollment.refresh_from_db()
+        assert self.enrollment.deleted_at is not None
+
+    def test_delete_already_deleted_returns_400(self):
+        self.enrollment.deleted_at = timezone.now()
+        self.enrollment.save(update_fields=["deleted_at"])
+
+        response = self.client.delete(
+            f"/api/v1/students/students/enrollments/{self.enrollment.id}/"
+        )
+
+        assert response.status_code == 400
+
+    def test_delete_nonexistent_returns_404(self):
+        response = self.client.delete("/api/v1/students/students/enrollments/99999/")
+
+        assert response.status_code == 404
+
+    def test_restore_clears_deleted_at(self):
+        self.enrollment.deleted_at = timezone.now()
+        self.enrollment.save(update_fields=["deleted_at"])
+
+        response = self.client.post(
+            f"/api/v1/students/students/enrollments/{self.enrollment.id}/restore/"
+        )
+
+        assert response.status_code == 200
+        assert response.json()["deleted_at"] is None
+        self.enrollment.refresh_from_db()
+        assert self.enrollment.deleted_at is None
+
+    def test_restore_not_deleted_returns_400(self):
+        response = self.client.post(
+            f"/api/v1/students/students/enrollments/{self.enrollment.id}/restore/"
+        )
+
+        assert response.status_code == 400
+
+    def test_restore_nonexistent_returns_404(self):
+        response = self.client.post(
+            "/api/v1/students/students/enrollments/99999/restore/"
+        )
+
+        assert response.status_code == 404
+
+    def test_deleted_enrollment_removed_from_student_list(self):
+        response = self.client.get(
+            f"/api/v1/students/students/?academic_year_id={self.year.id}"
+        )
+        assert response.json()["count"] == 1
+
+        self.client.delete(
+            f"/api/v1/students/students/enrollments/{self.enrollment.id}/"
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/?academic_year_id={self.year.id}"
+        )
+        assert response.json()["count"] == 0
+
+    def test_stats_update_immediately_after_delete(self):
+        response = self.client.get(
+            f"/api/v1/students/students/stats/?academic_year_id={self.year.id}"
+        )
+        assert response.json()["total"] == 1
+
+        self.client.delete(
+            f"/api/v1/students/students/enrollments/{self.enrollment.id}/"
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/stats/?academic_year_id={self.year.id}"
+        )
+        assert response.json()["total"] == 0
+
+    def test_stats_restore_correctly_after_restore(self):
+        self.client.delete(
+            f"/api/v1/students/students/enrollments/{self.enrollment.id}/"
+        )
+        self.client.post(
+            f"/api/v1/students/students/enrollments/{self.enrollment.id}/restore/"
+        )
+
+        response = self.client.get(
+            f"/api/v1/students/students/stats/?academic_year_id={self.year.id}"
+        )
+        assert response.json()["total"] == 1
+
 
 # ---------------------------------------------------------------------------
 # GET /students/students/stats/
@@ -636,6 +790,375 @@ class TestImportExcel:
         assert response.status_code == 404
 
 
+@pytest.mark.django_db
+class TestImportExcelEndToEnd:
+    """Exercises the real processing path (services.student_importer.import_students,
+    exactly what the django-q worker calls) end-to-end, then checks the failures
+    surface through the same API the admin error panel uses. Catches regressions
+    where a row would be silently dropped instead of recorded as an error."""
+
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        Department.objects.create(code="SN", name="Sciences du Numerique")
+        Level.objects.create(code="3A", name="Troisieme annee")
+
+    def test_every_row_is_accounted_for_no_silent_loss(self):
+        from app.students.services.adapters.excel import parse
+        from app.students.services.student_importer import import_students
+
+        file_bytes = make_xlsx(
+            [
+                [
+                    "11111111111",
+                    "VALIDE",
+                    "Un",
+                    "valide@test.fr",
+                    "M",
+                    "SN",
+                    "3A",
+                    "14.0",
+                ],
+                [
+                    "22222222222",
+                    "MAUVAISDEPT",
+                    "Deux",
+                    "x@test.fr",
+                    "F",
+                    "ZZZ",
+                    "3A",
+                    "12.0",
+                ],
+                [
+                    "33333333333",
+                    "MAUVAISNIV",
+                    "Trois",
+                    "y@test.fr",
+                    "M",
+                    "SN",
+                    "ZZZ",
+                    "13.0",
+                ],
+            ]
+        )
+        rows = parse(file_bytes)
+        assert len(rows) == 3
+
+        before = RawImport.objects.filter(entity=RawImportEntity.STUDENT).count()
+        report = import_students(rows, self.year, source_file="test.xlsx")
+        after = RawImport.objects.filter(entity=RawImportEntity.STUDENT).count()
+
+        assert report.created == 1
+        assert len(report.unresolved) == 2
+        # One RawImport per input row — success or failure, nothing dropped.
+        assert after - before == 3
+        assert Student.objects.filter(ine="11111111111").exists()
+        assert not Student.objects.filter(ine="22222222222").exists()
+        assert not Student.objects.filter(ine="33333333333").exists()
+
+    def test_row_missing_ine_appears_in_error_panel_not_silently_dropped(self):
+        """Regression: a real-world report — a 2-row upload where row 1 has
+        no INE and row 2 is complete. Row 2 must import; row 1 must NOT
+        vanish — it must appear in the error panel with a clear reason."""
+        from app.students.services.adapters.excel import parse
+        from app.students.services.student_importer import import_students
+
+        file_bytes = make_xlsx(
+            [
+                ["", "SANSINE", "Un", "sansine@test.fr", "M", "SN", "3A", "12.0"],
+                [
+                    "66666666666",
+                    "COMPLETE",
+                    "Deux",
+                    "complete@test.fr",
+                    "F",
+                    "SN",
+                    "3A",
+                    "16.0",
+                ],
+            ]
+        )
+        rows = parse(file_bytes)
+        assert (
+            len(rows) == 2
+        )  # both rows reach the importer, none dropped at parse time
+
+        report = import_students(rows, self.year, source_file="test.xlsx")
+
+        assert report.created == 1
+        assert Student.objects.filter(ine="66666666666").exists()
+        assert not Student.objects.filter(last_name="SANSINE").exists()
+
+        response = self.client.get(
+            f"/api/v1/students/students/import-errors/?year_id={self.year.id}"
+        )
+        results = response.json()["results"]
+        matching = [r for r in results if r["payload"].get("last_name") == "SANSINE"]
+        assert len(matching) == 1, "the no-INE row must be visible in the error panel"
+        assert "INE" in matching[0]["error_message"]
+
+    def test_nationalite_is_captured_in_failed_row_payload(self):
+        """Regression: a row missing its INE but with a Nationalité value
+        (e.g. 'Tunisie') lost that value entirely — the error panel showed no
+        nationality at all and the correction form's dropdown came up empty,
+        because import_students() never included nationality_iso2 in the
+        RawImport payload it builds for failed rows."""
+        from app.students.services.adapters.excel import parse
+        from app.students.services.student_importer import import_students
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(
+            [
+                "INE",
+                "Nom",
+                "Prenom",
+                "Email",
+                "Genre",
+                "Departement",
+                "Niveau",
+                "Parcours",
+                "GPA",
+                "Boursier",
+                "FISE/FISA",
+                "Nationalité",
+            ]
+        )
+        ws.append(
+            [
+                "",
+                "SOUISSI",
+                "Ons",
+                "ons@gmail.com",
+                "F",
+                "SN",
+                "3A",
+                None,
+                "3.1",
+                "Oui",
+                "FISE",
+                "Tunisie",
+            ]
+        )
+        buf = BytesIO()
+        wb.save(buf)
+
+        import_students(parse(buf.getvalue()), self.year, source_file="test.xlsx")
+
+        response = self.client.get(
+            f"/api/v1/students/students/import-errors/?year_id={self.year.id}"
+        )
+        matching = [
+            r
+            for r in response.json()["results"]
+            if r["payload"].get("last_name") == "SOUISSI"
+        ]
+        assert len(matching) == 1
+        assert matching[0]["payload"]["nationality_iso2"] == "TN"
+
+    def test_failed_rows_appear_in_the_error_panel_api(self):
+        from app.students.services.adapters.excel import parse
+        from app.students.services.student_importer import import_students
+
+        file_bytes = make_xlsx(
+            [
+                [
+                    "44444444444",
+                    "ERREUR",
+                    "Quatre",
+                    "e@test.fr",
+                    "M",
+                    "INCONNU",
+                    "3A",
+                    "10.0",
+                ]
+            ]
+        )
+        import_students(parse(file_bytes), self.year, source_file="test.xlsx")
+
+        response = self.client.get(
+            f"/api/v1/students/students/import-errors/?year_id={self.year.id}"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        matching = [r for r in data["results"] if r["external_id"] == "44444444444"]
+        assert len(matching) == 1
+        assert "Département introuvable" in matching[0]["error_message"]
+        # Full original row data must still be retrievable, not just the error.
+        assert matching[0]["payload"]["first_name"] == "Quatre"
+        assert matching[0]["payload"]["last_name"] == "ERREUR"
+
+    def test_successful_rows_do_not_appear_as_errors(self):
+        from app.students.services.adapters.excel import parse
+        from app.students.services.student_importer import import_students
+
+        file_bytes = make_xlsx(
+            [["55555555555", "OK", "Cinq", "ok@test.fr", "M", "SN", "3A", "15.0"]]
+        )
+        import_students(parse(file_bytes), self.year, source_file="test.xlsx")
+
+        response = self.client.get(
+            f"/api/v1/students/students/import-errors/?year_id={self.year.id}"
+        )
+
+        assert response.json()["results"] == []
+
+    def test_nationalite_column_round_trips_from_template_to_student(self):
+        """The Nationalité column added to the template must actually be
+        parsed and persisted, not just present as a header."""
+        from app.students.services.adapters.excel import parse
+        from app.students.services.student_importer import import_students
+
+        Country.objects.create(
+            iso2="MA", name_fr="Maroc", name_en="Morocco", cti_region=CTIRegion.AFRIQUE
+        )
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(
+            [
+                "INE",
+                "Nom",
+                "Prénom",
+                "Email",
+                "Genre",
+                "Département",
+                "Niveau",
+                "GPA",
+                "Nationalité",
+            ]
+        )
+        ws.append(
+            [
+                "77777777777",
+                "MAROCAIN",
+                "Sept",
+                "s@test.fr",
+                "M",
+                "SN",
+                "3A",
+                "14.0",
+                "Maroc",
+            ]
+        )
+        buf = BytesIO()
+        wb.save(buf)
+
+        import_students(parse(buf.getvalue()), self.year, source_file="test.xlsx")
+
+        student = Student.objects.get(ine="77777777777")
+        assert student.nationality is not None
+        assert student.nationality.iso2 == "MA"
+
+
+@pytest.mark.django_db
+class TestRetryImportErrorPreservesFields:
+    """Regression: retrying a failed row (e.g. adding the missing INE) used
+    to silently reset Boursier/FISE-FISA to false — the retry endpoint built
+    a fresh StudentRow without threading is_alternant/is_scholarship through
+    from the stored payload at all. Nationalité had the same class of bug
+    (missing from the payload entirely — see test_nationalite_is_captured_...
+    above) but for these two fields the payload *did* have the values; they
+    were just dropped on the way to the retried import."""
+
+    def setup_method(self):
+        self.client = Client()
+        self.year = make_year()
+        Department.objects.create(code="SN", name="Sciences du Numerique")
+        Level.objects.create(code="3ING", name="Troisieme annee ingenieur")
+        Country.objects.create(
+            iso2="TN",
+            name_fr="Tunisie",
+            name_en="Tunisia",
+            cti_region=CTIRegion.AFRIQUE,
+        )
+
+    def _create_failed_row_without_ine(self) -> int:
+        from app.students.services.adapters.excel import parse
+        from app.students.services.student_importer import import_students
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(
+            [
+                "INE",
+                "Nom",
+                "Prenom",
+                "Email",
+                "Genre",
+                "Departement",
+                "Niveau",
+                "Parcours",
+                "GPA",
+                "Boursier",
+                "FISE/FISA",
+                "Nationalité",
+            ]
+        )
+        ws.append(
+            [
+                "",
+                "SOUISSI",
+                "Ons",
+                "ons@gmail.com",
+                "F",
+                "SN",
+                "3ING",
+                None,
+                "3.1",
+                "Oui",
+                "FISA",
+                "Tunisie",
+            ]
+        )
+        buf = BytesIO()
+        wb.save(buf)
+        import_students(parse(buf.getvalue()), self.year, source_file="test.xlsx")
+        raw = RawImport.objects.get(
+            entity=RawImportEntity.STUDENT, payload__last_name="SOUISSI"
+        )
+        # Sanity check on the fix from the previous report — otherwise this
+        # test would pass for the wrong reason (nothing to preserve).
+        assert raw.payload["is_scholarship"] is True
+        assert raw.payload["is_alternant"] is True
+        assert raw.payload["nationality_iso2"] == "TN"
+        return raw.id
+
+    def test_retry_preserves_boursier_fisefisa_and_nationalite_when_not_overridden(
+        self,
+    ):
+        raw_id = self._create_failed_row_without_ine()
+
+        response = self.client.put(
+            f"/api/v1/students/students/import-errors/{raw_id}/retry/",
+            data=json.dumps({"ine": "12345678901"}),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        enrollment = AnnualEnrollment.objects.get(student__ine="12345678901")
+        assert enrollment.is_scholarship is True
+        assert enrollment.is_alternant is True
+        assert enrollment.student.nationality.iso2 == "TN"
+
+    def test_retry_can_explicitly_override_boursier_fisefisa(self):
+        raw_id = self._create_failed_row_without_ine()
+
+        response = self.client.put(
+            f"/api/v1/students/students/import-errors/{raw_id}/retry/",
+            data=json.dumps(
+                {"ine": "12345678901", "is_scholarship": False, "is_alternant": False}
+            ),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        enrollment = AnnualEnrollment.objects.get(student__ine="12345678901")
+        assert enrollment.is_scholarship is False
+        assert enrollment.is_alternant is False
+
+
 # ---------------------------------------------------------------------------
 # GET /students/students/template/
 # ---------------------------------------------------------------------------
@@ -665,6 +1188,32 @@ class TestTemplateDownload:
         headers = [cell.value for cell in ws[1]]
         assert "INE" in headers
         assert "GPA" in headers
+
+    def test_download_includes_boursier_and_fise_fisa_columns(self):
+        response = self.client.get("/api/v1/students/students/template/")
+
+        wb = openpyxl.load_workbook(BytesIO(response.content))
+        ws = wb.active
+        headers = [cell.value for cell in ws[1]]
+        assert "Boursier" in headers
+        assert "FISE/FISA" in headers
+
+    def test_download_includes_nationalite_column(self):
+        response = self.client.get("/api/v1/students/students/template/")
+
+        wb = openpyxl.load_workbook(BytesIO(response.content))
+        ws = wb.active
+        headers = [cell.value for cell in ws[1]]
+        assert "Nationalité" in headers
+
+    def test_download_has_no_example_rows(self):
+        """Only the header row — no sample data (explicit request: template
+        should just show column titles, not pre-filled examples)."""
+        response = self.client.get("/api/v1/students/students/template/")
+
+        wb = openpyxl.load_workbook(BytesIO(response.content))
+        ws = wb.active
+        assert ws.max_row == 1
 
 
 # ---------------------------------------------------------------------------
@@ -1117,3 +1666,77 @@ class TestAnonymizeStudent:
         assert entry is not None
         assert entry.changes["action"][1] == "anonymize_student"
         assert student.ine in entry.changes["detail"][1]
+
+
+# ---------------------------------------------------------------------------
+# GET /students/students/export-excel/{year_id}/
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestStudentsExportExcel:
+    def setup_method(self):
+        self.client = Client()
+        self.year = AcademicYear.objects.create(
+            label="2026-2027",
+            start_date=date(2026, 9, 1),
+            end_date=date(2027, 8, 31),
+        )
+        self.dept = Department.objects.create(code="SN", name="Sciences du Numerique")
+        self.level = Level.objects.create(code="3A", name="Troisieme annee")
+        self.scholarship_fisa = Student.objects.create(
+            ine="12345678901", first_name="Jean", last_name="Martin", email="jean@n7.fr"
+        )
+        AnnualEnrollment.objects.create(
+            student=self.scholarship_fisa,
+            academic_year=self.year,
+            department=self.dept,
+            level=self.level,
+            is_scholarship=True,
+            is_alternant=True,
+        )
+        self.no_scholarship_fise = Student.objects.create(
+            ine="10987654321",
+            first_name="Marie",
+            last_name="Dupont",
+            email="marie@n7.fr",
+        )
+        AnnualEnrollment.objects.create(
+            student=self.no_scholarship_fise,
+            academic_year=self.year,
+            department=self.dept,
+            level=self.level,
+            is_scholarship=False,
+            is_alternant=False,
+        )
+
+    def _rows_by_last_name(self, response):
+        wb = openpyxl.load_workbook(BytesIO(response.content))
+        ws = wb.active
+        headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+        rows = list(ws.iter_rows(min_row=2, values_only=True))
+        return headers, {r[headers.index("Nom")]: r for r in rows}
+
+    def test_export_includes_boursier_and_fise_fisa_headers(self):
+        response = self.client.get(
+            f"/api/v1/students/students/export-excel/{self.year.id}/"
+        )
+
+        assert response.status_code == 200
+        headers, _ = self._rows_by_last_name(response)
+        assert "Boursier" in headers
+        assert "FISE/FISA" in headers
+
+    def test_export_boursier_and_fisa_values(self):
+        response = self.client.get(
+            f"/api/v1/students/students/export-excel/{self.year.id}/"
+        )
+
+        headers, by_name = self._rows_by_last_name(response)
+        boursier_col = headers.index("Boursier")
+        fise_fisa_col = headers.index("FISE/FISA")
+
+        assert by_name["Martin"][boursier_col] == "Oui"
+        assert by_name["Martin"][fise_fisa_col] == "FISA"
+        assert by_name["Dupont"][boursier_col] == "Non"
+        assert by_name["Dupont"][fise_fisa_col] == "FISE"

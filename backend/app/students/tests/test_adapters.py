@@ -72,7 +72,10 @@ class TestExcelAdapterParse:
         assert rows[0].parcours_code == "IPA"
         assert rows[0].gpa == 15.5
 
-    def test_parse_skips_rows_without_ine(self):
+    def test_parse_keeps_rows_without_ine_for_error_reporting(self):
+        """A row missing its INE is NOT dropped — it must still reach
+        import_students() so validate_student() rejects it explicitly and it
+        shows up in the error panel, instead of vanishing without a trace."""
         from app.students.services.adapters.excel import parse
 
         data = make_xlsx(
@@ -81,6 +84,28 @@ class TestExcelAdapterParse:
                 ["12345678901", "Martin", "Jean", "SN", "3A"],
                 [None, "Vide", "Sans", "SN", "3A"],
                 ["", "Vide2", "Sans2", "SN", "3A"],
+            ],
+        )
+
+        rows = parse(data)
+
+        assert len(rows) == 3
+        assert rows[0].ine == "12345678901"
+        assert rows[1].ine == ""
+        assert rows[1].last_name == "Vide"
+        assert rows[2].ine == ""
+        assert rows[2].last_name == "Vide2"
+
+    def test_parse_skips_entirely_blank_rows(self):
+        """A row with no data at all (e.g. leftover spreadsheet formatting)
+        is skipped — unlike a row with data but no INE, this isn't an error."""
+        from app.students.services.adapters.excel import parse
+
+        data = make_xlsx(
+            ["INE", "Nom", "Prenom", "Departement", "Niveau"],
+            [
+                ["12345678901", "Martin", "Jean", "SN", "3A"],
+                [None, None, None, None, None],
             ],
         )
 
@@ -174,6 +199,23 @@ class TestExcelAdapterParse:
 
         assert rows[0].gpa == 14.75
 
+    def test_parse_invalid_gpa_sets_parse_error_instead_of_dropping_row(self):
+        """A malformed GPA must not make the whole row vanish — it's flagged
+        via parse_error so import_students() records it as an explicit error."""
+        from app.students.services.adapters.excel import parse
+
+        data = make_xlsx(
+            ["INE", "Nom", "Prenom", "Departement", "Niveau", "GPA"],
+            [["12345678901", "M", "J", "SN", "3A", "quinze"]],
+        )
+
+        rows = parse(data)
+
+        assert len(rows) == 1
+        assert rows[0].gpa is None
+        assert rows[0].parse_error is not None
+        assert "quinze" in rows[0].parse_error
+
     def test_parse_note_column_accepted_as_gpa(self):
         from app.students.services.adapters.excel import parse
 
@@ -228,6 +270,61 @@ class TestExcelAdapterParse:
         assert rows[0].email == "test@n7.fr"
 
 
+class TestExcelAdapterBoursierFiseFisa:
+    def test_parses_boursier_oui_and_fisa(self):
+        from app.students.services.adapters.excel import parse
+
+        data = make_xlsx(
+            ["INE", "Nom", "Prenom", "Departement", "Niveau", "Boursier", "FISE/FISA"],
+            [["12345678901", "Martin", "Jean", "SN", "3A", "Oui", "FISA"]],
+        )
+
+        rows = parse(data)
+
+        assert rows[0].is_scholarship is True
+        assert rows[0].is_alternant is True
+
+    def test_parses_boursier_non_and_fise(self):
+        from app.students.services.adapters.excel import parse
+
+        data = make_xlsx(
+            ["INE", "Nom", "Prenom", "Departement", "Niveau", "Boursier", "FISE/FISA"],
+            [["12345678901", "Martin", "Jean", "SN", "3A", "Non", "FISE"]],
+        )
+
+        rows = parse(data)
+
+        assert rows[0].is_scholarship is False
+        assert rows[0].is_alternant is False
+
+    def test_blank_boursier_and_fise_fisa_parse_as_none(self):
+        """Blank means 'don't touch the existing value' — see StudentRow docstring."""
+        from app.students.services.adapters.excel import parse
+
+        data = make_xlsx(
+            ["INE", "Nom", "Prenom", "Departement", "Niveau", "Boursier", "FISE/FISA"],
+            [["12345678901", "Martin", "Jean", "SN", "3A", "", ""]],
+        )
+
+        rows = parse(data)
+
+        assert rows[0].is_scholarship is None
+        assert rows[0].is_alternant is None
+
+    def test_missing_columns_parse_as_none(self):
+        from app.students.services.adapters.excel import parse
+
+        data = make_xlsx(
+            ["INE", "Nom", "Prenom", "Departement", "Niveau"],
+            [["12345678901", "Martin", "Jean", "SN", "3A"]],
+        )
+
+        rows = parse(data)
+
+        assert rows[0].is_scholarship is None
+        assert rows[0].is_alternant is None
+
+
 # ---------------------------------------------------------------------------
 # Pégase adapter
 # ---------------------------------------------------------------------------
@@ -269,7 +366,10 @@ class TestPegaseParseRows:
         assert rows[0].level_code == "3A"
         assert rows[0].gpa == 15.5
 
-    def test_skips_items_without_ine(self):
+    def test_keeps_items_without_ine_for_error_reporting(self):
+        """An entry missing its INE is NOT dropped — it must still reach
+        import_students() so validate_student() rejects it explicitly and it
+        shows up in the error panel, instead of vanishing without a trace."""
         rows = self._parse(
             [
                 {
@@ -282,7 +382,11 @@ class TestPegaseParseRows:
                 {"prenom": "C", "nom": "D", "departement": "SN", "niveau": "3A"},
             ]
         )
-        assert rows == []
+        assert len(rows) == 2
+        assert rows[0].ine == ""
+        assert rows[0].last_name == "B"
+        assert rows[1].ine == ""
+        assert rows[1].last_name == "D"
 
     def test_gender_sexe_h_maps_to_m(self):
         rows = self._parse(
@@ -387,6 +491,26 @@ class TestPegaseParseRows:
             ]
         )
         assert rows[0].gpa == 14.2
+
+    def test_invalid_moyenne_sets_parse_error_instead_of_dropping_row(self):
+        """A malformed 'moyenne' must not make the whole entry vanish — it's
+        flagged via parse_error so import_students() records an explicit error."""
+        rows = self._parse(
+            [
+                {
+                    "ine": "001",
+                    "prenom": "A",
+                    "nom": "B",
+                    "departement": "SN",
+                    "niveau": "3A",
+                    "moyenne": "quinze",
+                }
+            ]
+        )
+        assert len(rows) == 1
+        assert rows[0].gpa is None
+        assert rows[0].parse_error is not None
+        assert "quinze" in rows[0].parse_error
 
     def test_nationality_french_name(self):
         rows = self._parse(

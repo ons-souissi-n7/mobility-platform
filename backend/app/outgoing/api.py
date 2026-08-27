@@ -1251,6 +1251,7 @@ def list_wishes_by_year(request, year_id: int, pagination: PaginationQuery = Que
     enrollment_qs = (
         AnnualEnrollment.objects.filter(
             academic_year=academic_year,
+            deleted_at__isnull=True,
         )
         .filter(Exists(StudentWish.objects.filter(annual_enrollment_id=OuterRef("pk"))))
         .select_related(

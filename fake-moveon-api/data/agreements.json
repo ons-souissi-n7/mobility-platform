@@ -93,7 +93,7 @@
     "name": "Joint double degree",
     "partner_university_moveon_id": 2003,
     "relation_type": "Double Diploma",
-    "framework": "Double Degree",
+    "framework": "DD",
     "direction": "both",
     "status": "active",
     "is_active": true,

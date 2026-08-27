@@ -33,11 +33,11 @@ const ENTITY_LABELS: Record<string, string> = {
   country: "Pays",
 };
 
-function ActionBadge({ action }: { action: string }) {
+function ActionBadge({ action }: Readonly<{ action: string }>) {
   return <Badge value={action} map={ACTION_STYLES} />;
 }
 
-function ChangesPanel({ changes }: { changes: Record<string, [unknown, unknown]> | null }) {
+function ChangesPanel({ changes }: Readonly<{ changes: Record<string, [unknown, unknown]> | null }>) {
   if (!changes || Object.keys(changes).length === 0) {
     return <p className="text-xs text-gray-400 italic">Aucun champ modifié enregistré.</p>;
   }
@@ -70,7 +70,7 @@ function ChangesPanel({ changes }: { changes: Record<string, [unknown, unknown]>
   );
 }
 
-function LogRow({ log }: { log: AuditLog }) {
+function LogRow({ log }: Readonly<{ log: AuditLog }>) {
   const [expanded, setExpanded] = useState(false);
 
   const date = formatDateTime(log.timestamp, true);
@@ -116,7 +116,7 @@ function LogRow({ log }: { log: AuditLog }) {
   );
 }
 
-export function AuditLogsWorkspace({ initialData }: { initialData: PagedResponse<AuditLog> }) {
+export function AuditLogsWorkspace({ initialData }: Readonly<{ initialData: PagedResponse<AuditLog> }>) {
   const [data, setData] = useState<PagedResponse<AuditLog>>(initialData);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);

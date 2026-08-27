@@ -194,3 +194,57 @@ class TestImportStudents:
 
         assert db_report.success_count == 1
         assert db_report.error_count == 1
+
+
+@pytest.mark.django_db
+class TestImportStudentsScholarshipAndAlternant:
+    """is_scholarship/is_alternant: None means the source didn't provide a
+    value (Pégase never does) — must not clobber an existing value."""
+
+    def setup_method(self):
+        self.year = AcademicYear.objects.create(
+            label="2026-2027",
+            start_date=date(2026, 9, 1),
+            end_date=date(2027, 8, 31),
+        )
+        Department.objects.create(code="SN", name="Sciences du Numerique")
+        Level.objects.create(code="3A", name="Troisieme annee")
+
+    def test_creates_enrollment_with_scholarship_and_alternant(self):
+        import_students([make_row(is_scholarship=True, is_alternant=True)], self.year)
+
+        enrollment = AnnualEnrollment.objects.get(student__ine="12345678901")
+        assert enrollment.is_scholarship is True
+        assert enrollment.is_alternant is True
+
+    def test_creates_enrollment_defaults_to_false_when_unspecified(self):
+        import_students([make_row()], self.year)
+
+        enrollment = AnnualEnrollment.objects.get(student__ine="12345678901")
+        assert enrollment.is_scholarship is False
+        assert enrollment.is_alternant is False
+
+    def test_reimport_with_none_does_not_clobber_existing_true_values(self):
+        import_students([make_row(is_scholarship=True, is_alternant=True)], self.year)
+
+        report = import_students(
+            [make_row(is_scholarship=None, is_alternant=None)], self.year
+        )
+
+        enrollment = AnnualEnrollment.objects.get(student__ine="12345678901")
+        assert enrollment.is_scholarship is True
+        assert enrollment.is_alternant is True
+        # Nothing else changed either — this re-import should be a no-op.
+        assert report.updated == 0
+
+    def test_reimport_with_explicit_false_overrides_existing_true_values(self):
+        import_students([make_row(is_scholarship=True, is_alternant=True)], self.year)
+
+        report = import_students(
+            [make_row(is_scholarship=False, is_alternant=False)], self.year
+        )
+
+        assert report.updated == 1
+        enrollment = AnnualEnrollment.objects.get(student__ine="12345678901")
+        assert enrollment.is_scholarship is False
+        assert enrollment.is_alternant is False

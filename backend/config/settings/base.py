@@ -19,6 +19,7 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "django_prometheus",
     "ninja",
     "django_fsm",
     "auditlog",
@@ -48,6 +49,9 @@ LOCAL_APPS = [
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
+    # Doit être la toute première : marque l'heure de début de requête pour
+    # les métriques de latence (django_prometheus_http_request_duration_seconds).
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -59,6 +63,8 @@ MIDDLEWARE = [
     "auditlog.middleware.AuditlogMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Doit être la toute dernière : calcule la durée totale de la requête.
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -85,7 +91,7 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         default=config("DATABASE_URL"),
-        conn_max_age=600,
+        conn_max_age=config("CONN_MAX_AGE", default=600, cast=int),
         conn_health_checks=True,
     )
 }

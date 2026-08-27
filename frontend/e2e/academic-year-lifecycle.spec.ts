@@ -145,8 +145,10 @@ test.describe.serial("Cycle de vie complet d'une année universitaire", () => {
     // Dialogue de confirmation de suppression
     await expect(page.getByText(/Supprimer l/i)).toBeVisible({ timeout: 5_000 });
     await cancelConfirmDialog(page);
-    // L'année est toujours présente
-    await expect(page.getByText(YEAR_LABEL)).toBeVisible();
+    // L'année est toujours présente (scopé à la ligne : le libellé apparaît
+    // aussi dans une carte de stats au-dessus de la table → strict mode
+    // violation sur un getByText(YEAR_LABEL) non scopé).
+    await expect(row.getByText(YEAR_LABEL)).toBeVisible();
   });
 
   test("02d — Initialisation : annuler la transition ne change pas le statut", async ({ page }) => {

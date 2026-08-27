@@ -10,9 +10,25 @@ const nextConfig: NextConfig = {
   experimental: {
     staleTimes: {
       // 0 = pas de router cache côté client pour les pages dynamiques.
-      // Les statuts FSM doivent toujours être frais après une transition.
+      // Les statuts FSM doivent toujours être fraîches après une transition.
       dynamic: 0,
     },
+  },
+  async headers() {
+    return [
+      {
+        // La Content-Security-Policy n'est PAS ici : elle a besoin d'un nonce
+        // différent à chaque requête pour autoriser les scripts d'hydratation
+        // que Next.js injecte lui-même (App Router), ce qu'une valeur statique
+        // ne peut pas fournir. Elle est donc générée par requête dans proxy.ts
+        // (voir buildCsp/withCsp/nextWithCsp).
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+    ];
   },
 };
 

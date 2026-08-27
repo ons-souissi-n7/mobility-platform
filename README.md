@@ -178,11 +178,27 @@ docker compose -f docker-compose.dev.yml run --rm backend python manage.py seed_
 
 # 4. Entrants (~60 à 130/an), stages, mobilités complémentaires sur les 6 années
 docker compose -f docker-compose.dev.yml run --rm backend python manage.py seed_mobility_data
+
+# 5. 4 comptes de test 2026-2027 (Boursier x FISE/FISA) — utile pour tester le
+#    tableau étudiants sur une année distincte de la campagne courante
+docker compose -f docker-compose.dev.yml run --rm backend python manage.py seed_test_accounts_2627
 ```
 
 L'année courante est laissée en statut `candidature` — dérouler la suite du
 cycle (clôture des vœux → import → lancement de l'affectation) depuis
 l'interface admin permet de tester le workflow complet en direct.
+
+Comptes fake-cas disponibles pour se connecter en tant qu'étudiant (voir
+`fake-cas/users.json`, mot de passe `etudiant123` pour tous) :
+
+| Compte | Année | Département | FISE/FISA | Boursier | Profil |
+|---|---|---|---|---|---|
+| etudiant@etud.n7.fr | 2025-2026 | 3EA | FISA | — | — |
+| etudiant2@etud.n7.fr | 2025-2026 | SN | FISE | — | — |
+| etudiant3@etud.n7.fr | 2026-2027 | SN | FISE | Oui | Ancien (historique 2025-2026 en 1ING) |
+| etudiant4@etud.n7.fr | 2026-2027 | SN | FISA | Oui | Ancien (FISE 2ING en 2025-2026 → FISA 3ING) |
+| etudiant5@etud.n7.fr | 2026-2027 | 3EA | FISE | Non | Nouveau (aucun historique) |
+| etudiant6@etud.n7.fr | 2026-2027 | 3EA | FISA | Non | Nouveau (aucun historique) |
 
 > **Base de dev vs base de test E2E :** `docker-compose.dev.yml` utilise la
 > base `mobility_dev` (persistante, celle que ce pipeline remplit).
@@ -233,13 +249,7 @@ silencieusement la couverture de la quasi-totalité des fichiers backend (vu en
 pratique : couverture affichée à ~10% alors que pytest en mesure 84%+) :
 
 ```bash
-docker compose -f docker-compose.dev.yml run --rm --no-deps backend python -c "
-import re
-with open('coverage.xml', encoding='utf-8') as f:
-    content = f.read()
-with open('coverage.xml', 'w', encoding='utf-8') as f:
-    f.write(re.sub(r'filename=\"(?!backend/)', 'filename=\"backend/', content))
-"
+docker compose -f docker-compose.dev.yml run --rm --no-deps backend python fix_coverage_paths.py
 ```
 
 ### 3. Frontend
@@ -258,16 +268,14 @@ stack (backend, fake-CAS, frontend) avec les bonnes URLs internes et lance
 Playwright dans un conteneur qui a déjà les navigateurs installés :
 
 ```bash
-docker compose -f docker-compose.dev.yml -f docker-compose.test.yml \
-  up --build --exit-code-from playwright
+docker compose -f docker-compose.dev.yml -f docker-compose.test.yml up --build --exit-code-from playwright
 ```
 
 **Interface graphique dans le navigateur** — pour lancer/déboguer les tests un
 par un, avec captures d'écran et rejeu pas à pas de chaque action :
 
 ```bash
-docker compose -f docker-compose.dev.yml -f docker-compose.test.yml \
-  up --build playwright-ui
+docker compose -f docker-compose.dev.yml -f docker-compose.test.yml up --build playwright-ui
 ```
 
 Puis ouvrir **http://localhost:9323**. Si `playwright-report` (voir
@@ -278,8 +286,7 @@ Pour uniquement consulter le rapport HTML d'un run déjà terminé (screenshots,
 vidéos, traces), sans relancer les tests :
 
 ```bash
-docker compose -f docker-compose.dev.yml -f docker-compose.test.yml \
-  up --build playwright-report
+docker compose -f docker-compose.dev.yml -f docker-compose.test.yml up --build playwright-report
 ```
 
 → ouvrir http://localhost:9323 également (arrêter l'UI ci-dessus au préalable
@@ -294,8 +301,7 @@ retombe sur `http://localhost:3000` / `http://localhost:8000`, qui ne
 résolvent pas depuis l'intérieur d'un conteneur :
 
 ```bash
-docker exec -e E2E_BASE_URL=http://frontend:3000 -e E2E_API_URL=http://backend:8000/api/v1 \
-  mobility-platform-frontend-1 npx playwright test
+docker exec -e E2E_BASE_URL=http://frontend:3000 -e E2E_API_URL=http://backend:8000/api/v1 mobility-platform-frontend-1 npx playwright test
 ```
 
 ### 5. Build des images Docker de production
@@ -309,17 +315,9 @@ docker build -t mobility-frontend:local ./frontend -f ./frontend/Dockerfile
 
 ```bash
 # Linux / macOS
-docker run --rm \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v $(pwd)/.trivyignore:/.trivyignore \
-  aquasec/trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed \
-  --ignorefile /.trivyignore mobility-backend:local
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/.trivyignore:/.trivyignore aquasec/trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed--ignorefile /.trivyignore mobility-backend:local
 
-docker run --rm \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v $(pwd)/.trivyignore:/.trivyignore \
-  aquasec/trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed \
-  --ignorefile /.trivyignore mobility-frontend:local
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v $(pwd)/.trivyignore:/.trivyignore aquasec/trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed --ignorefile /.trivyignore mobility-frontend:local
 ```
 
 ```powershell

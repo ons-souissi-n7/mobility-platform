@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { StudentImportErrorsPanel } from "@/components/students/student-import-errors-panel";
@@ -80,6 +80,90 @@ describe("StudentImportErrorsPanel", () => {
     const row = screen.getByText(/INE123/);
     await user.click(row);
     expect(screen.getByText("Jean")).toBeInTheDocument();
+  });
+
+  describe("Boursier / FISE-FISA — regression: false was silently invisible", () => {
+    it("shows Boursier: Oui and FISE/FISA: FISA when both true", async () => {
+      const user = userEvent.setup();
+      const error = makeError({
+        payload: { ine: "", last_name: "SOUISSI", is_scholarship: true, is_alternant: true },
+      });
+      render(<StudentImportErrorsPanel {...defaultProps} errors={[error]} />);
+      await user.click(screen.getByText("INE123"));
+
+      const payloadSection = within(screen.getByText("Enregistrement complet").parentElement as HTMLElement);
+      expect(payloadSection.getByText("Boursier")).toBeInTheDocument();
+      expect(payloadSection.getByText("Oui")).toBeInTheDocument();
+      expect(payloadSection.getByText("FISE/FISA")).toBeInTheDocument();
+      expect(payloadSection.getByText("FISA")).toBeInTheDocument();
+    });
+
+    it("shows Boursier: Non and FISE/FISA: FISE when both false (false must not be filtered out as 'empty')", async () => {
+      const user = userEvent.setup();
+      const error = makeError({
+        payload: { ine: "", last_name: "SOUISSI", is_scholarship: false, is_alternant: false },
+      });
+      render(<StudentImportErrorsPanel {...defaultProps} errors={[error]} />);
+      await user.click(screen.getByText("INE123"));
+
+      const payloadSection = within(screen.getByText("Enregistrement complet").parentElement as HTMLElement);
+      expect(payloadSection.getByText("Boursier")).toBeInTheDocument();
+      expect(payloadSection.getByText("Non")).toBeInTheDocument();
+      expect(payloadSection.getByText("FISE/FISA")).toBeInTheDocument();
+      expect(payloadSection.getByText("FISE")).toBeInTheDocument();
+    });
+
+    it("correction form pre-fills Boursier/FISE-FISA from the payload (fixes: dropdown used to come up blank)", async () => {
+      const user = userEvent.setup();
+      const onRetry = vi.fn().mockResolvedValue(undefined);
+      const error = makeError({
+        payload: {
+          ine: "",
+          last_name: "SOUISSI",
+          first_name: "Ons",
+          is_scholarship: true,
+          is_alternant: true,
+        },
+      });
+      render(<StudentImportErrorsPanel {...defaultProps} errors={[error]} onRetry={onRetry} />);
+      await user.click(screen.getByText("INE123"));
+
+      const scholarshipSelect = screen.getByLabelText("Boursier") as HTMLSelectElement;
+      const alternantSelect = screen.getByLabelText("FISE/FISA") as HTMLSelectElement;
+      expect(scholarshipSelect.value).toBe("true");
+      expect(alternantSelect.value).toBe("true");
+
+      // Pre-filled from the stored payload — sent back as-is on retry, same
+      // as every other field in this form (GPA, nationality, etc.).
+      const ineField = screen.getByLabelText("N°INE");
+      await user.type(ineField, "12345678901");
+      await user.click(screen.getByRole("button", { name: /relancer/i }));
+
+      const correction = onRetry.mock.calls[0][1];
+      expect(correction.ine).toBe("12345678901");
+      expect(correction.is_scholarship).toBe(true);
+      expect(correction.is_alternant).toBe(true);
+    });
+
+    it("correction form sends the changed value when Boursier is corrected", async () => {
+      const user = userEvent.setup();
+      const onRetry = vi.fn().mockResolvedValue(undefined);
+      const error = makeError({
+        payload: { ine: "", last_name: "SOUISSI", is_scholarship: true, is_alternant: true },
+      });
+      render(<StudentImportErrorsPanel {...defaultProps} errors={[error]} onRetry={onRetry} />);
+      await user.click(screen.getByText("INE123"));
+
+      await user.selectOptions(screen.getByLabelText("Boursier"), "false");
+      const ineField = screen.getByLabelText("N°INE");
+      await user.type(ineField, "12345678901");
+      await user.click(screen.getByRole("button", { name: /relancer/i }));
+
+      const correction = onRetry.mock.calls[0][1];
+      expect(correction.is_scholarship).toBe(false);
+      // FISE/FISA untouched — still reflects the original payload, not lost.
+      expect(correction.is_alternant).toBe(true);
+    });
   });
 
   it("renders multiple errors", () => {

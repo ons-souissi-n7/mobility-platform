@@ -713,7 +713,7 @@ export function OutgoingWorkspace({
           <StatCard
             label="Étudiants avec vœux"
             value={studentsWithWishes}
-            helper={stats ? `sur ${stats.total_enrolled} inscrits` : `${studentsWithWishes} ayant exprimé des souhaits`}
+            helper={`sur ${wishes.length} inscrits`}
             icon={Users}
             tone="blue"
           />
@@ -736,7 +736,7 @@ export function OutgoingWorkspace({
 
       {/* Stat cards affectation */}
       {assignment && stats && !polling && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard
             label="Taux d'affectation"
             value={`${assignedPct}%`}
@@ -762,6 +762,13 @@ export function OutgoingWorkspace({
             label="Via quota mutualisé"
             value={stats.by_slot_type["surplus"] ?? 0}
             helper="Place dans le pool partagé entre tous les depts"
+            icon={CheckCircle2}
+            tone="blue"
+          />
+          <StatCard
+            label="Via destination alternative"
+            value={stats.by_slot_type["alternative"] ?? 0}
+            helper="Niveau incompatible avec le vœu — repli hors quota"
             icon={CheckCircle2}
             tone="blue"
           />

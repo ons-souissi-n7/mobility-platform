@@ -47,8 +47,28 @@ class Agreement(TimeStampedModel):
     valid_until = models.DateField(null=True, blank=True)
     inp_total_places = models.IntegerField(default=0)
     inp_institutions = models.CharField(max_length=500, blank=True)
+    duration_weeks = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Durée (semaines)",
+        help_text=(
+            "Durée standard du séjour, reprise comme valeur par défaut pour "
+            "chaque nouvelle instance annuelle de cet accord (modifiable "
+            "ensuite instance par instance)."
+        ),
+    )
     remarks = models.TextField(blank=True)
     last_sync_moveon = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Supprimé le",
+        help_text=(
+            "Suppression douce : l'accord n'est plus actif à partir de maintenant "
+            "(plus d'instance future) mais son historique dans les années déjà "
+            "closes reste intact."
+        ),
+    )
     levels = models.ManyToManyField(
         Level,
         blank=True,
@@ -58,13 +78,16 @@ class Agreement(TimeStampedModel):
     class Meta:
         verbose_name = "Agreement"
         verbose_name_plural = "Agreements"
-        ordering = ["name"]
+        # "id" en dernier critère : name n'est pas unique, donc sans tiebreaker
+        # la pagination LIMIT/OFFSET n'est pas garantie stable entre requêtes.
+        ordering = ["name", "id"]
         indexes = [
             models.Index(fields=["partner_university"]),
             models.Index(fields=["name"], name="agreement_name_idx"),
             models.Index(
                 fields=["partner_university", "name"], name="agreement_univ_name_idx"
             ),
+            models.Index(fields=["deleted_at"]),
         ]
 
     def __str__(self) -> str:
@@ -157,7 +180,11 @@ class AgreementYear(TimeStampedModel):
     class Meta:
         verbose_name = "Agreement Year"
         verbose_name_plural = "Agreement Years"
-        ordering = ["-academic_year__label", "agreement__name"]
+        # "id" en dernier critère : sans clé de tri unique, LIMIT/OFFSET n'est
+        # pas garanti stable entre deux requêtes (les égalités de tri peuvent
+        # être ordonnées différemment), ce qui peut faire apparaître une même
+        # ligne sur deux pages consécutives lors d'une pagination complète.
+        ordering = ["-academic_year__label", "agreement__name", "id"]
         constraints = [
             models.UniqueConstraint(
                 fields=["agreement", "academic_year"],
@@ -277,7 +304,11 @@ class AgreementYearDepartment(TimeStampedModel):
     class Meta:
         verbose_name = "Agreement Year Department"
         verbose_name_plural = "Agreement Year Departments"
-        ordering = ["agreement_department__department__code"]
+        # "id" en dernier critère : seulement 3 codes départements pour des
+        # centaines de lignes, donc énormément d'égalités de tri — sans
+        # tiebreaker unique, la pagination LIMIT/OFFSET peut renvoyer la même
+        # ligne sur deux pages consécutives (clé React dupliquée observée).
+        ordering = ["agreement_department__department__code", "id"]
         constraints = [
             models.UniqueConstraint(
                 fields=["agreement_year", "agreement_department"],
