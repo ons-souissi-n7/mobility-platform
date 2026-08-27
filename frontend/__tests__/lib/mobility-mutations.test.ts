@@ -292,14 +292,17 @@ describe("mobility-mutations", () => {
     expect(formData.get("file")).toBe(file);
   });
 
-  it("downloadExcelTemplate opens the template URL in a new tab", () => {
-    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
-    downloadExcelTemplate();
-    expect(openSpy).toHaveBeenCalledWith(
+  it("downloadExcelTemplate delegates to downloadBlob", async () => {
+    // window.open() ne peut pas porter le header Authorization Bearer, et le
+    // téléchargement échouait silencieusement dans un navigateur réel
+    // (repose sur le fallback cookie de JWTAuth, peu fiable en automatisation
+    // headless) — downloadBlob (fetch + blob + <a download>) est le même
+    // mécanisme fiable utilisé par tous les autres téléchargements de l'app.
+    await downloadExcelTemplate();
+    expect(mockedDownloadBlob).toHaveBeenCalledWith(
       "http://localhost:8000/api/v1/mobility/excel-template/",
-      "_blank",
+      "template_accords_mobilite.xlsx",
     );
-    openSpy.mockRestore();
   });
 
   it("exportAgreementsExcel builds the query string and delegates to downloadBlob", async () => {

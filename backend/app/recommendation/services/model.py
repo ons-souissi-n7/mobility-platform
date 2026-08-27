@@ -30,8 +30,8 @@ MIN_AUC = 0.65
 _CV_FOLDS = 5
 
 # Colonnes de la matrice de features :
-# [gpa, department_code, historical_rate, is_french]
-_NUMERIC_COLUMNS = [0, 2, 3]
+# [gpa, department_code, historical_rate, is_french, n7_places]
+_NUMERIC_COLUMNS = [0, 2, 3, 4]
 _CATEGORICAL_COLUMNS = [1]
 
 
@@ -42,7 +42,17 @@ def _build_pipeline() -> Pipeline:
             ("dept", OneHotEncoder(handle_unknown="ignore"), _CATEGORICAL_COLUMNS),
         ]
     )
-    return Pipeline([("preprocess", preprocessor), ("clf", LogisticRegression())])
+    # class_weight="balanced" : les vœux non-affectés sont ~70% du jeu
+    # d'entraînement (cf. evaluate_recommendation_model) — sans repondération,
+    # le modèle apprend à toujours pencher vers "non affecté" (recall très
+    # bas). La repondération pénalise davantage les erreurs sur la classe
+    # minoritaire ("affecté"), au prix d'un peu de precision.
+    return Pipeline(
+        [
+            ("preprocess", preprocessor),
+            ("clf", LogisticRegression(class_weight="balanced")),
+        ]
+    )
 
 
 def train_model(rates: dict[int, float] | None = None) -> Pipeline | None:
@@ -84,9 +94,16 @@ def score_destinations(
     agreement_ids: list[int],
     pipeline: Pipeline | None,
     rates: dict[int, float],
+    n7_places: dict[int, int] | None = None,
     is_french: bool = False,
 ) -> list[float | None]:
     """Retourne un score par agreement_id, dans l'ordre fourni.
+
+    `n7_places` (places disponibles cette année, par agreement_id) est
+    optionnel côté appelant pour ne pas casser les usages existants, mais
+    requis pour un score cohérent avec l'entraînement (cf.
+    build_training_dataset) — un agreement_id absent du dict est traité
+    comme 0 place connue.
 
     Sans modèle entraîné (démarrage à froid), retourne None pour chaque
     entrée : ce n'est pas une probabilité, l'appelant doit alors classer
@@ -94,11 +111,18 @@ def score_destinations(
     if pipeline is None:
         return [None] * len(agreement_ids)
 
+    n7_places = n7_places or {}
     gpa_value = float(gpa) if gpa is not None else 0.0
     is_french_value = 1 if is_french else 0
     x = np.array(
         [
-            [gpa_value, department_code, rates.get(aid, 0.0), is_french_value]
+            [
+                gpa_value,
+                department_code,
+                rates.get(aid, 0.0),
+                is_french_value,
+                n7_places.get(aid, 0),
+            ]
             for aid in agreement_ids
         ],
         dtype=object,

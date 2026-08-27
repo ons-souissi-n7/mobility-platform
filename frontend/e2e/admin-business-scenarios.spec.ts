@@ -16,10 +16,13 @@
 
 import { test, expect } from "@playwright/test";
 import {
+  apiDelete,
   apiGet,
   apiPostMultipart,
+  closeAlertBannerIfPresent,
   getReferenceFixtures,
   getUsableAcademicYear,
+  resolveAlertsMatching,
 } from "./helpers";
 import { buildIncomingXlsx } from "./excel-builder";
 
@@ -33,6 +36,20 @@ test.describe("Validation et rejet d'une mobilité complémentaire (admin)", () 
   // Pégase a tourné dans la campagne de tests (cf. seedGpaAndQuotas ailleurs
   // dans la suite).
   const STUDENT_INE = "203EA05FISA";
+
+  // Nettoyé en afterEach — sans ça, chaque run E2E laisse une mobilité
+  // "pending"/traitée ET son alerte "Nouvelle mobilité complémentaire
+  // déclarée" en base, qui s'accumulent au fil des runs et finissent par
+  // recouvrir des boutons d'autres tests (bannière fixed bottom-right,
+  // cf. alert-banner.tsx).
+  const createdMobilityIds: number[] = [];
+
+  test.afterEach(async ({ page }) => {
+    for (const id of createdMobilityIds.splice(0)) {
+      await apiDelete(page, `/complementary/${id}/`).catch(() => {});
+    }
+    await resolveAlertsMatching(page, "Nouvelle mobilité complémentaire déclarée");
+  });
 
   async function declarePendingMobility(
     page: import("@playwright/test").Page,
@@ -63,6 +80,14 @@ test.describe("Validation et rejet d'une mobilité complémentaire (admin)", () 
       `/complementary/student/${STUDENT_INE}/?${params.toString()}`,
       { name: "justificatif.pdf", mimeType: "application/pdf", buffer: file },
     );
+    createdMobilityIds.push(created.id);
+    // La déclaration crée une alerte "Nouvelle mobilité complémentaire
+    // déclarée" (SystemAlert), affichée dans la bannière (fixed
+    // bottom-right, cf. alert-banner.tsx) — un vrai admin la verrait aussi
+    // et devrait la fermer avant d'interagir avec le tableau en dessous si
+    // elle recouvre le bouton voulu. On la laisse volontairement en place
+    // ici : c'est justement ce geste (fermer l'alerte via l'UI) que les
+    // tests reproduisent, plutôt que de l'escamoter par API.
     return {
       id: created.id,
       studentName: `${created.student_last_name} ${created.student_first_name}`,
@@ -78,9 +103,20 @@ test.describe("Validation et rejet d'une mobilité complémentaire (admin)", () 
     const row = page.locator("tr", { hasText: studentName }).first();
     await expect(row).toBeVisible({ timeout: 10_000 });
 
+    // La déclaration a généré une alerte "Nouvelle mobilité complémentaire
+    // déclarée" (bannière fixed bottom-right, cf. alert-banner.tsx) — un
+    // vrai admin doit la fermer s'il faut cliquer sur un bouton qu'elle
+    // recouvre. On reproduit ce geste plutôt que d'escamoter l'alerte.
+    await closeAlertBannerIfPresent(page);
+
     await row.getByRole("button", { name: "Valider" }).click();
     await expect(page.getByText(/Confirmer : Valider/i)).toBeVisible({ timeout: 5_000 });
-    await page.getByRole("button", { name: "Valider", exact: true }).last().click();
+    // {confirmDialog} est rendu en tout premier enfant du composant (avant
+    // le tableau, cf. complementary-workspace.tsx) — le bouton "Valider" de
+    // la boîte de confirmation est donc AVANT celui de la ligne dans le DOM,
+    // pas après : .first(), pas .last() (qui cible le déclencheur de la
+    // ligne, désormais recouvert par le fond de la modale).
+    await page.getByRole("button", { name: "Valider", exact: true }).first().click();
 
     await expect(row.getByText(/validé/i)).toBeVisible({ timeout: 10_000 });
   });
@@ -96,11 +132,17 @@ test.describe("Validation et rejet d'une mobilité complémentaire (admin)", () 
     const row = page.locator("tr", { hasText: studentName }).first();
     await expect(row).toBeVisible({ timeout: 10_000 });
 
+    await closeAlertBannerIfPresent(page);
+
     await row.getByRole("button", { name: "Rejeter" }).click();
     await expect(page.getByText("Rejeter la demande")).toBeVisible({ timeout: 5_000 });
 
-    // Le motif est obligatoire : le bouton Rejeter du formulaire reste désactivé sans texte
-    const submitBtn = page.getByRole("button", { name: "Rejeter", exact: true }).last();
+    // Le motif est obligatoire : le bouton du formulaire reste désactivé sans texte.
+    // Son libellé est "Confirmer le rejet" (pas "Rejeter", exact: true) — ce
+    // dernier ne matchait que le bouton déclencheur de la ligne (jamais
+    // désactivé), d'où un test qui passait par coïncidence sur un état
+    // transitoire plutôt que de vérifier le bon élément.
+    const submitBtn = page.getByRole("button", { name: "Confirmer le rejet" });
     await expect(submitBtn).toBeDisabled();
 
     await page.getByPlaceholder("Indiquez le motif du rejet…").fill(
@@ -277,6 +319,17 @@ test.describe("Stages internationaux — création complète", () => {
     const companyName = `E2E-Entreprise-${Date.now().toString(36)}`;
 
     await page.goto("/admin/internships");
+    await page.waitForLoadState("networkidle");
+
+    // Le bouton "Ajouter" est désactivé en phase "initialization" (aucun
+    // étudiant importé, rien à rattacher — cf. canManageInternships,
+    // internships-workspace.tsx). L'année "courante" par défaut
+    // (AcademicYear.get_current(), la plus récente non clôturée) peut être
+    // 2026-2027 si elle existe déjà en base (seed_test_accounts_2627) alors
+    // qu'elle est encore en initialization — cibler explicitement 2025-2026
+    // (seed_dev_data, en pre_assignment, avec des étudiants réels) pour un
+    // test déterministe, indépendant de quelles autres années existent.
+    await page.getByLabel("Année universitaire").selectOption({ label: "2025-2026" });
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("button", { name: "Ajouter" }).click();

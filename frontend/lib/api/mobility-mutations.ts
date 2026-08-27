@@ -293,8 +293,11 @@ export async function importAgreementsFromExcel(file: File) {
   );
 }
 
-export function downloadExcelTemplate() {
-  window.open(`${publicApiBaseUrl}/mobility/excel-template/`, "_blank");
+export async function downloadExcelTemplate(): Promise<void> {
+  await downloadBlob(
+    `${publicApiBaseUrl}/mobility/excel-template/`,
+    "template_accords_mobilite.xlsx",
+  );
 }
 
 export async function exportAgreementsExcel(filters: {

@@ -291,7 +291,7 @@ docker compose -f docker-compose.dev.yml -f docker-compose.test.yml up --build p
 
 → ouvrir http://localhost:9323 également (arrêter l'UI ci-dessus au préalable
 si elle tourne, même conflit de port).
-
+    
 Ces deux stacks utilisent la même base isolée `mobility_test` que le run
 standard — aucun risque pour les données de dev.
 

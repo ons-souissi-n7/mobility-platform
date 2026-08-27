@@ -11,12 +11,17 @@ d'affectation Gale-Shapley (cf. `outgoing/services/gale_shapley.py::_score`
 et le filtrage par département/quota) : GPA et nationalité pèsent sur la
 priorité entre candidats, le département détermine l'éligibilité aux slots
 réservés. `historical_rate` complète ces critères par un signal propre au
-moteur de recommandation (compétitivité observée de la destination).
+moteur de recommandation (compétitivité observée de la destination), et
+`n7_places` ajoute un signal de capacité indépendant : `historical_rate`
+mélange déjà demande et capacité (assignés / vœux), `n7_places` isole la
+capacité seule — deux accords avec le même taux historique n'ont pas la
+même marge selon qu'ils offrent 1 ou 10 places.
 """
 
 from app.recommendation.services.historical_rate import compute_historical_rates
 
-# [gpa: float, department_code: str, historical_rate: float, is_french: int (0/1)]
+# [gpa: float, department_code: str, historical_rate: float,
+#  is_french: int (0/1), n7_places: int]
 FeatureRow = list
 
 
@@ -60,7 +65,8 @@ def build_training_dataset(
         rate = rates.get(wish.agreement_year.agreement_id, 0.0)
         nationality = enrollment.student.nationality
         is_french = 1 if nationality is not None and nationality.iso2 == "FR" else 0
-        rows.append([gpa, dept_code, rate, is_french])
+        n7_places = wish.agreement_year.n7_places or 0
+        rows.append([gpa, dept_code, rate, is_french, n7_places])
 
         assigned_to = effective_assignment.get(enrollment.id)
         targets.append(1 if assigned_to == wish.agreement_year_id else 0)

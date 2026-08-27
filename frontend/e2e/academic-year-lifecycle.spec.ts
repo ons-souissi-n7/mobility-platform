@@ -27,6 +27,7 @@ import {
   yearRow,
   confirmAction,
   cancelConfirmDialog,
+  closeAlertBannerIfPresent,
   waitForStatusInRow,
   performTransition,
   getAuthToken,
@@ -398,6 +399,12 @@ test.describe.serial("Cycle de vie complet d'une année universitaire", () => {
   // ══════════════════════════════════════════════════════════════════════════
 
   test("13 — Transition Validation → Publiée", async ({ page }) => {
+    // Le test 9 (lancement de l'affectation) a pu générer une alerte
+    // "Affectation lancée sans vœux" (bannière fixed bottom-right, cf.
+    // alert-banner.tsx) — un vrai admin devrait la fermer avant de cliquer
+    // sur un bouton qu'elle recouvre ; on reproduit ce geste ici.
+    await closeAlertBannerIfPresent(page);
+
     const row = yearRow(page, YEAR_LABEL);
     await row.getByRole("button", { name: "Publier les résultats", exact: true }).click();
     await expect(page.getByText("Confirmer : Publier les résultats")).toBeVisible();

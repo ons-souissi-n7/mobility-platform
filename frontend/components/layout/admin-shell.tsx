@@ -14,6 +14,7 @@ type AdminShellProps = {
 
 export function AdminShell({ children }: Readonly<AdminShellProps>) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [hasAlerts, setHasAlerts] = useState(false);
 
   return (  
     <div className="flex min-h-screen bg-[#F9FAFB]">
@@ -49,8 +50,20 @@ export function AdminShell({ children }: Readonly<AdminShellProps>) {
         </header>
 
         <main className="min-w-0 flex-1 overflow-x-hidden">
-          <AlertBanner />
-          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-8 sm:py-8">
+          <AlertBanner onAlertsChange={(count) => setHasAlerts(count > 0)} />
+          {/* La bannière d'alertes est en position fixed bottom-right et peut
+              couvrir jusqu'à ~30rem de haut une fois dépliée (header + liste,
+              cf. alert-banner.tsx) — sans cette marge quand des alertes sont
+              présentes, le dernier élément cliquable d'une page (ex. bouton
+              "Modifier"/"Valider" d'un tableau) peut se retrouver sous la
+              bannière et devenir impossible à cliquer. On ne réserve cette
+              place que si des alertes existent, pour ne pas gâcher d'espace
+              en temps normal. */}
+          <div
+            className={`mx-auto w-full max-w-7xl px-4 py-6 sm:px-8 sm:py-8 ${
+              hasAlerts ? "pb-[30rem]" : ""
+            }`}
+          >
             {children}
           </div>
         </main>

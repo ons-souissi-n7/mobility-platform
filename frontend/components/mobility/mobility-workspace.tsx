@@ -455,6 +455,15 @@ export function MobilityWorkspace({
     }
   }
 
+  async function handleTemplateDownload() {
+    setSyncError("");
+    try {
+      await downloadExcelTemplate();
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Erreur téléchargement du modèle.");
+    }
+  }
+
   // ── Import Excel ───────────────────────────────────────────────────────────
 
   async function handleExcelImport(file: File) {
@@ -617,7 +626,7 @@ export function MobilityWorkspace({
               <RefreshCw className={`h-4 w-4 ${syncInProgress ? "animate-spin" : ""}`} />
               {syncInProgress ? "Synchronisation..." : "Sync MoveON"}
             </Btn>
-            <Btn disabled={isYearClosed || isYearLocked} onClick={downloadExcelTemplate}>
+            <Btn disabled={isYearClosed || isYearLocked} onClick={() => { void handleTemplateDownload(); }}>
               <Download className="h-4 w-4" />
               Template
             </Btn>

@@ -6,7 +6,15 @@ import { useCallback, useEffect, useState } from "react";
 import { acknowledgeAlert, fetchUnreadAlerts } from "@/lib/api/alerts";
 import type { SystemAlert } from "@/lib/api/types";
 
-export function AlertBanner() {
+type AlertBannerProps = {
+  /** Notifie le nombre d'alertes non lues à chaque changement — permet au
+   * layout parent de réserver de la place sous la bannière (position fixed
+   * bottom-right) pour que les éléments cliquables du bas de page ne se
+   * retrouvent pas sous elle. */
+  onAlertsChange?: (count: number) => void;
+};
+
+export function AlertBanner({ onAlertsChange }: Readonly<AlertBannerProps> = {}) {
   const [alerts, setAlerts] = useState<SystemAlert[]>([]);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -21,6 +29,10 @@ export function AlertBanner() {
     const id = setInterval(load, 60_000);
     return () => clearInterval(id);
   }, [load]);
+
+  useEffect(() => {
+    onAlertsChange?.(alerts.length);
+  }, [alerts.length, onAlertsChange]);
 
   // Ferme pour cette session uniquement (réapparaît au reload)
   const closeSession = useCallback((id: number) => {

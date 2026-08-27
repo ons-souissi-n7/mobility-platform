@@ -66,6 +66,18 @@ services:
     depends_on:
       db-test:
         condition: service_healthy
+    # Le healthcheck hérité de docker-compose.dev.yml (start_period: 20s)
+    # est calibré pour la commande dev (migrate && runserver) — la chaîne
+    # ci-dessous (migrate + loaddata 400+ objets + reset séquences +
+    # seed_dev_data + seed_test_accounts_2627) est bien plus longue, en
+    # particulier si d'autres services lourds tournent en parallèle sur la
+    # même machine (ex. sonarqube). Sans ce délai plus généreux, Compose
+    # déclare "backend unhealthy" et abandonne AVANT que runserver ne
+    # démarre — worker/frontend/playwright ne démarrent alors jamais,
+    # échec observé alors même que le serveur finit par démarrer normalement
+    # quelques secondes plus tard (vérifié via `docker logs`).
+    healthcheck:
+      start_period: 150s
     # db-test repart d'une base vierge à chaque run (pas de volume persistant,
     # cf. plus haut) : contrairement à docker-compose.dev.yml, les référentiels
     # et les données de démo (pays/départements/niveaux/parcours/universités/
@@ -142,6 +154,16 @@ services:
         condition: service_healthy
       frontend:
         condition: service_started
+      # `up <service>` ne démarre que les dépendances explicites de ce
+      # service — sans elles, worker/minio ne démarrent jamais (backend ne
+      # les liste pas dans ses propres depends_on, cf. docker-compose.dev.yml)
+      # et tout test qui dépend d'une tâche async (import Excel, sync) ou
+      # d'un upload (mobilité complémentaire, stages) échoue en timeout
+      # silencieux plutôt que de signaler l'absence du worker/minio.
+      worker:
+        condition: service_started
+      minio:
+        condition: service_healthy
     command: >
       sh -c "
         echo '=== Attente du frontend ===' &&
@@ -181,6 +203,16 @@ services:
         condition: service_healthy
       frontend:
         condition: service_started
+      # `up <service>` ne démarre que les dépendances explicites de ce
+      # service — sans elles, worker/minio ne démarrent jamais (backend ne
+      # les liste pas dans ses propres depends_on, cf. docker-compose.dev.yml)
+      # et tout test qui dépend d'une tâche async (import Excel, sync) ou
+      # d'un upload (mobilité complémentaire, stages) échoue en timeout
+      # silencieux plutôt que de signaler l'absence du worker/minio.
+      worker:
+        condition: service_started
+      minio:
+        condition: service_healthy
     command: >
       sh -c "
         echo '=== Attente du frontend ===' &&

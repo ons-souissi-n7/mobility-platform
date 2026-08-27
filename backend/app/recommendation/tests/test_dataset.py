@@ -137,6 +137,36 @@ class TestBuildTrainingDataset:
         assert len(rows) == 3
         assert sorted(row[3] for row in rows) == [0, 0, 1]
 
+    def test_n7_places_feature_reflects_the_wished_agreement_year_capacity(self):
+        """La colonne n7_places (index 4) doit porter la capacité de l'accord
+        annuel effectivement vœu, pas une valeur globale ou par défaut —
+        deux vœux sur des accords de capacités différentes doivent produire
+        des lignes distinctes sur cette colonne."""
+        year = _closed_year()
+        dept = Department.objects.create(code="SN", name="Sciences du Numerique")
+        level = Level.objects.create(code="3A", name="Troisieme annee")
+        ay_small = _agreement_year(year, "Accord 1 place")
+        AgreementYear.objects.filter(pk=ay_small.pk).update(n7_places=1)
+        ay_big = _agreement_year(year, "Accord 10 places")
+        AgreementYear.objects.filter(pk=ay_big.pk).update(n7_places=10)
+
+        student = Student.objects.create(
+            ine="23SN020TST", first_name="K", last_name="L"
+        )
+        enrollment = AnnualEnrollment.objects.create(
+            student=student, academic_year=year, department=dept, level=level
+        )
+        StudentWish.objects.create(
+            annual_enrollment=enrollment, agreement_year=ay_small, rank=1
+        )
+        StudentWish.objects.create(
+            annual_enrollment=enrollment, agreement_year=ay_big, rank=2
+        )
+
+        rows, _targets = build_training_dataset()
+
+        assert sorted(row[4] for row in rows) == [1, 10]
+
     def test_unassigned_student_produces_only_negative_rows(self):
         year = _closed_year()
         dept = Department.objects.create(code="SN", name="Sciences du Numerique")

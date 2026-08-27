@@ -226,12 +226,14 @@ def get_student_recommendations(request, ine: str, year_id: int | None = None):
     pipeline = train_model(rates=rates)
     nationality = enrollment.student.nationality
     is_french = nationality is not None and nationality.iso2 == "FR"
+    n7_places = {ay.agreement_id: ay.n7_places for ay in eligible}
     scores = score_destinations(
         gpa=enrollment.gpa,
         department_code=enrollment.department.code,
         agreement_ids=[ay.agreement_id for ay in eligible],
         pipeline=pipeline,
         rates=rates,
+        n7_places=n7_places,
         is_french=is_french,
     )
 

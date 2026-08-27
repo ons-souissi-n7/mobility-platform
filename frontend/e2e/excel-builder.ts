@@ -94,7 +94,16 @@ export async function buildStudentsXlsx(rows: StudentImportRow[]): Promise<Buffe
   const ws = wb.addWorksheet("Etudiants");
   ws.addRow(STUDENTS_HEADERS);
   for (const row of rows) {
-    ws.addRow(STUDENTS_HEADERS.map((h) => (row as unknown as Record<string, string | undefined>)[h] ?? ""));
+    // null (pas "") pour un champ omis : une cellule vide en Excel se lit
+    // None côté openpyxl, alors qu'une chaîne vide "" est une valeur
+    // présente-mais-vide — pour un champ optionnel comme GPA, ça change le
+    // comportement du parseur (None est ignoré silencieusement, "" est
+    // transmise et provoque un `float('')` invalide, cf. adapters/excel.py).
+    ws.addRow(
+      STUDENTS_HEADERS.map(
+        (h) => (row as unknown as Record<string, string | undefined>)[h] ?? null,
+      ),
+    );
   }
   const buf = await wb.xlsx.writeBuffer();
   return Buffer.from(buf);
@@ -133,7 +142,15 @@ export async function buildAgreementsXlsx(rows: AgreementImportRow[]): Promise<B
   const ws = wb.addWorksheet("Accords");
   ws.addRow(AGREEMENTS_HEADERS);
   for (const row of rows) {
-    ws.addRow(AGREEMENTS_HEADERS.map((h) => (row as unknown as Record<string, string | undefined>)[h] ?? ""));
+    // null (pas "") pour un champ omis — cf. buildStudentsXlsx ci-dessus :
+    // une chaîne vide est une valeur présente et peut déclencher une erreur
+    // de parsing différente de celle attendue par le test (au lieu d'être
+    // ignorée comme un champ optionnel non renseigné).
+    ws.addRow(
+      AGREEMENTS_HEADERS.map(
+        (h) => (row as unknown as Record<string, string | undefined>)[h] ?? null,
+      ),
+    );
   }
   const buf = await wb.xlsx.writeBuffer();
   return Buffer.from(buf);
