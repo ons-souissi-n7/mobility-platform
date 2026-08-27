@@ -67,7 +67,7 @@ def _parse_incoming_duration(duration: str) -> str:
         return "gt"
     if re.search(r"1\s*sem|un\s*sem", s):
         return "eq"
-    m = re.search(r"(\d++)\s{0,3}+mois", s)
+    m = re.search(r"(\d+)\s*mois", s)
     if m:
         weeks = int(m.group(1)) * _WEEKS_PER_MONTH
         if weeks < _EXCHANGE_1SEM_WEEKS:
@@ -116,6 +116,7 @@ def _get_terminal_enrolled(academic_year: AcademicYear) -> list:
         AnnualEnrollment.objects.filter(
             academic_year=academic_year,
             level_id__in=terminal_ids,
+            deleted_at__isnull=True,
         )
         .select_related("student")
         .order_by("student__last_name", "student__first_name")

@@ -283,7 +283,7 @@ function Select({
   );
 }
 
-function TextArea({ defaultValue, label, name }: { defaultValue?: string | null; label: string; name: string }) {
+function TextArea({ defaultValue, label, name }: Readonly<{ defaultValue?: string | null; label: string; name: string }>) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-gray-700">{label}</span>
@@ -296,7 +296,7 @@ function TextArea({ defaultValue, label, name }: { defaultValue?: string | null;
   );
 }
 
-function ErrorBox({ message }: { message: string }) {
+function ErrorBox({ message }: Readonly<{ message: string }>) {
   return (
     <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
       {message}
@@ -304,7 +304,7 @@ function ErrorBox({ message }: { message: string }) {
   );
 }
 
-function FormActions({ isSubmitting, onCancel }: { isSubmitting: boolean; onCancel: () => void }) {
+function FormActions({ isSubmitting, onCancel }: Readonly<{ isSubmitting: boolean; onCancel: () => void }>) {
   return (
     <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
       <button

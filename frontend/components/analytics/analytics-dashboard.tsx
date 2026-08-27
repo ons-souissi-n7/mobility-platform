@@ -33,7 +33,7 @@ const CHART_LABELS = [
   { key: "internships" as const, title: "Stages internationaux", color: "border-l-orange-500" },
 ];
 
-function SectionCard({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
+function SectionCard({ title, accent, children }: Readonly<{ title: string; accent: string; children: React.ReactNode }>) {
   return (
     <div className={`rounded-xl border-l-4 ${accent} border border-border bg-card p-5 shadow-sm`}>
       <h3 className="text-sm font-semibold mb-4">{title}</h3>
@@ -50,7 +50,7 @@ function LoadingCard() {
   );
 }
 
-function ErrorCard({ message }: { message: string }) {
+function ErrorCard({ message }: Readonly<{ message: string }>) {
   return (
     <div className="rounded-xl border bg-card p-6 shadow-sm flex items-center justify-center h-56 text-destructive text-sm">
       {message}

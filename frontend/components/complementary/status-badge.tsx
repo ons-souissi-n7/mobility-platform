@@ -7,6 +7,6 @@ export const MOBILITY_STATUS_MAP: Record<ComplementaryMobility["status"], BadgeS
   rejected: { label: "Rejetée", className: "bg-red-100 text-red-800" },
 };
 
-export function MobilityStatusBadge({ status }: { status: ComplementaryMobility["status"] }) {
+export function MobilityStatusBadge({ status }: Readonly<{ status: ComplementaryMobility["status"] }>) {
   return <Badge value={status} map={MOBILITY_STATUS_MAP} />;
 }

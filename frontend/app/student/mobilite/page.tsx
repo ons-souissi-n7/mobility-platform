@@ -112,9 +112,6 @@ export default function MobilitePage() {
                 <p className="text-sm font-medium text-amber-800">
                   Les résultats ne sont pas encore publiés pour cette année.
                 </p>
-                <p className="mt-1 text-xs text-amber-600">
-                  Vous serez notifié(e) lorsque les résultats seront disponibles.
-                </p>
               </div>
             )}
 

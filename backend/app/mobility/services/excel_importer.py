@@ -10,6 +10,7 @@ Colonnes du template :
   F - Nombre de places (entier ou 'illimite')
   G - Etablissements internes (noms courts, ex: INP-ENSEEIHT;INP-ENSAT)
   H - Remarques
+  I - Duree du sejour (semaines)
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ TEMPLATE_COLUMNS = [
     "Nombre de places (entier ou 'illimite')",
     "Etablissements internes (nom court, ex: INP-ENSEEIHT;INP-ENSAT)",
     "Remarques",
+    "Duree du sejour (semaines)",
 ]
 
 COLUMN_MAP = {
@@ -46,6 +48,7 @@ COLUMN_MAP = {
     "places": 5,
     "etablissements_internes": 6,
     "remarques": 7,
+    "duree": 8,
 }
 
 UNLIMITED_PLACES_VALUES = {
@@ -74,6 +77,7 @@ class ExcelRow:
     places: int | None = None
     institutions_raw: str = ""
     remarks: str = ""
+    duration_weeks: int | None = None
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -155,7 +159,7 @@ def build_excel_template(
 
     ws.row_dimensions[1].height = 40
 
-    col_widths = [40, 50, 30, 25, 35, 20, 45, 45]
+    col_widths = [40, 50, 30, 25, 35, 20, 45, 45, 20]
     for col_idx, width in enumerate(col_widths, start=1):
         ws.column_dimensions[get_column_letter(col_idx)].width = width
 
@@ -232,6 +236,7 @@ def build_excel_template(
         "- Nombre de places : entier positif, ou 'illimite' si pas de limite.",
         "- Etablissements internes : liste des ecoles partageant le quota (ex: INP-ENSEEIHT;INP-ENSAT).",
         "  Si INP-ENSEEIHT figure dans la liste, le quota N7 est estime automatiquement.",
+        "- Duree du sejour : nombre de semaines (entier positif). Laissez vide si inconnue.",
         "",
         "Les lignes avec des erreurs seront enregistrees dans le journal d'import",
         "pour correction manuelle ulterieure.",
@@ -290,6 +295,7 @@ def parse_excel_file(file_bytes: bytes) -> list[ExcelRow]:
                 row, COLUMN_MAP["etablissements_internes"]
             ),
             "remarques": _cell_str(row, COLUMN_MAP["remarques"]),
+            "duree": _cell_str(row, COLUMN_MAP["duree"]),
         }
 
         excel_row = ExcelRow(row_number=row_idx, raw=raw)
@@ -300,6 +306,13 @@ def parse_excel_file(file_bytes: bytes) -> list[ExcelRow]:
         excel_row.framework_raw = raw["cadre"]
         excel_row.institutions_raw = raw["etablissements_internes"]
         excel_row.remarks = raw["remarques"]
+
+        duree_raw = raw["duree"].strip()
+        if duree_raw:
+            try:
+                excel_row.duration_weeks = max(0, int(float(duree_raw)))
+            except (ValueError, TypeError):
+                excel_row.errors.append(f"Duree du sejour invalide: '{raw['duree']}'")
 
         places_raw = raw["places"].lower().strip()
         if places_raw in UNLIMITED_PLACES_VALUES:

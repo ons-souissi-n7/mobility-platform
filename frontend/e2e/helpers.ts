@@ -47,6 +47,54 @@ export async function apiPost<T>(page: Page, path: string, data: unknown = {}): 
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+/**
+ * Comme apiPost, mais tolère une violation de contrainte unique ("existe
+ * déjà" — retourne undefined dans ce cas plutôt que de lever). Utile pour
+ * les helpers de seed appelés depuis un `beforeAll` : si Playwright le
+ * ré-exécute (retry après un échec du test, nouveau worker), le POST peut
+ * retomber sur une ressource déjà créée par la tentative précédente —
+ * le but du seed est que la ressource existe, peu importe qui l'a créée.
+ *
+ * Le corps JSON brut renvoyé par resp.text() échappe les caractères
+ * accentués (ex. "déjà" et non "déjà") — on détecte donc le cas sur
+ * un fragment sans accent du message d'erreur Django plutôt que sur "déjà".
+ */
+export async function apiPostIdempotent<T>(
+  page: Page,
+  path: string,
+  data: unknown = {},
+): Promise<T | undefined> {
+  return apiPost<T>(page, path, data).catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!message.includes("HTTP 400") || !message.includes("existe d")) throw err;
+    return undefined;
+  });
+}
+
+/**
+ * POST multipart (upload de fichier) authentifié — utilisé pour créer des
+ * données de test via l'API (ex. mobilité complémentaire avec justificatif)
+ * sans passer par le formulaire, quand ce n'est pas le formulaire lui-même
+ * qui est sous test.
+ */
+export async function apiPostMultipart<T>(
+  page: Page,
+  path: string,
+  file: { name: string; mimeType: string; buffer: Buffer },
+  fieldName = "document",
+): Promise<T> {
+  const token = await getAuthToken(page);
+  const resp = await page.request.post(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    multipart: { [fieldName]: file },
+  });
+  if (!resp.ok()) {
+    throw new Error(`POST(multipart) ${path} → HTTP ${resp.status()} : ${await resp.text()}`);
+  }
+  const text = await resp.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
 export async function apiDelete(page: Page, path: string): Promise<void> {
   const token = await getAuthToken(page);
   const resp = await page.request.delete(`${API_BASE}${path}`, {
@@ -221,13 +269,13 @@ export async function seedGpaAndQuotas(
     partner_university_id: universities.results[0].id,
     level_ids: [],
   });
-  await apiPost(page, "/mobility/agreement-departments/", {
+  await apiPostIdempotent(page, "/mobility/agreement-departments/", {
     agreement_id: agreement.id,
     department_id: depts[0].id,
   });
   // is_active + n7_places > 0 déclenche ensure_dept_quotas_on_activation
   // côté backend, qui crée automatiquement les quotas département.
-  await apiPost(page, "/mobility/agreement-years/", {
+  await apiPostIdempotent(page, "/mobility/agreement-years/", {
     agreement_id: agreement.id,
     academic_year_id: academicYearId,
     is_active: true,
@@ -278,4 +326,140 @@ export async function deleteAgreementViaApi(
   agreementId: number,
 ): Promise<void> {
   await apiDelete(page, `/mobility/agreements/${agreementId}/`);
+}
+
+/**
+ * Résout globalement (POST .../resolve/) toute alerte dont le TITRE ou le
+ * MESSAGE contient `matching` — à appeler en nettoyage de test pour les
+ * scénarios qui déclenchent une alerte système (ex. mobilité complémentaire
+ * déclarée, affectation lancée sans vœux). Sans ce nettoyage, les alertes
+ * créées par un run E2E s'accumulent indéfiniment dans la bannière
+ * (fixed bottom-right) et finissent par recouvrir des boutons d'autres
+ * pages/tests — cf. AlertBanner, alert-banner.tsx.
+ *
+ * Vérifie les deux champs car selon l'alerte, la chaîne cherchée peut être
+ * dans l'un ou l'autre — ex. "Nouvelle mobilité complémentaire déclarée"
+ * est le TITRE (le message dit autre chose : "L'étudiant X a déclaré...").
+ */
+export async function resolveAlertsMatching(
+  page: Page,
+  matching: string,
+): Promise<void> {
+  const alerts = await apiGet<Array<{ id: number; title: string; message: string }>>(
+    page,
+    "/alerts/",
+  ).catch(() => []);
+  for (const alert of alerts) {
+    if (alert.title.includes(matching) || alert.message.includes(matching)) {
+      await apiPost(page, `/alerts/${alert.id}/resolve/`, {}).catch(() => {});
+    }
+  }
+}
+
+/**
+ * Ferme (bouton X, "Masquer pour cette session") la première alerte de la
+ * bannière si elle est actuellement affichée — reproduit le geste qu'un
+ * vrai admin doit faire quand la bannière (fixed bottom-right, cf.
+ * alert-banner.tsx) recouvre un bouton avec lequel il veut interagir.
+ * No-op silencieux si aucune alerte n'est visible.
+ */
+export async function closeAlertBannerIfPresent(page: Page): Promise<void> {
+  const closeBtn = page.getByRole("button", { name: "Masquer pour cette session" }).first();
+  if (await closeBtn.isVisible().catch(() => false)) {
+    await closeBtn.click();
+  }
+}
+
+// ── Référentiels : valeurs valides pour construire des jeux de test ────────
+
+/**
+ * Renvoie une année universitaire "utilisable" (non clôturée si possible,
+ * sinon la plus récente) — réutilise la même logique que les composants
+ * frontend (ex. ComplementaryWorkspace.defaultYear).
+ */
+export async function getUsableAcademicYear(
+  page: Page,
+): Promise<AcademicYearData> {
+  const years = await apiGet<AcademicYearData[]>(page, "/academic/years/");
+  if (years.length === 0) {
+    throw new Error("getUsableAcademicYear : aucune année universitaire en base");
+  }
+  return years.find((y) => y.status !== "closed") ?? years[years.length - 1];
+}
+
+export interface ReferenceFixtures {
+  countryNameFr: string;
+  countryId: number;
+  departmentCode: string;
+  departmentId: number;
+  levelCode: string;
+  levelId: number;
+  parcoursCode: string;
+  universityName: string;
+  universityId: number;
+  categoryName: string;
+}
+
+/**
+ * Récupère un jeu de valeurs de référence valides (pays, département, niveau,
+ * parcours, université, catégorie de mobilité) — nécessaires pour construire
+ * une ligne d'import Excel ou tout autre enregistrement lié aux référentiels.
+ * Suppose que ces référentiels sont déjà peuplés (comme le reste de la suite
+ * E2E, cf. seedGpaAndQuotas), typiquement via une synchronisation Pégase/MoveON
+ * antérieure dans la même campagne de tests.
+ */
+export async function getReferenceFixtures(page: Page): Promise<ReferenceFixtures> {
+  const [countries, departments, levels, parcoursList, universities, categories] =
+    await Promise.all([
+      apiGet<Array<{ id: number; name_fr: string }>>(page, "/reference/countries/"),
+      apiGet<Array<{ id: number; code: string }>>(page, "/reference/departments/"),
+      apiGet<Array<{ id: number; code: string }>>(page, "/reference/levels/"),
+      apiGet<Array<{ id: number; code: string; department_id: number }>>(
+        page,
+        "/reference/parcours/",
+      ),
+      apiGet<{ results: Array<{ id: number; name: string }> }>(
+        page,
+        "/institutions/universities/?page_size=1",
+      ),
+      apiGet<Array<{ id: number; name: string }>>(page, "/mobility/agreement-categories/"),
+    ]);
+
+  if (!countries.length || !departments.length || !levels.length || !parcoursList.length) {
+    throw new Error(
+      "getReferenceFixtures : référentiels de base vides — attendu déjà peuplé (pays/départements/niveaux/parcours)",
+    );
+  }
+
+  const department = departments[0];
+  const parcours =
+    parcoursList.find((p) => p.department_id === department.id) ?? parcoursList[0];
+
+  let university = universities.results[0];
+  if (!university) {
+    university = await apiPost(page, "/institutions/universities/", {
+      name: `E2E University ${Date.now().toString(36)}`,
+      country_id: countries[0].id,
+    });
+  }
+
+  let category = categories[0];
+  if (!category) {
+    category = await apiPost(page, "/mobility/agreement-categories/", {
+      name: `E2E-CAT-${Date.now().toString(36)}`,
+    });
+  }
+
+  return {
+    countryNameFr: countries[0].name_fr,
+    countryId: countries[0].id,
+    departmentCode: department.code,
+    departmentId: department.id,
+    levelCode: levels[0].code,
+    levelId: levels[0].id,
+    parcoursCode: parcours.code,
+    universityName: university.name,
+    universityId: university.id,
+    categoryName: category.name,
+  };
 }

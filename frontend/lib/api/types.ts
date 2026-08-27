@@ -80,10 +80,12 @@ export type Agreement = {
   valid_until: string | null;
   inp_total_places: number;
   inp_institutions: string;
+  duration_weeks: number | null;
   remarks: string;
   department_ids: number[];
   level_ids: number[];
   last_sync_moveon: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -258,6 +260,7 @@ export type StudentWithEnrollment = {
   gpa: string | null;
   is_alternant: boolean;
   is_scholarship: boolean;
+  deleted_at: string | null;
 };
 
 export type AgreementWish = {
@@ -496,6 +499,16 @@ export type StudentWishItem = {
   university_name: string;
   country_name: string;
   country_iso2: string;
+};
+
+export type StudentRecommendation = {
+  agreement_year_id: number;
+  agreement_name: string;
+  university_name: string;
+  country_name: string;
+  country_iso2: string;
+  score: number | null;
+  model_based: boolean;
 };
 
 export type Internship = {

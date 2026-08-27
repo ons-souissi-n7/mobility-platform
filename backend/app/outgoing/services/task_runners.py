@@ -69,8 +69,10 @@ def run_gale_shapley(year_id: int, triggered_by: str = "") -> None:
         )
 
     # ── Charger les étudiants et leurs vœux ──────────────────────────────
+    # deleted_at exclu : un étudiant supprimé ne doit pas être candidat à
+    # l'affectation Gale-Shapley.
     enrollments = AnnualEnrollment.objects.filter(
-        academic_year=academic_year
+        academic_year=academic_year, deleted_at__isnull=True
     ).select_related("student__nationality", "department")
 
     enrollment_level: dict[int, int | None] = {e.id: e.level_id for e in enrollments}

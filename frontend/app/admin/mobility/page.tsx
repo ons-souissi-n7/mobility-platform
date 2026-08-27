@@ -12,6 +12,7 @@ export default async function MobilityPage() {
       agreementYears,
       agreementYearDepartments,
       agreements,
+      allAgreements,
       countries,
       currentYear,
       departments,
@@ -38,6 +39,7 @@ export default async function MobilityPage() {
         departments={departments}
         initialAgreementYears={agreementYears}
         initialAgreements={agreements}
+        initialAllAgreements={allAgreements}
         initialAgreementYearDepartments={agreementYearDepartments}
         initialImportErrors={importErrors}
         initialImportErrorsTotalCount={importErrorsTotalCount}

@@ -1,10 +1,87 @@
 [
   {
-    "moveon_relation_id": "REL-001",
     "academic_year_label": "2026-2027",
     "period": "S1",
     "places_id": "PLC-001",
     "total_places": 4,
+    "remaining_places": 2,
+    "total_duration": 12,
+    "duration_unit": "months",
+    "is_effective": true,
+    "moveon_id": "REL-001"
+  },
+  {
+    "moveon_id": "REL-002",
+    "academic_year_label": "2026-2027",
+    "period": "S1",
+    "places_id": "PLC-002",
+    "total_places": 3,
+    "remaining_places": 3,
+    "total_duration": 12,
+    "duration_unit": "months",
+    "is_effective": true
+  },
+  {
+    "moveon_id": "REL-003",
+    "academic_year_label": "2026-2027",
+    "period": "S1",
+    "places_id": "PLC-003",
+    "total_places": 2,
+    "remaining_places": 2,
+    "total_duration": 6,
+    "duration_unit": "months",
+    "is_effective": true
+  },
+  {
+    "moveon_id": "REL-004",
+    "academic_year_label": "2026-2027",
+    "period": "S1",
+    "places_id": "PLC-004",
+    "total_places": 2,
+    "remaining_places": 2,
+    "total_duration": 24,
+    "duration_unit": "months",
+    "is_effective": true
+  },
+  {
+    "moveon_id": "REL-006",
+    "academic_year_label": "2026-2027",
+    "period": "S1",
+    "places_id": "PLC-006",
+    "total_places": 3,
+    "remaining_places": 3,
+    "total_duration": 12,
+    "duration_unit": "months",
+    "is_effective": true
+  },
+  {
+    "moveon_id": "REL-007",
+    "academic_year_label": "2026-2027",
+    "period": "S1",
+    "places_id": "PLC-007",
+    "total_places": 2,
+    "remaining_places": 2,
+    "total_duration": 12,
+    "duration_unit": "months",
+    "is_effective": true
+  },
+  {
+    "moveon_id": "REL-008",
+    "academic_year_label": "2026-2027",
+    "period": "S1",
+    "places_id": "PLC-008",
+    "total_places": 4,
+    "remaining_places": 4,
+    "total_duration": 12,
+    "duration_unit": "months",
+    "is_effective": true
+  },
+  {
+    "moveon_id": "REL-009",
+    "academic_year_label": "2026-2027",
+    "period": "S1",
+    "places_id": "PLC-009",
+    "total_places": 2,
     "remaining_places": 2,
     "total_duration": 12,
     "duration_unit": "months",

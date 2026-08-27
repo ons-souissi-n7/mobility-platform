@@ -79,24 +79,29 @@ def _in_range(row: dict, start_date: date, end_date: date) -> bool:
 
 
 def _parse_rows(data: list) -> list[StudentRow]:
-    """Convertit une liste de dicts Pégase en StudentRow.  Exporté pour les tests unitaires."""
+    """Convertit une liste de dicts Pégase en StudentRow.  Exporté pour les tests unitaires.
+
+    Une entrée sans INE (ou avec une moyenne non numérique) n'est PAS écartée :
+    elle est transmise à import_students() avec ine="" / parse_error renseigné
+    pour que validate_student() la rejette proprement et qu'elle apparaisse
+    dans le panneau d'erreurs, plutôt que de disparaître sans laisser de trace.
+    """
     rows: list[StudentRow] = []
-    for item in data:
+    for index, item in enumerate(data):
         if not isinstance(item, dict):
             continue
         ine = str(item.get("ine", "")).strip()
-        if not ine:
-            continue
 
         gender = normalize_gender(str(item.get("sexe", item.get("genre", ""))))
 
         raw_gpa = item.get("moyenne", item.get("gpa"))
         gpa: float | None = None
+        parse_error: str | None = None
         if raw_gpa is not None:
             try:
                 gpa = float(raw_gpa)
             except (ValueError, TypeError):
-                pass
+                parse_error = f"GPA invalide : '{raw_gpa}'"
 
         parcours_raw = item.get("parcours")
         parcours_code = str(parcours_raw).strip() or None if parcours_raw else None
@@ -118,6 +123,7 @@ def _parse_rows(data: list) -> list[StudentRow]:
         rows.append(
             StudentRow(
                 ine=ine,
+                row_number=index,
                 first_name=str(item.get("prenom", "")).strip(),
                 last_name=str(item.get("nom", "")).strip(),
                 email=str(item.get("email", "")).strip(),
@@ -126,6 +132,7 @@ def _parse_rows(data: list) -> list[StudentRow]:
                 level_code=str(item.get("niveau", "")).strip(),
                 parcours_code=parcours_code,
                 gpa=gpa,
+                parse_error=parse_error,
                 nationality_iso2=nationality_raw,
                 source_id=source_id,
             )

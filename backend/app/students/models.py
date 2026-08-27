@@ -133,6 +133,15 @@ class AnnualEnrollment(TimeStampedModel):
         blank=True,
         verbose_name="Dernière sync Pégase",
     )
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Supprimée le",
+        help_text=(
+            "Suppression douce : l'inscription n'apparaît plus dans la liste par "
+            "défaut, mais reste consultable dans l'historique et peut être restaurée."
+        ),
+    )
 
     def clean(self) -> None:
         if self.parcours_id and self.parcours.department_id != self.department_id:
@@ -171,6 +180,7 @@ class AnnualEnrollment(TimeStampedModel):
                 fields=["academic_year", "is_alternant"],
                 name="enroll_year_alternant_idx",
             ),
+            models.Index(fields=["deleted_at"], name="students_enroll_deleted_idx"),
         ]
 
     def __str__(self) -> str:

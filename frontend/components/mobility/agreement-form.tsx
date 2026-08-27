@@ -35,6 +35,7 @@ export function AgreementForm({
 
     const formData = new FormData(event.currentTarget);
     const inpPlaces = Number(getString(formData, "inp_total_places") || "0");
+    const durationRaw = getString(formData, "duration_weeks");
 
     const payload: AgreementPayload = {
       name: getString(formData, "name"),
@@ -45,6 +46,7 @@ export function AgreementForm({
       valid_until: getString(formData, "valid_until") || null,
       inp_total_places: inpPlaces,
       inp_institutions: getString(formData, "inp_institutions"),
+      duration_weeks: durationRaw ? Number(durationRaw) : null,
       remarks: getString(formData, "remarks"),
       level_ids: selectedLevelIds,
       department_ids: selectedDeptIds,
@@ -105,7 +107,7 @@ export function AgreementForm({
       {/* Quota INP */}
       <div className="border-t border-gray-100 pt-4">
         <p className="mb-3 text-sm font-semibold text-gray-700">Quota INP global</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field
             defaultValue={String(item?.inp_total_places ?? 0)}
             label="Places INP total"
@@ -118,7 +120,17 @@ export function AgreementForm({
             label="Établissements partageant l'accord"
             name="inp_institutions"
           />
+          <Field
+            defaultValue={item?.duration_weeks != null ? String(item.duration_weeks) : ""}
+            label="Durée du séjour (semaines)"
+            min="1"
+            name="duration_weeks"
+            type="number"
+          />
         </div>
+        <p className="mt-2 text-xs text-gray-400">
+          Valeur par défaut reprise à la création de chaque instance annuelle — modifiable ensuite instance par instance.
+        </p>
       </div>
 
       {/* Contraintes niveaux */}

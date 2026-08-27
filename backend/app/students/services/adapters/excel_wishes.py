@@ -67,7 +67,9 @@ def generate_wish_template(
 
     # Étudiants inscrits pour cette année
     enrollments = (
-        AnnualEnrollment.objects.filter(academic_year=academic_year)
+        AnnualEnrollment.objects.filter(
+            academic_year=academic_year, deleted_at__isnull=True
+        )
         .select_related("student", "department", "level")
         .order_by("student__last_name", "student__first_name")
     )
@@ -212,11 +214,7 @@ def generate_wish_template(
         cell = info_ws.cell(row=i, column=1, value=line)
         if i == 1:
             cell.font = Font(bold=True, size=12)
-        elif (
-            line.startswith("COLONNES")
-            or line.startswith("RÈGLES")
-            or line.startswith("FORMAT")
-        ):
+        elif line.startswith(("COLONNES", "RÈGLES", "FORMAT")):
             cell.font = Font(bold=True)
 
     output = BytesIO()

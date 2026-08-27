@@ -160,6 +160,7 @@ class StudentEnrollmentOut(Schema):
     gpa: Decimal | None
     is_alternant: bool
     is_scholarship: bool
+    deleted_at: datetime | None = None
 
 
 class EnrollmentPatchIn(Schema):
@@ -193,6 +194,8 @@ class StudentImportRetryIn(Schema):
     gender: str | None = None
     gpa: float | None = None
     nationality_iso2: str | None = None
+    is_alternant: bool | None = None
+    is_scholarship: bool | None = None
 
 
 class StudentAssignmentOut(Schema):
@@ -249,3 +252,13 @@ class StudentWishItemOut(Schema):
     university_name: str
     country_name: str
     country_iso2: str
+
+
+class StudentRecommendationOut(Schema):
+    agreement_year_id: int
+    agreement_name: str
+    university_name: str
+    country_name: str
+    country_iso2: str
+    score: float | None
+    model_based: bool

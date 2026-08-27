@@ -13,15 +13,40 @@ export type AgreementFilters = {
   search?: string;
   country_id?: number;
   is_active?: boolean;
+  include_deleted?: boolean;
   page?: number;
   page_size?: number;
 };
+
+/**
+ * Récupère TOUTES les pages d'une ressource paginée (utilisé pour les jeux
+ * de données chargés intégralement en mémoire côté client, par opposition
+ * aux tableaux paginés côté UI). Un `page_size` fixe suffisait tant que le
+ * volume restait sous la limite serveur (500) — ce n'est plus garanti à
+ * mesure que les données croissent, d'où la boucle plutôt qu'un plafond figé.
+ */
+async function fetchAllPages<T>(basePath: string, pageSize = 500): Promise<T[]> {
+  const results: T[] = [];
+  let page = 1;
+  for (;;) {
+    const sep = basePath.includes("?") ? "&" : "?";
+    const data = await browserApi<PagedResponse<T>>(
+      `${basePath}${sep}page=${page}&page_size=${pageSize}`,
+      { method: "GET" },
+    );
+    results.push(...data.results);
+    if (data.results.length === 0 || results.length >= data.count) break;
+    page += 1;
+  }
+  return results;
+}
 
 export function fetchAgreements(filters: AgreementFilters = {}): Promise<PagedResponse<Agreement>> {
   const params = new URLSearchParams();
   if (filters.search) params.set("search", filters.search);
   if (filters.country_id) params.set("country_id", String(filters.country_id));
   if (filters.is_active !== undefined) params.set("is_active", String(filters.is_active));
+  if (filters.include_deleted) params.set("include_deleted", "true");
   params.set("page_size", String(filters.page_size ?? 200));
   if (filters.page) params.set("page", String(filters.page));
   return browserApi<PagedResponse<Agreement>>(
@@ -41,6 +66,7 @@ export type AgreementPayload = {
   valid_until: string | null;
   inp_total_places: number;
   inp_institutions: string;
+  duration_weeks: number | null;
   remarks: string;
   level_ids: number[];
   department_ids: number[];
@@ -80,20 +106,12 @@ export type InitYearResult = {
 
 // ── Data refresh (browser-safe, used by Client Components) ───────────────────
 
-export async function fetchAgreementYearDepartments(): Promise<AgreementYearDepartment[]> {
-  const page = await browserApi<PagedResponse<AgreementYearDepartment>>(
-    "/mobility/agreement-year-departments/?page_size=500",
-    { method: "GET" },
-  );
-  return page.results;
+export function fetchAgreementYearDepartments(): Promise<AgreementYearDepartment[]> {
+  return fetchAllPages<AgreementYearDepartment>("/mobility/agreement-year-departments/");
 }
 
-export async function fetchAgreementYearsList(): Promise<AgreementYear[]> {
-  const page = await browserApi<PagedResponse<AgreementYear>>(
-    "/mobility/agreement-years/?page_size=200",
-    { method: "GET" },
-  );
-  return page.results;
+export function fetchAgreementYearsList(): Promise<AgreementYear[]> {
+  return fetchAllPages<AgreementYear>("/mobility/agreement-years/");
 }
 
 export async function fetchMobilityCategories(): Promise<MobilityCategory[]> {
@@ -140,8 +158,18 @@ export function updateAgreement(id: number, payload: AgreementPayload) {
   return browserApi<Agreement>(`/mobility/agreements/${id}/`, { method: "PUT", body: payload });
 }
 
+/**
+ * Supprime un accord. Si aucun historique n'y est rattaché, suppression
+ * définitive (retourne undefined). Sinon, suppression douce côté backend :
+ * l'instance de l'année en cours est retirée, l'historique clôturé/validé
+ * reste intact, et l'accord est renvoyé avec `deleted_at` renseigné.
+ */
 export function deleteAgreement(id: number) {
-  return browserApi<void>(`/mobility/agreements/${id}/`, { method: "DELETE" });
+  return browserApi<Agreement | undefined>(`/mobility/agreements/${id}/`, { method: "DELETE" });
+}
+
+export function restoreAgreement(id: number) {
+  return browserApi<Agreement>(`/mobility/agreements/${id}/restore/`, { method: "POST" });
 }
 
 // ── Instances annuelles ───────────────────────────────────────────────────────
@@ -265,8 +293,11 @@ export async function importAgreementsFromExcel(file: File) {
   );
 }
 
-export function downloadExcelTemplate() {
-  window.open(`${publicApiBaseUrl}/mobility/excel-template/`, "_blank");
+export async function downloadExcelTemplate(): Promise<void> {
+  await downloadBlob(
+    `${publicApiBaseUrl}/mobility/excel-template/`,
+    "template_accords_mobilite.xlsx",
+  );
 }
 
 export async function exportAgreementsExcel(filters: {

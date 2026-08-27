@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ElementType, type ReactNode } from "react";
-import { BookOpen, Download, Eye, FileDown, FileSpreadsheet, GraduationCap, RefreshCw, Upload, Users, X } from "lucide-react";
+import { BookOpen, Download, Eye, FileDown, FileSpreadsheet, GraduationCap, History, RefreshCw, RotateCcw, Trash2, Upload, Users, X } from "lucide-react";
 
 import { ErrorBanner } from "@/components/ui/alert";
 import { Btn, FileBtn } from "@/components/ui/btn";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Pagination } from "@/components/ui/pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/config";
 import { StatCard } from "@/components/ui/stat-card";
@@ -18,6 +19,7 @@ import {
   getStudentsByYear,
   ignoreStudentImportError,
   importStudentsFromExcel,
+  restoreStudentEnrollment,
   retryStudentImportError,
   syncStudentsFromPegase,
   updateStudentEnrollment,
@@ -73,6 +75,7 @@ export function StudentsWorkspace({
   const [filterLevel, setFilterLevel] = useState("");
   const [filterDept, setFilterDept] = useState("");
   const [filterParcours, setFilterParcours] = useState("");
+  const [showDeleted, setShowDeleted] = useState(false);
 
   const [importInProgress, setImportInProgress] = useState(false);
   const [syncInProgress, setSyncInProgress] = useState(false);
@@ -83,8 +86,10 @@ export function StudentsWorkspace({
   const [errorsTotalCount, setErrorsTotalCount] = useState(0);
   const [errorsPage, setErrorsPage] = useState(1);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<StudentWithEnrollment | null>(null);
   const [editModal, setEditModal] = useState<{ item: StudentWithEnrollment } | null>(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -99,7 +104,15 @@ export function StudentsWorkspace({
       level_id: overrides.level_id ?? (filterLevel ? Number(filterLevel) : undefined),
       department_id: overrides.department_id ?? (filterDept ? Number(filterDept) : undefined),
       parcours_id: overrides.parcours_id ?? (filterParcours ? Number(filterParcours) : undefined),
+      include_deleted: overrides.include_deleted ?? showDeleted,
     };
+  }
+
+  function handleToggleShowDeleted() {
+    const next = !showDeleted;
+    setShowDeleted(next);
+    setCurrentPage(1);
+    if (selectedYearId) void doFetch(selectedYearId, 1, buildFilters({ include_deleted: next }));
   }
 
   async function doFetch(yearId: number, page: number, filters: StudentByYearFilters) {
@@ -126,10 +139,12 @@ export function StudentsWorkspace({
       setPagedData(null);
       setCurrentPage(1);
       setError("");
+      setSuccessMessage("");
       setFilterLevel("");
       setFilterDept("");
       setFilterParcours("");
       setQuery("");
+      setShowDeleted(false);
       try {
         const [s, data, errs] = await Promise.all([
           getStudentStatsForYear(id),
@@ -169,17 +184,19 @@ export function StudentsWorkspace({
     }
   }
 
-  async function refreshYear() {
+  async function refreshYear(pageOverride?: number) {
     if (!selectedYearId) return;
+    const page = pageOverride ?? currentPage;
     setIsLoading(true);
     try {
       const [s, data, errs] = await Promise.all([
         getStudentStatsForYear(selectedYearId),
-        getStudentsByYear(selectedYearId, { ...buildFilters(), page: currentPage, page_size: DEFAULT_PAGE_SIZE }),
+        getStudentsByYear(selectedYearId, { ...buildFilters(), page, page_size: DEFAULT_PAGE_SIZE }),
         getStudentImportErrors({ page: errorsPage, page_size: ERRORS_PAGE_SIZE, year_id: selectedYearId }),
       ]);
       setStats(s);
       setPagedData(data);
+      setCurrentPage(data.page);
       setImportErrors(errs.results);
       setErrorsTotalCount(errs.count);
     } catch (err) {
@@ -240,7 +257,12 @@ export function StudentsWorkspace({
 
   async function handleRetryImportError(err: RawImport, correction: StudentImportCorrection) {
     await retryStudentImportError(err.id, correction);
-    await Promise.all([loadStudentErrors(errorsPage), refreshYear()]);
+    // Retour à la page 1 : la ligne corrigée devient un étudiant ajouté à la
+    // liste, qui peut atterrir sur une page suivante selon le tri — sans ça
+    // l'admin a l'impression que la correction n'a rien fait.
+    setCurrentPage(1);
+    setSuccessMessage("Étudiant importé avec succès.");
+    await Promise.all([loadStudentErrors(errorsPage), refreshYear(1)]);
   }
 
   async function handleExcelImport(file: File) {
@@ -248,6 +270,13 @@ export function StudentsWorkspace({
     setError(""); setImportInProgress(true);
     try {
       await importStudentsFromExcel(selectedYear.id, file);
+      // Import Excel est traité en tâche de fond (django-q, comme la sync
+      // Pégase) — la requête HTTP renvoie 202 avant que les étudiants/erreurs
+      // ne soient réellement écrits en base. Sans ce délai + refresh, la liste
+      // et le panneau d'erreurs restent figés sur leur état d'avant l'import,
+      // ce qui donne l'impression que rien ne s'est passé.
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await refreshYear();
     } catch (err) {
       setError(err instanceof Error ? err.message : "L'import Excel a échoué.");
     } finally { setImportInProgress(false); }
@@ -289,18 +318,60 @@ export function StudentsWorkspace({
     }
   }
 
+  // Rafraîchit les cards de stats en tâche de fond, sans recharger toute la
+  // page — appelé après suppression/restauration pour qu'elles reflètent
+  // immédiatement le nouveau total.
+  function refreshStatsInBackground() {
+    if (!selectedYearId) return;
+    getStudentStatsForYear(selectedYearId).then(setStats).catch(() => {});
+  }
+
   async function handleDeleteEnrollment(enrollment: StudentWithEnrollment) {
-    if (!window.confirm(`Supprimer l'inscription de ${enrollment.last_name} ${enrollment.first_name} (${enrollment.ine}) ? Cette action est irréversible.`)) return;
+    if (
+      !(await confirm(
+        `Supprimer l'inscription de ${enrollment.last_name} ${enrollment.first_name} (${enrollment.ine}) ? ` +
+          "L'inscription restera consultable dans l'historique et pourra être restaurée.",
+      ))
+    )
+      return;
     setError("");
     try {
-      await deleteStudentEnrollment(enrollment.enrollment_id);
-      setPagedData((prev) => prev ? {
-        ...prev,
-        count: prev.count - 1,
-        results: prev.results.filter((e) => e.enrollment_id !== enrollment.enrollment_id),
-      } : prev);
+      const updated = await deleteStudentEnrollment(enrollment.enrollment_id);
+      setPagedData((prev) => {
+        if (!prev) return prev;
+        if (showDeleted) {
+          return {
+            ...prev,
+            results: prev.results.map((e) =>
+              e.enrollment_id === updated.enrollment_id ? updated : e,
+            ),
+          };
+        }
+        return {
+          ...prev,
+          count: prev.count - 1,
+          results: prev.results.filter((e) => e.enrollment_id !== enrollment.enrollment_id),
+        };
+      });
+      refreshStatsInBackground();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de supprimer l'inscription.");
+    }
+  }
+
+  async function handleRestoreEnrollment(enrollment: StudentWithEnrollment) {
+    setError("");
+    try {
+      const updated = await restoreStudentEnrollment(enrollment.enrollment_id);
+      setPagedData((prev) => prev ? {
+        ...prev,
+        results: prev.results.map((e) =>
+          e.enrollment_id === updated.enrollment_id ? updated : e,
+        ),
+      } : prev);
+      refreshStatsInBackground();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de restaurer l'inscription.");
     }
   }
 
@@ -330,6 +401,8 @@ export function StudentsWorkspace({
 
   return (
     <>
+      {confirmDialog}
+
       {/* Year selector */}
       <div className="flex items-end gap-4">
         <label className="block">
@@ -405,6 +478,10 @@ export function StudentsWorkspace({
             <TemplateButton isLoading={templateLoading} disabled={isLocked} onClick={handleTemplateDownload} />
             <ExcelImportButton isLoading={importInProgress} disabled={selectedYear?.status === "closed" || isLocked} onImport={handleExcelImport} />
             <SyncButton isLoading={syncInProgress} disabled={selectedYear?.status === "closed" || isLocked} onClick={handleSync} />
+            <Btn disabled={!selectedYear || isLoading} onClick={handleToggleShowDeleted}>
+              <History className="h-4 w-4" />
+              {showDeleted ? "Masquer les supprimés" : "Voir les supprimés"}
+            </Btn>
             <span className="hidden h-6 w-px bg-gray-200 md:block" />
             <Btn disabled={!selectedYear || exportInProgress || isLoading} onClick={handleExport}>
               <FileDown className="h-4 w-4" />
@@ -466,6 +543,19 @@ export function StudentsWorkspace({
       />
 
       <ErrorBanner message={error} />
+      {successMessage && (
+        <div className="flex items-start justify-between gap-3 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <span>{successMessage}</span>
+          <button
+            aria-label="Fermer"
+            className="shrink-0 text-emerald-400 hover:text-emerald-600"
+            onClick={() => setSuccessMessage("")}
+            type="button"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {editModal && (
         <Modal
@@ -501,6 +591,7 @@ export function StudentsWorkspace({
             onEdit={(e) => setEditModal({ item: e })}
             onView={setSelectedStudent}
             onDelete={handleDeleteEnrollment}
+            onRestore={handleRestoreEnrollment}
             onPageChange={handlePageChange}
           />
         ) : (
@@ -594,6 +685,7 @@ function EnrollmentTable({
   onView,
   onEdit,
   onDelete,
+  onRestore,
   onPageChange,
 }: Readonly<{
   items: StudentWithEnrollment[];
@@ -606,6 +698,7 @@ function EnrollmentTable({
   onView: (s: StudentWithEnrollment) => void;
   onEdit: (s: StudentWithEnrollment) => void;
   onDelete: (s: StudentWithEnrollment) => void;
+  onRestore: (s: StudentWithEnrollment) => void;
   onPageChange: (page: number) => void;
 }>) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -625,13 +718,16 @@ function EnrollmentTable({
           <thead className="bg-gray-50">
             <tr>
               <Th>INE</Th><Th>Nom</Th><Th>Prénom</Th><Th>Email</Th>
-              <Th>Genre</Th><Th>Nationalité</Th><Th>Département</Th><Th>Niveau</Th><Th>Parcours</Th><Th>GPA</Th>
+              <Th>Genre</Th><Th>Nationalité</Th><Th>Filière</Th><Th>GPA</Th><Th>Boursier</Th><Th>FISE/FISA</Th><Th>Statut</Th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
             {items.map((e) => (
-              <tr key={`${e.student_id}-${e.level_id}`} className="hover:bg-gray-50/50">
+              <tr
+                key={`${e.student_id}-${e.level_id}`}
+                className={`hover:bg-gray-50/50 ${e.deleted_at ? "bg-red-50/30" : ""}`}
+              >
                 <Td><span className="font-mono text-xs text-gray-600">{e.ine}</span></Td>
                 <Td><span className="font-medium text-gray-900">{e.last_name.toUpperCase()}</span></Td>
                 <Td>{e.first_name}</Td>
@@ -651,24 +747,48 @@ function EnrollmentTable({
                   </span>
                 </Td>
                 <Td>
-                  <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                    {e.department_code}
-                  </span>
-                </Td>
-                <Td>
-                  <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                    {e.level_code}
-                  </span>
-                </Td>
-                <Td>
-                  {e.parcours_code
-                    ? <span className="text-xs text-gray-600">{e.parcours_code}</span>
-                    : <span className="text-xs italic text-gray-300">—</span>}
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                      {e.department_code}
+                    </span>
+                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {e.level_code}
+                    </span>
+                    {e.parcours_code
+                      ? <span className="text-xs text-gray-600">{e.parcours_code}</span>
+                      : null}
+                  </div>
                 </Td>
                 <Td>
                   {e.gpa != null
                     ? <span className="font-mono text-xs text-gray-700">{Number.parseFloat(e.gpa).toFixed(2)}</span>
                     : <span className="text-xs italic text-gray-300">—</span>}
+                </Td>
+                <Td>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                    e.is_scholarship ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
+                  }`}>
+                    {e.is_scholarship ? "Oui" : "Non"}
+                  </span>
+                </Td>
+                <Td>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                    e.is_alternant ? "bg-purple-50 text-purple-700" : "bg-indigo-50 text-indigo-700"
+                  }`}>
+                    {e.is_alternant ? "FISA" : "FISE"}
+                  </span>
+                </Td>
+                <Td>
+                  {e.deleted_at ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700">
+                      <Trash2 size={9} />
+                      Supprimé le {new Date(e.deleted_at).toLocaleDateString("fr-FR")}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                      Actif
+                    </span>
+                  )}
                 </Td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
@@ -680,14 +800,25 @@ function EnrollmentTable({
                     >
                       <Eye className="h-3.5 w-3.5" />
                     </button>
-                    <ActionButtons
-                      onEdit={() => onEdit(e)}
-                      editDisabled={!canEdit}
-                      editDisabledTitle="Non autorisé dans cette phase"
-                      onDelete={() => onDelete(e)}
-                      deleteDisabled={!canDelete}
-                      deleteDisabledTitle="Non autorisé dans cette phase"
-                    />
+                    {e.deleted_at ? (
+                      <button
+                        className="flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-600 hover:bg-gray-50"
+                        onClick={() => onRestore(e)}
+                        title="Restaurer l'inscription"
+                        type="button"
+                      >
+                        <RotateCcw size={13} />
+                      </button>
+                    ) : (
+                      <ActionButtons
+                        onEdit={() => onEdit(e)}
+                        editDisabled={!canEdit}
+                        editDisabledTitle="Non autorisé dans cette phase"
+                        onDelete={() => onDelete(e)}
+                        deleteDisabled={!canDelete}
+                        deleteDisabledTitle="Non autorisé dans cette phase"
+                      />
+                    )}
                   </div>
                 </td>
               </tr>

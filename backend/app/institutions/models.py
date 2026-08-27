@@ -24,7 +24,9 @@ class PartnerUniversity(TimeStampedModel):
     class Meta:
         verbose_name = "Partner University"
         verbose_name_plural = "Partner Universities"
-        ordering = ["name"]
+        # "id" en dernier critère : name n'est pas unique, donc sans tiebreaker
+        # la pagination LIMIT/OFFSET n'est pas garantie stable entre requêtes.
+        ordering = ["name", "id"]
         indexes = [
             models.Index(fields=["moveon_id"]),
             models.Index(fields=["country"]),

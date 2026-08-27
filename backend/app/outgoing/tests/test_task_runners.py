@@ -65,6 +65,20 @@ class TestRunGaleShapley:
         assert result.agreement_year_id == ay.id
         assert result.slot_type == "surplus"
 
+    def test_excludes_soft_deleted_enrollment_from_assignment(self):
+        from django.utils import timezone
+
+        year, enrollment, _ay = make_full_fixture()
+        enrollment.deleted_at = timezone.now()
+        enrollment.save(update_fields=["deleted_at"])
+
+        run_gale_shapley(year.id)
+
+        assignment = Assignment.objects.get(academic_year=year)
+        assert assignment.total_students == 0
+        assert assignment.assigned_count == 0
+        assert not AssignmentResult.objects.filter(assignment=assignment).exists()
+
     def test_skips_students_without_wishes(self):
         year = make_year(
             label="2027-2028", start_date=date(2027, 9, 1), end_date=date(2028, 8, 31)

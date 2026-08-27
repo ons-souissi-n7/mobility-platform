@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, Download, FileDown, FileSpreadsheet, FileText, Gauge, Landmark, Layers, Plus, RefreshCw, Upload } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Download, FileDown, FileSpreadsheet, FileText, Gauge, History, Landmark, Layers, Plus, RefreshCw, Upload } from "lucide-react";
 
 import { AgreementForm } from "@/components/mobility/agreement-form";
 import { MobilityCategoryForm } from "@/components/mobility/agreement-framework-form";
 import { MobilityCategorysTable } from "@/components/mobility/agreement-frameworks-table";
+import { AgreementsHistoryTable } from "@/components/mobility/agreements-history-table";
 import { AgreementsTable } from "@/components/mobility/agreements-table";
 import { MobilityImportErrorsPanel } from "@/components/mobility/mobility-import-errors-panel";
 import { MobilitySection } from "@/components/mobility/mobility-section";
@@ -33,6 +34,7 @@ import {
   getMoveonMobilityImportErrors,
   ignoreMobilityImport,
   importAgreementsFromExcel,
+  restoreAgreement,
   retryMobilityImport,
   syncMobilityFromMoveon,
   syncMobilityCategoriesFromMoveon,
@@ -73,6 +75,7 @@ export function MobilityWorkspace({
   currentYear,
   initialAgreementYears,
   initialAgreements,
+  initialAllAgreements,
   initialAgreementYearDepartments,
   initialImportErrors,
   initialImportErrorsTotalCount,
@@ -87,6 +90,7 @@ export function MobilityWorkspace({
   currentYear: AcademicYear | null;
   initialAgreementYears: AgreementYear[];
   initialAgreements: Agreement[];
+  initialAllAgreements: Agreement[];
   initialAgreementYearDepartments: AgreementYearDepartment[];
   initialImportErrors: RawImport[];
   initialImportErrorsTotalCount: number;
@@ -96,6 +100,8 @@ export function MobilityWorkspace({
   universities: PartnerUniversity[];
 }>) {
   const [agreements, setAgreements] = useState(initialAgreements);
+  const [allAgreements, setAllAgreements] = useState(initialAllAgreements);
+  const [showHistory, setShowHistory] = useState(false);
   const [expiringAgreements] = useState(initialExpiringAgreements);
   const [mobilityCategories, setMobilityCategories] = useState(initialMobilityCategories);
   const [agreementYears, setAgreementYears] = useState(initialAgreementYears);
@@ -200,12 +206,26 @@ export function MobilityWorkspace({
     return base;
   }, [academicYears, agreementYears, agreements, categoryFilter, universityFilter, yearFilter]);
 
+  // "" (Toutes les années) n'a pas de snapshot "actif" unique et cohérent :
+  // dans ce cas on retombe sur l'année en cours plutôt que de sommer toutes
+  // les années (ce qui compterait plusieurs fois le même accord).
+  const statsYearLabel = yearFilter || currentYear?.label;
+
   const activeYearInstances = useMemo(() => {
-    if (!currentYear) return [];
-    return agreementYears.filter(
-      (yi) => yi.academic_year_label === currentYear.label && yi.is_active,
+    if (!statsYearLabel) return [];
+    // Un accord supprimé ne doit plus compter comme actif, même si son
+    // instance (validée avant suppression, donc jamais retouchée) l'indique
+    // encore — allAgreements porte deleted_at, agreementYears non.
+    const deletedAgreementIds = new Set(
+      allAgreements.filter((a) => a.deleted_at !== null).map((a) => a.id),
     );
-  }, [agreementYears, currentYear]);
+    return agreementYears.filter(
+      (yi) =>
+        yi.academic_year_label === statsYearLabel &&
+        yi.is_active &&
+        !deletedAgreementIds.has(yi.agreement_id),
+    );
+  }, [agreementYears, allAgreements, statsYearLabel]);
 
   const statTotalN7 = useMemo(
     () => activeYearInstances.reduce((s, yi) => s + yi.n7_places, 0),
@@ -219,22 +239,71 @@ export function MobilityWorkspace({
     if (modal.item) {
       const updated = await updateAgreement(modal.item.id, payload);
       setAgreements((items) => items.map((a) => (a.id === updated.id ? updated : a)));
+      setAllAgreements((items) => items.map((a) => (a.id === updated.id ? updated : a)));
     } else {
       const created = await createAgreement(payload);
       setAgreements((items) => [...items, created]);
+      setAllAgreements((items) => [...items, created]);
     }
+    // Le backend crée/redistribue l'instance annuelle et ses quotas département
+    // à la création/modification d'un accord : on rafraîchit ces deux listes
+    // pour que la nouvelle instance soit visible sans recharger la page.
+    const [newAgreementYears, newDeptQuotas] = await Promise.all([
+      fetchAgreementYearsList(),
+      fetchAgreementYearDepartments(),
+    ]);
+    setAgreementYears(newAgreementYears);
+    setAgreementYearDepartments(newDeptQuotas);
     setModal(null);
   }
 
   async function removeAgreement(agreement: Agreement) {
-    if (!(await confirm(`Supprimer l'accord "${agreement.name}" ? Cette action est irréversible.`))) return;
+    if (
+      !(await confirm(
+        `Supprimer l'accord "${agreement.name}" ? S'il a de l'historique (années passées ou validées), ` +
+          `il sera conservé — consultable dans l'historique — mais retiré à partir de maintenant.`,
+      ))
+    )
+      return;
     setSyncError("");
     try {
-      await deleteAgreement(agreement.id);
-      setAgreements((items) => items.filter((a) => a.id !== agreement.id));
-      setAgreementYears((items) => items.filter((y) => y.agreement_id !== agreement.id));
+      const result = await deleteAgreement(agreement.id);
+      if (result) {
+        // Suppression douce : l'accord garde son historique mais n'est plus
+        // actif à partir de maintenant — il disparaît de la vue "année en cours".
+        setAgreements((items) => items.filter((a) => a.id !== agreement.id));
+        setAllAgreements((items) => items.map((a) => (a.id === result.id ? result : a)));
+      } else {
+        setAgreements((items) => items.filter((a) => a.id !== agreement.id));
+        setAllAgreements((items) => items.filter((a) => a.id !== agreement.id));
+      }
+      const [newAgreementYears, newDeptQuotas] = await Promise.all([
+        fetchAgreementYearsList(),
+        fetchAgreementYearDepartments(),
+      ]);
+      setAgreementYears(newAgreementYears);
+      setAgreementYearDepartments(newDeptQuotas);
     } catch (err) {
       setSyncError(err instanceof Error ? err.message : "Impossible de supprimer l'accord.");
+    }
+  }
+
+  async function handleRestoreAgreement(agreement: Agreement) {
+    setSyncError("");
+    try {
+      const restored = await restoreAgreement(agreement.id);
+      setAllAgreements((items) => items.map((a) => (a.id === restored.id ? restored : a)));
+      setAgreements((items) =>
+        items.some((a) => a.id === restored.id) ? items : [...items, restored],
+      );
+      const [newAgreementYears, newDeptQuotas] = await Promise.all([
+        fetchAgreementYearsList(),
+        fetchAgreementYearDepartments(),
+      ]);
+      setAgreementYears(newAgreementYears);
+      setAgreementYearDepartments(newDeptQuotas);
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Impossible de restaurer l'accord.");
     }
   }
 
@@ -386,6 +455,15 @@ export function MobilityWorkspace({
     }
   }
 
+  async function handleTemplateDownload() {
+    setSyncError("");
+    try {
+      await downloadExcelTemplate();
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Erreur téléchargement du modèle.");
+    }
+  }
+
   // ── Import Excel ───────────────────────────────────────────────────────────
 
   async function handleExcelImport(file: File) {
@@ -435,7 +513,7 @@ export function MobilityWorkspace({
   }
 
   async function refreshMobilityData() {
-    const [agreementsPage, agreementYears, agreementYearDepts, mobilityCategories, importErrorsPage] =
+    const [agreementsPage, allAgreementsPage, agreementYears, agreementYearDepts, mobilityCategories, importErrorsPage] =
       await Promise.all([
         fetchAgreements({
           search: query || undefined,
@@ -443,12 +521,14 @@ export function MobilityWorkspace({
           is_active: activityFilter === "active" ? true : activityFilter === "inactive" ? false : undefined,
           page_size: 200,
         }),
+        fetchAgreements({ include_deleted: true, page_size: 200 }),
         fetchAgreementYearsList(),
         fetchAgreementYearDepartments(),
         fetchMobilityCategories(),
         fetchMobilityImportErrors(1, 25),
       ]);
     setAgreements(agreementsPage.results);
+    setAllAgreements(allAgreementsPage.results);
     setAgreementYears(agreementYears);
     setAgreementYearDepartments(agreementYearDepts);
     setMobilityCategories(mobilityCategories);
@@ -486,8 +566,20 @@ export function MobilityWorkspace({
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard icon={Landmark} label="Accords total" value={agreements.length} helper="" tone="blue" />
-        <StatCard icon={Layers} label="Actifs cette année" value={activeYearInstances.length} helper="" tone="emerald" />
-        <StatCard icon={Gauge} label="Places N7" value={statTotalN7} helper="" tone="blue" />
+        <StatCard
+          icon={Layers}
+          label={statsYearLabel ? `Actifs en ${statsYearLabel}` : "Actifs cette année"}
+          value={activeYearInstances.length}
+          helper=""
+          tone="emerald"
+        />
+        <StatCard
+          icon={Gauge}
+          label={statsYearLabel ? `Places N7 (${statsYearLabel})` : "Places N7"}
+          value={statTotalN7}
+          helper=""
+          tone="blue"
+        />
         <StatCard icon={FileText} label="Cadres" value={mobilityCategories.length} helper="" tone="amber" />
       </div>
 
@@ -517,16 +609,24 @@ export function MobilityWorkspace({
 
       {/* ── Section Accords ─────────────────────────────────────────────── */}
       <MobilitySection
-        description="Accords de mobilité, quotas annuels et répartition par département."
+        description={
+          showHistory
+            ? "Historique complet de tous les accords, toutes années confondues (y compris supprimés)."
+            : "Accords de mobilité, quotas annuels et répartition par département."
+        }
         id="accords"
         title="Accords de mobilité"
         toolbar={
           <div className="flex flex-wrap gap-2">
+            <Btn onClick={() => setShowHistory((v) => !v)}>
+              <History className="h-4 w-4" />
+              {showHistory ? "Vue année en cours" : "Historique complet"}
+            </Btn>
             <Btn disabled={syncInProgress || isYearClosed || isYearLocked} onClick={handleSync}>
               <RefreshCw className={`h-4 w-4 ${syncInProgress ? "animate-spin" : ""}`} />
               {syncInProgress ? "Synchronisation..." : "Sync MoveON"}
             </Btn>
-            <Btn disabled={isYearClosed || isYearLocked} onClick={downloadExcelTemplate}>
+            <Btn disabled={isYearClosed || isYearLocked} onClick={() => { void handleTemplateDownload(); }}>
               <Download className="h-4 w-4" />
               Template
             </Btn>
@@ -544,72 +644,96 @@ export function MobilityWorkspace({
           </div>
         }
       >
-        {/* Filtres — une seule ligne */}
-        <div className="mb-4 flex items-center gap-2">
-          <SearchInput onChange={handleQueryChange} placeholder="Rechercher..." value={query} />
-          <select
-            className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
-            onChange={(e) => handleCountryFilterChange(e.target.value)}
-            value={countryFilter}
-          >
-            <option value="all">Tous pays</option>
-            {[...countries]
-              .sort((a, b) => a.name_fr.localeCompare(b.name_fr))
-              .map((c) => (
-                <option key={c.id} value={c.id}>{c.name_fr}</option>
-              ))}
-          </select>
-          <select
-            className="w-36 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
-            onChange={(e) => setUniversityFilter(e.target.value)}
-            value={universityFilter}
-          >
-            <option value="all">Toutes universités</option>
-            {filteredUniversities.map((u) => (
-              <option key={u.id} value={u.id}>{u.short_name || u.name}</option>
-            ))}
-          </select>
-          <select
-            className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            value={categoryFilter}
-          >
-            <option value="all">Tous cadres</option>
-            {mobilityCategories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <select
-            className="w-24 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
-            onChange={(e) => handleActivityFilterChange(e.target.value)}
-            value={activityFilter}
-          >
-            <option value="all">Tous</option>
-            <option value="active">Actifs</option>
-            <option value="inactive">Inactifs</option>
-          </select>
-        </div>
+        {showHistory ? (
+          <AgreementsHistoryTable
+            academicYears={academicYears}
+            agreements={allAgreements}
+            agreementYears={agreementYears}
+            agreementYearDepartments={agreementYearDepartments}
+            categories={mobilityCategories}
+            departments={departments}
+            levels={mobilityLevels}
+            universities={universities}
+            onEditYear={handleEditYear}
+            onEditYearDuration={handleEditYearDuration}
+            onEditYearInp={handleEditYearInp}
+            onRestore={handleRestoreAgreement}
+            onSaveDeptQuota={handleSaveDeptQuota}
+            onToggleYearActive={handleToggleYearActive}
+            onValidateYear={handleValidateYear}
+          />
+        ) : (
+          <>
+            {/* Filtres — une seule ligne */}
+            <div className="mb-4 flex items-center gap-2">
+              <SearchInput onChange={handleQueryChange} placeholder="Rechercher..." value={query} />
+              <select
+                className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
+                onChange={(e) => handleCountryFilterChange(e.target.value)}
+                value={countryFilter}
+              >
+                <option value="all">Tous pays</option>
+                {[...countries]
+                  .sort((a, b) => a.name_fr.localeCompare(b.name_fr))
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>{c.name_fr}</option>
+                  ))}
+              </select>
+              <select
+                className="w-36 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
+                onChange={(e) => setUniversityFilter(e.target.value)}
+                value={universityFilter}
+              >
+                <option value="all">Toutes universités</option>
+                {filteredUniversities.map((u) => (
+                  <option key={u.id} value={u.id}>{u.short_name || u.name}</option>
+                ))}
+              </select>
+              <select
+                className="w-32 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                value={categoryFilter}
+              >
+                <option value="all">Tous cadres</option>
+                {mobilityCategories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <select
+                className="w-24 rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"
+                onChange={(e) => handleActivityFilterChange(e.target.value)}
+                value={activityFilter}
+              >
+                <option value="all">Tous</option>
+                <option value="active">Actifs</option>
+                <option value="inactive">Inactifs</option>
+              </select>
+            </div>
 
-        <AgreementsTable
-          agreements={agreementsForDisplay}
-          agreementYears={agreementYears}
-          agreementYearDepartments={agreementYearDepartments}
-          categories={mobilityCategories}
-          departments={departments}
-          levels={mobilityLevels}
-          universities={universities}
-          yearFilter={yearFilter}
-          isYearClosed={isYearClosed}
-          isYearLocked={isYearLocked}
-          onToggleYearActive={handleToggleYearActive}
-          onEditYear={handleEditYear}
-          onEditYearInp={handleEditYearInp}
-          onEditYearDuration={handleEditYearDuration}
-          onValidateYear={handleValidateYear}
-          onSaveDeptQuota={handleSaveDeptQuota}
-          onEdit={(agreement) => setModal({ kind: "agreement", item: agreement })}
-          onDelete={removeAgreement}
-        />
+            <AgreementsTable
+              academicYears={academicYears}
+              agreements={agreementsForDisplay}
+              agreementYears={agreementYears}
+              agreementYearDepartments={agreementYearDepartments}
+              categories={mobilityCategories}
+              departments={departments}
+              levels={mobilityLevels}
+              universities={universities}
+              yearFilter={yearFilter}
+              isYearClosed={isYearClosed}
+              isYearLocked={isYearLocked}
+              onToggleYearActive={handleToggleYearActive}
+              onEditYear={handleEditYear}
+              onEditYearInp={handleEditYearInp}
+              onEditYearDuration={handleEditYearDuration}
+              onValidateYear={handleValidateYear}
+              onSaveDeptQuota={handleSaveDeptQuota}
+              onRestore={handleRestoreAgreement}
+              onEdit={(agreement) => setModal({ kind: "agreement", item: agreement })}
+              onDelete={removeAgreement}
+            />
+          </>
+        )}
       </MobilitySection>
 
       {/* Erreurs accords */}

@@ -142,6 +142,7 @@ def _process_row(excel_row: ExcelRow, current_year: AcademicYear | None) -> bool
             "inp_total_places": inp_total,
             "inp_institutions": institutions,
             "remarks": excel_row.remarks,
+            "duration_weeks": excel_row.duration_weeks,
         },
     )
 

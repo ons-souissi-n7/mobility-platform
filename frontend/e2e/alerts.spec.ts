@@ -33,6 +33,7 @@ import {
   seedGpaAndQuotas,
   deleteAgreementYearsForLabel,
   deleteAgreementViaApi,
+  resolveAlertsMatching,
 } from "./helpers";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -387,6 +388,10 @@ test.describe("Alerte réelle via workflow FSM", () => {
       // Tenter de supprimer l'année (seulement possible en état initialization)
       // Si l'année a avancé, on ne peut pas la supprimer via l'API, on skip le cleanup
       await deleteYearViaApi(page, yearId).catch(() => {});
+      // Sans ça, l'alerte "Affectation lancée sans vœux — {YEAR_LABEL}" créée
+      // par le test 8 reste non lue indéfiniment et s'accumule au fil des
+      // runs dans la bannière (cf. resolveAlertsMatching).
+      await resolveAlertsMatching(page, YEAR_LABEL).catch(() => {});
     } finally {
       await context.close();
     }

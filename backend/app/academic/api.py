@@ -164,7 +164,7 @@ def open_recommendation(request, year_id: int):
             " avant de lancer la phase de recommandation.",
         )
     has_gpa = AnnualEnrollment.objects.filter(
-        academic_year=academic_year, gpa__isnull=False
+        academic_year=academic_year, gpa__isnull=False, deleted_at__isnull=True
     ).exists()
     if not has_gpa:
         raise HttpError(

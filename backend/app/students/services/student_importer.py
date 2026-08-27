@@ -39,6 +39,21 @@ class StudentRow:
     nationality_iso2: str | None = None
     source_id: str | None = None
     source_sync_at: datetime | None = None
+    # Position dans la source (ligne Excel, index Pégase) — sert de repli pour
+    # external_id quand l'INE est vide, pour que chaque ligne sans INE reste
+    # individuellement identifiable dans le panneau d'erreurs plutôt que
+    # d'être fusionnée avec les autres sous un external_id "" commun.
+    row_number: int | str | None = None
+    # Erreur de parsing détectée par l'adaptateur (ex. GPA non numérique) —
+    # la ligne est quand même transmise à import_students() plutôt que d'être
+    # abandonnée en silence, pour finir en échec explicite dans le panneau
+    # d'erreurs au lieu de disparaître sans laisser de trace.
+    parse_error: str | None = None
+    # None = non renseigné par la source (ex. Pégase ne fournit pas ces deux
+    # champs) : on ne touche pas à la valeur existante dans ce cas plutôt que
+    # d'écraser un statut Boursier/FISA saisi manuellement par un admin.
+    is_alternant: bool | None = None
+    is_scholarship: bool | None = None
 
     def __post_init__(self) -> None:
         self.ine = normalize_ine(self.ine)
@@ -75,11 +90,19 @@ def import_students(
     country_cache: dict[str, Country | None] = {}
 
     for row in rows:
+        # Une ligne sans INE ne doit pas être fusionnée avec les autres lignes
+        # sans INE sous un même external_id "" — sinon list_student_import_errors
+        # (qui déduplique par external_id) n'en affiche qu'une seule, faisant
+        # disparaître les autres du panneau d'erreurs (perte d'information).
+        external_id = (
+            row.ine
+            or f"row_{row.row_number if row.row_number is not None else id(row)}"
+        )
         raw = RawImport(
             source="pegase" if not source_file else "excel_students",
             source_file=source_file,
             entity=RawImportEntity.STUDENT,
-            external_id=row.ine,
+            external_id=external_id,
             payload={
                 "ine": row.ine,
                 "first_name": row.first_name,
@@ -90,6 +113,9 @@ def import_students(
                 "level_code": row.level_code,
                 "parcours_code": row.parcours_code,
                 "gpa": str(row.gpa) if row.gpa is not None else None,
+                "nationality_iso2": row.nationality_iso2,
+                "is_alternant": row.is_alternant,
+                "is_scholarship": row.is_scholarship,
             },
             import_report=db_report,
             academic_year=academic_year,
@@ -97,6 +123,8 @@ def import_students(
 
         try:
             validate_student(row)
+            if row.parse_error:
+                raise ValueError(row.parse_error)
 
             department = _resolve_department(row.department_code, dept_cache)
             if department is None:
@@ -148,6 +176,8 @@ def import_students(
                 parcours,
                 _to_decimal(row.gpa),
                 source_date,
+                row.is_alternant,
+                row.is_scholarship,
             )
 
             raw.status = RawImportStatus.IMPORTED
@@ -163,7 +193,7 @@ def import_students(
                 db_report.record_success()
 
         except Exception as exc:  # noqa: BLE001
-            msg = f"INE {row.ine}: {exc}"
+            msg = f"INE {external_id}: {exc}"
             report.errors.append(msg)
             raw.status = RawImportStatus.FAILED
             raw.error_message = str(exc)
@@ -172,7 +202,7 @@ def import_students(
             else:
                 raw.save(update_fields=["status", "error_message", "updated_at"])
             if db_report:
-                db_report.record_error(row.ine, str(exc))
+                db_report.record_error(external_id, str(exc))
 
     return report
 
@@ -263,8 +293,15 @@ def _upsert_enrollment(
     parcours: Parcours | None,
     new_gpa: Decimal | None,
     source_date: date | None,
+    is_alternant: bool | None = None,
+    is_scholarship: bool | None = None,
 ) -> tuple[bool, bool]:
-    """Upsert AnnualEnrollment. Returns (created, changed)."""
+    """Upsert AnnualEnrollment. Returns (created, changed).
+
+    is_alternant/is_scholarship: None means the source didn't provide a value
+    (e.g. Pégase) — the existing value is left untouched rather than reset to
+    the model's False default.
+    """
     enrollment, created = AnnualEnrollment.objects.get_or_create(
         student=student,
         academic_year=academic_year,
@@ -273,6 +310,8 @@ def _upsert_enrollment(
             "level": level,
             "parcours": parcours,
             "gpa": new_gpa,
+            "is_alternant": bool(is_alternant),
+            "is_scholarship": bool(is_scholarship),
         },
     )
 
@@ -281,14 +320,22 @@ def _upsert_enrollment(
         enrollment.full_clean()
         return True, False
 
+    tracked_fields: dict = {
+        "department_id": department.pk,
+        "level_id": level.pk,
+        "parcours_id": parcours.pk if parcours else None,
+        "gpa": new_gpa,
+    }
+    if is_alternant is not None:
+        tracked_fields["is_alternant"] = is_alternant
+    if is_scholarship is not None:
+        tracked_fields["is_scholarship"] = is_scholarship
+
     if already_up_to_date(
         enrollment,
         "last_sync_pegase",
         source_date,
-        department_id=department.pk,
-        level_id=level.pk,
-        parcours_id=parcours.pk if parcours else None,
-        gpa=new_gpa,
+        **tracked_fields,
     ):
         enrollment.full_clean()
         return False, False
@@ -306,6 +353,12 @@ def _upsert_enrollment(
     if enrollment.gpa != new_gpa:
         enrollment.gpa = new_gpa
         updates.append("gpa")
+    if is_alternant is not None and enrollment.is_alternant != is_alternant:
+        enrollment.is_alternant = is_alternant
+        updates.append("is_alternant")
+    if is_scholarship is not None and enrollment.is_scholarship != is_scholarship:
+        enrollment.is_scholarship = is_scholarship
+        updates.append("is_scholarship")
 
     if updates:
         enrollment.save(update_fields=updates)

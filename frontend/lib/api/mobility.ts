@@ -43,32 +43,54 @@ export function fetchAgreements(filters: AgreementFilters = {}): Promise<PagedRe
   return getApi<PagedResponse<Agreement>>(`/mobility/agreements/?${params.toString()}`);
 }
 
+/**
+ * Récupère TOUTES les pages d'une ressource paginée. Un `page_size` fixe
+ * suffisait tant que le volume restait dessous — ce n'est plus garanti à
+ * mesure que les données croissent (ex: quotas département), d'où la boucle
+ * plutôt qu'un plafond figé qui tronquerait silencieusement les résultats.
+ */
+async function fetchAllPages<T>(basePath: string, pageSize = 500): Promise<T[]> {
+  const results: T[] = [];
+  let page = 1;
+  for (;;) {
+    const sep = basePath.includes("?") ? "&" : "?";
+    const data = await getApi<PagedResponse<T>>(`${basePath}${sep}page=${page}&page_size=${pageSize}`);
+    results.push(...data.results);
+    if (data.results.length === 0 || results.length >= data.count) break;
+    page += 1;
+  }
+  return results;
+}
+
 export async function getMobilityData() {
   const [
-    agreementsPage,
+    agreements,
+    allAgreements,
     mobilityCategories,
-    agreementYearsPage,
-    agreementYearDepartmentsPage,
+    agreementYears,
+    agreementYearDepartments,
     importErrors,
     mobilityLevels,
-    universitiesPage,
+    universities,
     countries,
     departments,
     academicYears,
     currentYear,
   ] = await Promise.all([
     // Volatile — toujours frais
-    getApi<PagedResponse<Agreement>>("/mobility/agreements/?page_size=200"),
+    fetchAllPages<Agreement>("/mobility/agreements/"),
+    // Historique complet, y compris les accords supprimés (vue "historique")
+    fetchAllPages<Agreement>("/mobility/agreements/?include_deleted=true"),
     // Stable — mise en cache
     getCachedMobilityCategories(),
     // Volatile
-    getApi<PagedResponse<AgreementYear>>("/mobility/agreement-years/?page_size=200"),
-    getApi<PagedResponse<AgreementYearDepartment>>("/mobility/agreement-year-departments/?page_size=200"),
+    fetchAllPages<AgreementYear>("/mobility/agreement-years/"),
+    fetchAllPages<AgreementYearDepartment>("/mobility/agreement-year-departments/"),
     getApi<PagedResponse<RawImport>>("/mobility/raw-imports/moveon-errors/?page=1&page_size=25"),
     // Stable
     getCachedLevels(),
     // Volatile
-    getApi<PagedResponse<PartnerUniversity>>("/institutions/universities/?page_size=200"),
+    fetchAllPages<PartnerUniversity>("/institutions/universities/"),
     // Stables
     getCachedCountries(),
     getCachedDepartments(),
@@ -78,16 +100,17 @@ export async function getMobilityData() {
 
   return {
     academicYears,
-    agreementYears: agreementYearsPage.results,
-    agreementYearDepartments: agreementYearDepartmentsPage.results,
+    agreementYears,
+    agreementYearDepartments,
     mobilityCategories,
-    agreements: agreementsPage.results,
+    agreements,
+    allAgreements,
     currentYear,
     countries,
     departments,
     importErrors: importErrors.results,
     importErrorsTotalCount: importErrors.count,
     mobilityLevels,
-    universities: universitiesPage.results,
+    universities,
   };
 }

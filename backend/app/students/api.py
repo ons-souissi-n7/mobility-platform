@@ -70,13 +70,21 @@ def list_students(
     qs = Student.objects.select_related("nationality")
     needs_distinct = False
     if academic_year_id:
-        qs = qs.filter(enrollments__academic_year_id=academic_year_id)
+        qs = qs.filter(
+            enrollments__academic_year_id=academic_year_id,
+            enrollments__deleted_at__isnull=True,
+        )
         needs_distinct = True
     if department_id:
-        qs = qs.filter(enrollments__department_id=department_id)
+        qs = qs.filter(
+            enrollments__department_id=department_id,
+            enrollments__deleted_at__isnull=True,
+        )
         needs_distinct = True
     if level_id:
-        qs = qs.filter(enrollments__level_id=level_id)
+        qs = qs.filter(
+            enrollments__level_id=level_id, enrollments__deleted_at__isnull=True
+        )
         needs_distinct = True
     if search:
         qs = qs.filter(
@@ -104,7 +112,10 @@ def list_students_select(
 ):
     qs = Student.objects.order_by("last_name", "first_name")
     if academic_year_id:
-        qs = qs.filter(enrollments__academic_year_id=academic_year_id).distinct()
+        qs = qs.filter(
+            enrollments__academic_year_id=academic_year_id,
+            enrollments__deleted_at__isnull=True,
+        ).distinct()
     if search:
         qs = qs.filter(
             Q(last_name__icontains=search)
@@ -123,7 +134,9 @@ def list_students_select(
     summary="Statistiques etudiants par annee",
 )
 def get_student_stats(request, academic_year_id: int):
-    base = AnnualEnrollment.objects.filter(academic_year_id=academic_year_id)
+    base = AnnualEnrollment.objects.filter(
+        academic_year_id=academic_year_id, deleted_at__isnull=True
+    )
     total = base.count()
 
     by_level = [
@@ -203,6 +216,7 @@ def get_student_stats(request, academic_year_id: int):
 
 @router.get("/students/template/", summary="Telecharger le template Excel etudiants")
 def download_student_template(request):
+    from app.reference.models import Country
     from app.reference.models import Parcours as ParcourModel
 
     dept_codes = list(
@@ -217,6 +231,9 @@ def download_student_template(request):
     )
     parcours_codes = list(
         ParcourModel.objects.values_list("code", flat=True).order_by("code").distinct()
+    )
+    country_names = list(
+        Country.objects.values_list("name_fr", flat=True).order_by("name_fr")
     )
 
     wb = openpyxl.Workbook()
@@ -233,6 +250,9 @@ def download_student_template(request):
         "Niveau",
         "Parcours",
         "GPA",
+        "Boursier",
+        "FISE/FISA",
+        "Nationalité",
     ]
     header_fill = PatternFill(
         start_color="1E3A8A", end_color="1E3A8A", fill_type="solid"
@@ -248,7 +268,7 @@ def download_student_template(request):
 
     ws.row_dimensions[1].height = 30
     for col, width in zip(
-        "ABCDEFGHI", [15, 20, 20, 35, 10, 15, 12, 20, 10], strict=False
+        "ABCDEFGHIJKL", [15, 20, 20, 35, 10, 15, 12, 20, 10, 10, 10, 18], strict=False
     ):
         ws.column_dimensions[col].width = width
 
@@ -304,39 +324,39 @@ def download_student_template(request):
         dv_parcours.sqref = "H2:H10000"
         ws.add_data_validation(dv_parcours)
 
-    # Example rows
-    ws.append(
-        [
-            "123456789AB",
-            "MARTIN",
-            "Jean",
-            "jean.martin@etud.n7.fr",
-            "M",
-            dept_codes[0] if dept_codes else "INFO",
-            level_codes[0] if level_codes else "3A",
-            parcours_codes[0] if parcours_codes else "SESG",
-            15.5,
-        ]
+    # Boursier dropdown (column J)
+    dv_boursier = openpyxl.worksheet.datavalidation.DataValidation(
+        type="list",
+        formula1='"Oui,Non"',
+        allow_blank=True,
+        showDropDown=False,
     )
-    ws.append(
-        [
-            "987654321CD",
-            "DUPONT",
-            "Marie",
-            "marie.dupont@etud.n7.fr",
-            "F",
-            dept_codes[1]
-            if len(dept_codes) > 1
-            else (dept_codes[0] if dept_codes else "TC"),
-            level_codes[1]
-            if len(level_codes) > 1
-            else (level_codes[0] if level_codes else "4A"),
-            parcours_codes[1]
-            if len(parcours_codes) > 1
-            else (parcours_codes[0] if parcours_codes else "IPA"),
-            16.0,
-        ]
+    dv_boursier.sqref = "J2:J10000"
+    ws.add_data_validation(dv_boursier)
+
+    # FISE/FISA dropdown (column K)
+    dv_fise_fisa = openpyxl.worksheet.datavalidation.DataValidation(
+        type="list",
+        formula1='"FISE,FISA"',
+        allow_blank=True,
+        showDropDown=False,
     )
+    dv_fise_fisa.sqref = "K2:K10000"
+    ws.add_data_validation(dv_fise_fisa)
+
+    # Nationalité dropdown (column L)
+    if country_names:
+        country_ws = wb.create_sheet("_Nationalites")
+        for i, name in enumerate(country_names, 1):
+            country_ws.cell(row=i, column=1, value=name)
+        country_ws.sheet_state = "hidden"
+        dv_country = openpyxl.worksheet.datavalidation.DataValidation(
+            type="list",
+            formula1=f"_Nationalites!$A$1:$A${len(country_names)}",
+            allow_blank=True,
+        )
+        dv_country.sqref = "L2:L10000"
+        ws.add_data_validation(dv_country)
 
     # Instructions sheet
     info_ws = wb.create_sheet("Instructions")
@@ -351,6 +371,10 @@ def download_student_template(request):
         "- Niveau : choisissez dans la liste deroulante.",
         "- Parcours : choisissez dans la liste deroulante, ou laissez vide (tronc commun).",
         "- GPA : note moyenne sur 20, format decimal (ex : 15.5). Facultatif.",
+        "- Boursier : Oui ou Non. Laissez vide pour ne pas modifier la valeur existante.",
+        "- FISE/FISA : FISE ou FISA. Laissez vide pour ne pas modifier la valeur existante.",
+        "- Nationalite : choisissez dans la liste deroulante (nom du pays), ou saisissez"
+        " un code ISO-2 (ex : FR). Facultatif.",
         "",
         "Les lignes sans INE sont ignorees.",
         "Les departements ou niveaux introuvables en base sont signales dans le rapport d'import.",
@@ -384,6 +408,7 @@ def list_students_by_year(
     level_id: int | None = None,
     parcours_id: int | None = None,
     search: str | None = None,
+    include_deleted: bool = False,
     pagination: PaginationQuery = Query(),
 ):
     qs = (
@@ -393,6 +418,8 @@ def list_students_by_year(
         )
         .order_by("student__last_name", "student__first_name")
     )
+    if not include_deleted:
+        qs = qs.filter(deleted_at__isnull=True)
     if department_id:
         qs = qs.filter(department_id=department_id)
     if level_id:
@@ -406,53 +433,57 @@ def list_students_by_year(
             | Q(student__ine__icontains=search)
         )
     count, enrollments = paginate(qs, pagination.page, pagination.page_size)
-    items = [
-        StudentEnrollmentOut(
-            enrollment_id=e.id,
-            student_id=e.student.id,
-            ine=e.student.ine,
-            first_name=e.student.first_name,
-            last_name=e.student.last_name,
-            email=e.student.email,
-            gender=e.student.gender,
-            nationality_iso2=e.student.nationality.iso2
-            if e.student.nationality_id
-            else None,
-            nationality_name_fr=e.student.nationality.name_fr
-            if e.student.nationality_id
-            else None,
-            department_id=e.department.id,
-            department_code=e.department.code,
-            department_name=e.department.name,
-            level_id=e.level.id,
-            level_code=e.level.code,
-            level_name=e.level.name,
-            parcours_id=e.parcours.id if e.parcours else None,
-            parcours_code=e.parcours.code if e.parcours else None,
-            parcours_label=e.parcours.label if e.parcours else None,
-            gpa=e.gpa,
-            is_alternant=e.is_alternant,
-            is_scholarship=e.is_scholarship,
-        )
-        for e in enrollments
-    ]
+    items = [_enrollment_to_out(e) for e in enrollments]
     return PagedResponse(
         count=count, page=pagination.page, page_size=pagination.page_size, results=items
     )
 
 
+def _enrollment_to_out(e: AnnualEnrollment) -> StudentEnrollmentOut:
+    return StudentEnrollmentOut(
+        enrollment_id=e.id,
+        student_id=e.student.id,
+        ine=e.student.ine,
+        first_name=e.student.first_name,
+        last_name=e.student.last_name,
+        email=e.student.email,
+        gender=e.student.gender,
+        nationality_iso2=e.student.nationality.iso2
+        if e.student.nationality_id
+        else None,
+        nationality_name_fr=e.student.nationality.name_fr
+        if e.student.nationality_id
+        else None,
+        department_id=e.department.id,
+        department_code=e.department.code,
+        department_name=e.department.name,
+        level_id=e.level.id,
+        level_code=e.level.code,
+        level_name=e.level.name,
+        parcours_id=e.parcours.id if e.parcours else None,
+        parcours_code=e.parcours.code if e.parcours else None,
+        parcours_label=e.parcours.label if e.parcours else None,
+        gpa=e.gpa,
+        is_alternant=e.is_alternant,
+        is_scholarship=e.is_scholarship,
+        deleted_at=e.deleted_at,
+    )
+
+
 @router.delete(
     "/students/enrollments/{enrollment_id}/",
-    response={204: None},
-    summary="Supprimer une inscription étudiant",
+    response=StudentEnrollmentOut,
+    summary="Supprimer une inscription étudiant (suppression douce, restaurable)",
 )
 def delete_enrollment(request, enrollment_id: int):
     try:
         enrollment = AnnualEnrollment.objects.select_related(
-            "student", "academic_year"
+            "student", "academic_year", "department", "level", "parcours"
         ).get(pk=enrollment_id)
     except AnnualEnrollment.DoesNotExist as exc:
         raise HttpError(404, "Inscription introuvable.") from exc
+    if enrollment.deleted_at is not None:
+        raise HttpError(400, "Cette inscription est déjà supprimée.")
     log_action(
         request,
         action="delete_enrollment",
@@ -462,8 +493,37 @@ def delete_enrollment(request, enrollment_id: int):
             f"({enrollment.student.ine}), {enrollment.academic_year.label}"
         ),
     )
-    enrollment.delete()
-    return 204, None
+    enrollment.deleted_at = timezone.now()
+    enrollment.save(update_fields=["deleted_at", "updated_at"])
+    return _enrollment_to_out(enrollment)
+
+
+@router.post(
+    "/students/enrollments/{enrollment_id}/restore/",
+    response=StudentEnrollmentOut,
+    summary="Restaurer une inscription étudiant supprimée",
+)
+def restore_enrollment(request, enrollment_id: int):
+    try:
+        enrollment = AnnualEnrollment.objects.select_related(
+            "student", "academic_year", "department", "level", "parcours"
+        ).get(pk=enrollment_id)
+    except AnnualEnrollment.DoesNotExist as exc:
+        raise HttpError(404, "Inscription introuvable.") from exc
+    if enrollment.deleted_at is None:
+        raise HttpError(400, "Cette inscription n'est pas supprimée.")
+    log_action(
+        request,
+        action="restore_enrollment",
+        detail=(
+            f"Inscription #{enrollment_id} restaurée — "
+            f"{enrollment.student.last_name} {enrollment.student.first_name} "
+            f"({enrollment.student.ine}), {enrollment.academic_year.label}"
+        ),
+    )
+    enrollment.deleted_at = None
+    enrollment.save(update_fields=["deleted_at", "updated_at"])
+    return _enrollment_to_out(enrollment)
 
 
 @router.patch(
@@ -640,6 +700,8 @@ def retry_student_import_error(
         "email",
         "gender",
         "nationality_iso2",
+        "is_alternant",
+        "is_scholarship",
     ):
         val = getattr(payload, field, None)
         if val is not None:
@@ -668,6 +730,8 @@ def retry_student_import_error(
         parcours_code=ts.parcours_code,
         gpa=ts.gpa,
         nationality_iso2=ts.nationality_iso2,
+        is_alternant=ts.is_alternant,
+        is_scholarship=ts.is_scholarship,
     )
 
     report = import_students([row], academic_year)
@@ -745,7 +809,9 @@ def export_students_excel(
     academic_year = get_academic_year(year_id)
 
     qs = (
-        AnnualEnrollment.objects.filter(academic_year_id=year_id)
+        AnnualEnrollment.objects.filter(
+            academic_year_id=year_id, deleted_at__isnull=True
+        )
         .select_related(
             "student", "student__nationality", "department", "level", "parcours"
         )
@@ -790,8 +856,10 @@ def export_students_excel(
         "Niveau",
         "Parcours",
         "GPA",
+        "Boursier",
+        "FISE/FISA",
     ]
-    widths = [14, 22, 20, 32, 8, 20, 18, 14, 20, 8]
+    widths = [14, 22, 20, 32, 8, 20, 18, 14, 20, 8, 10, 10]
     write_header_row(ws, headers, widths)
 
     gender_labels = {"M": "Homme", "F": "Femme", "O": "Autre"}
@@ -809,6 +877,8 @@ def export_students_excel(
                 f"{e.level.code}" if e.level else "",
                 f"{e.parcours.code}" if e.parcours else "",
                 float(e.gpa) if e.gpa is not None else "",
+                "Oui" if e.is_scholarship else "Non",
+                "FISA" if e.is_alternant else "FISE",
             ]
         )
 

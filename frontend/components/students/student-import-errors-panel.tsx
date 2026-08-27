@@ -18,10 +18,23 @@ const STUDENT_FIELD_LABELS: Record<string, string> = {
   parcours_code: "Code parcours",
   gpa: "Moyenne (GPA)",
   nationality_iso2: "Nationalité",
+  is_alternant: "FISE/FISA",
+  is_scholarship: "Boursier",
 };
 
+function formatPayloadValue(key: string, value: unknown): string {
+  if (key === "is_alternant") return value ? "FISA" : "FISE";
+  if (key === "is_scholarship") return value ? "Oui" : "Non";
+  return String(value);
+}
+
 function PayloadGrid({ payload }: { payload: Record<string, unknown> }) {
-  const entries = Object.entries(payload).filter(([, v]) => v !== null && v !== undefined && v !== "");
+  // is_alternant/is_scholarship are real booleans — false is a meaningful,
+  // displayable value (FISE / non-boursier), unlike an absent/empty field.
+  const entries = Object.entries(payload).filter(([, v]) => {
+    if (typeof v === "boolean") return true;
+    return v !== null && v !== undefined && v !== "";
+  });
   if (entries.length === 0) return <p className="text-xs text-gray-400 italic">Aucune donnée disponible</p>;
 
   return (
@@ -32,13 +45,17 @@ function PayloadGrid({ payload }: { payload: Record<string, unknown> }) {
             {STUDENT_FIELD_LABELS[key] ?? key}
           </dt>
           <dd className="mt-0.5 font-mono text-xs text-gray-800 break-all">
-            {String(value)}
+            {formatPayloadValue(key, value)}
           </dd>
         </div>
       ))}
     </dl>
   );
 }
+
+// "" = ne pas modifier (conserve la valeur du payload stocké) — distinct de
+// "false", qui écrase explicitement avec Non/FISE.
+type TriState = "" | "true" | "false";
 
 type CorrectionForm = {
   ine: string;
@@ -51,7 +68,15 @@ type CorrectionForm = {
   parcours_id: number | "";
   gpa: string;
   nationality_iso2: string;
+  is_scholarship: TriState;
+  is_alternant: TriState;
 };
+
+function boolToTriState(value: unknown): TriState {
+  if (value === true) return "true";
+  if (value === false) return "false";
+  return "";
+}
 
 function buildInitialForm(
   payload: Record<string, unknown>,
@@ -73,6 +98,8 @@ function buildInitialForm(
     parcours_id: parcourses.find((p) => p.code.toUpperCase() === parcoursCode)?.id ?? "",
     gpa: payload.gpa !== null && payload.gpa !== undefined ? String(payload.gpa) : "",
     nationality_iso2: String(payload.nationality_iso2 ?? ""),
+    is_scholarship: boolToTriState(payload.is_scholarship),
+    is_alternant: boolToTriState(payload.is_alternant),
   };
 }
 
@@ -88,6 +115,8 @@ function buildCorrection(form: CorrectionForm): StudentImportCorrection {
   if (form.gender) c.gender = form.gender;
   if (form.gpa !== "") c.gpa = Number(form.gpa);
   if (form.nationality_iso2) c.nationality_iso2 = form.nationality_iso2;
+  if (form.is_scholarship !== "") c.is_scholarship = form.is_scholarship === "true";
+  if (form.is_alternant !== "") c.is_alternant = form.is_alternant === "true";
   return c;
 }
 
@@ -318,6 +347,32 @@ export function StudentImportErrorsPanel({
                             {sortedCountries.map((c) => (
                               <option key={c.id} value={c.iso2}>{c.name_fr} ({c.iso2})</option>
                             ))}
+                          </select>
+                        </label>
+
+                      <label className="block">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">Boursier</span>
+                          <select
+                            className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                            value={form.is_scholarship}
+                            onChange={(e) => updateForm(error.id, { is_scholarship: e.target.value as TriState })}
+                          >
+                            <option value="">— Ne pas modifier —</option>
+                            <option value="true">Oui</option>
+                            <option value="false">Non</option>
+                          </select>
+                        </label>
+
+                      <label className="block">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">FISE/FISA</span>
+                          <select
+                            className="mt-0.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-900"
+                            value={form.is_alternant}
+                            onChange={(e) => updateForm(error.id, { is_alternant: e.target.value as TriState })}
+                          >
+                            <option value="">— Ne pas modifier —</option>
+                            <option value="false">FISE</option>
+                            <option value="true">FISA</option>
                           </select>
                         </label>
                     </div>

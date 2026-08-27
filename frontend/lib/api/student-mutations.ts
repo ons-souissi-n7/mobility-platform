@@ -46,6 +46,7 @@ export type StudentByYearFilters = {
   department_id?: number;
   level_id?: number;
   parcours_id?: number;
+  include_deleted?: boolean;
   page?: number;
   page_size?: number;
 };
@@ -59,6 +60,7 @@ export function getStudentsByYear(
   if (filters.department_id) params.set("department_id", String(filters.department_id));
   if (filters.level_id) params.set("level_id", String(filters.level_id));
   if (filters.parcours_id) params.set("parcours_id", String(filters.parcours_id));
+  if (filters.include_deleted) params.set("include_deleted", "true");
   params.set("page", String(filters.page ?? 1));
   params.set("page_size", String(filters.page_size ?? 25));
   return browserApi<PagedResponse<StudentWithEnrollment>>(
@@ -98,6 +100,8 @@ export type StudentImportCorrection = {
   gender?: string;
   gpa?: number;
   nationality_iso2?: string;
+  is_alternant?: boolean;
+  is_scholarship?: boolean;
 };
 
 export function retryStudentImportError(
@@ -128,8 +132,20 @@ export function getReconciliationCandidates(rawImportId: number): Promise<Reconc
   );
 }
 
-export function deleteStudentEnrollment(enrollmentId: number): Promise<void> {
-  return browserApi<void>(`/students/students/enrollments/${enrollmentId}/`, { method: "DELETE" });
+/** Suppression douce : l'inscription reste consultable (badge "Supprimé le")
+ * et peut être restaurée — voir restoreStudentEnrollment. */
+export function deleteStudentEnrollment(enrollmentId: number): Promise<StudentWithEnrollment> {
+  return browserApi<StudentWithEnrollment>(
+    `/students/students/enrollments/${enrollmentId}/`,
+    { method: "DELETE" },
+  );
+}
+
+export function restoreStudentEnrollment(enrollmentId: number): Promise<StudentWithEnrollment> {
+  return browserApi<StudentWithEnrollment>(
+    `/students/students/enrollments/${enrollmentId}/restore/`,
+    { method: "POST" },
+  );
 }
 
 export type EnrollmentPatch = {

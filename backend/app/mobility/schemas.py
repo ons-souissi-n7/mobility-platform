@@ -34,8 +34,10 @@ class AgreementIn(Schema):
     valid_until: date | None = None
     inp_total_places: int = 0
     inp_institutions: str = ""
+    duration_weeks: int | None = None
     remarks: str = ""
     level_ids: list[int] = []
+    department_ids: list[int] = []
 
 
 class AgreementOut(Schema):
@@ -49,10 +51,12 @@ class AgreementOut(Schema):
     valid_until: date | None
     inp_total_places: int
     inp_institutions: str
+    duration_weeks: int | None
     remarks: str
     last_sync_moveon: datetime | None
     level_ids: list[int]
     department_ids: list[int]
+    deleted_at: datetime | None
     created_at: datetime
     updated_at: datetime
 

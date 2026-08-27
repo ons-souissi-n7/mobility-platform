@@ -1,0 +1,12 @@
+# Provisionne automatiquement Prometheus comme datasource Grafana au démarrage
+# du conteneur — sans ce fichier, il faut l'ajouter manuellement via l'UI à
+# chaque nouveau déploiement (staging, prod, ou reset du volume grafana_data).
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true

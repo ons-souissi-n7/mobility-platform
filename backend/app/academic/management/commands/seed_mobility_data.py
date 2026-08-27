@@ -1,10 +1,14 @@
 """
 Seed données de mobilité complémentaires :
-  - Étudiants entrants (IncomingStudent) — 6-8 par année
-  - Stages internationaux (Internship) — 5-7 par année
-  - Mobilités complémentaires (ComplementaryMobility) — 4-5 par année
+  - Étudiants entrants (IncomingStudent) — 60 à 130 par année, université
+    d'origine tirée parmi les PartnerUniversity du référentiel (nationalité
+    et pays qui en découlent, donc diversifiés sur les ~35 pays couverts)
+  - Stages internationaux (Internship) — 40 à 50 par année, types PFA/Stage
+    3A/PFE en rotation
+  - Mobilités complémentaires (ComplementaryMobility) — ~10 par année,
+    états pending/validated/rejected répartis via les vraies transitions FSM
 
-Couvre les 4 années académiques (2022-2023, 2023-2024, 2024-2025, 2025-2026).
+Couvre les 6 années académiques (2020-2021 à 2025-2026).
 Idempotent : ne crée pas de doublons si relancé.
 
 `random` est utilisé uniquement pour mélanger/piocher des données de démo
@@ -22,32 +26,91 @@ from django.db import transaction
 
 random.seed(99)  # NOSONAR (S2245) — génération de données de démo, pas de sécurité
 
-INCOMING_DATA = [
-    # (civility, first, last, country_iso2, origin_university_name, dept_code, duration_weeks)
-    ("M.", "Erik", "LINDQVIST", "SE", "KTH Stockholm", "SN", 20),
-    ("Mme", "María", "RODRÍGUEZ", "ES", "Universidad Politécnica de Madrid", "3EA", 24),
-    ("M.", "Marco", "FERRARI", "IT", "Politecnico di Milano", "MF2E", 20),
-    ("Mme", "Anna", "MÜLLER", "DE", "TU Berlin", "SN", 18),
-    ("M.", "Jan", "NOWAK", "PL", "Warsaw University of Technology", "3EA", 20),
-    ("Mme", "Sofia", "JOHANSSON", "SE", "Lund University", "MF2E", 20),
-    ("M.", "Pedro", "ALVES", "PT", "Instituto Superior Técnico", "SN", 24),
-    ("Mme", "Ingrid", "HANSEN", "NO", "NTNU Trondheim", "3EA", 20),
-    ("M.", "Lukas", "BAUER", "DE", "ETH Zurich", "MF2E", 20),
-    ("Mme", "Chiara", "RICCI", "IT", "Politecnico di Torino", "SN", 18),
-    ("M.", "Carlos", "JIMÉNEZ", "ES", "Universidad de Sevilla", "3EA", 20),
-    ("Mme", "Emma", "SVENSSON", "SE", "Uppsala University", "MF2E", 24),
-    ("M.", "Thomas", "SCHMIDT", "DE", "RWTH Aachen", "SN", 20),
-    ("Mme", "Laura", "COSTA", "PT", "Universidade do Porto", "3EA", 20),
-    ("M.", "Filip", "KOWALSKI", "PL", "AGH University", "MF2E", 20),
-    ("Mme", "Giulia", "MARINO", "IT", "University of Bologna", "SN", 18),
-    ("M.", "Anders", "ERIKSSON", "SE", "Chalmers University", "3EA", 20),
-    ("Mme", "Beatriz", "SANTOS", "PT", "Universidade de Coimbra", "MF2E", 20),
-    ("M.", "Hans", "FISCHER", "DE", "TU Munich", "SN", 24),
-    ("Mme", "Lena", "BERG", "NO", "University of Oslo", "3EA", 20),
-    ("M.", "Rafael", "MORENO", "ES", "Universidad Complutense", "MF2E", 20),
-    ("Mme", "Marta", "WIŚNIEWSKA", "PL", "Wrocław UT", "SN", 20),
-    ("M.", "Lorenzo", "ESPOSITO", "IT", "La Sapienza", "3EA", 18),
-    ("Mme", "Astrid", "LARSSON", "SE", "Linköping University", "MF2E", 20),
+# Étudiants entrants : noms/prénoms génériques piochés au hasard, l'université
+# d'origine (et donc la nationalité et le pays) étant tirée parmi les 35
+# PartnerUniversity existantes (cf. generate_fixtures.py) pour rester cohérent
+# avec le référentiel réel plutôt que de créer des universités ad hoc.
+INCOMING_FIRST_NAMES_F = [
+    "Maria",
+    "Anna",
+    "Sofia",
+    "Laura",
+    "Elena",
+    "Chiara",
+    "Ingrid",
+    "Astrid",
+    "Emma",
+    "Marta",
+    "Beatriz",
+    "Giulia",
+    "Lena",
+    "Ana",
+    "Yuki",
+    "Mei",
+    "Priya",
+    "Fatima",
+    "Aisha",
+    "Hana",
+    "Charlotte",
+    "Freya",
+    "Noor",
+    "Sakura",
+]
+INCOMING_FIRST_NAMES_M = [
+    "Erik",
+    "Marco",
+    "Jan",
+    "Pedro",
+    "Lukas",
+    "Carlos",
+    "Thomas",
+    "Filip",
+    "Anders",
+    "Hans",
+    "Rafael",
+    "Lorenzo",
+    "David",
+    "Wei",
+    "Hiroshi",
+    "Arjun",
+    "Mohammed",
+    "Omar",
+    "Liam",
+    "James",
+    "Diego",
+    "Matteo",
+    "Sven",
+    "Kenji",
+]
+INCOMING_LAST_NAMES = [
+    "MÜLLER",
+    "GARCÍA",
+    "ROSSI",
+    "SILVA",
+    "KOWALSKI",
+    "JOHANSSON",
+    "HANSEN",
+    "FERRARI",
+    "SANTOS",
+    "NOWAK",
+    "SCHMIDT",
+    "COSTA",
+    "ESPOSITO",
+    "LARSSON",
+    "TANAKA",
+    "CHEN",
+    "PATEL",
+    "KIM",
+    "AL-RASHID",
+    "AVRAMOV",
+    "MACDONALD",
+    "MARTINS",
+    "PEREIRA",
+    "DUBOIS",
+    "JIMÉNEZ",
+    "WIŚNIEWSKA",
+    "RICCI",
+    "BERG",
 ]
 
 INTERNSHIP_DATA = [
@@ -239,21 +302,44 @@ COMPLEMENTARY_DATA = [
     (EXPERIENCE_INTERNSHIP_ABROAD, "CA", "McGill University", 6, 90),
     (EXPERIENCE_INTERNSHIP_ABROAD, "JP", "Université d'Osaka", 1, 60),
     (EXPERIENCE_INTERNSHIP_ABROAD, "AU", "Université de Melbourne", 6, 90),
+    (EXPERIENCE_SUMMER_SCHOOL, "CH", "EPFL", 7, 21),
+    (EXPERIENCE_SHORT_EXCHANGE, "NL", "TU Delft", 2, 90),
+    (EXPERIENCE_RESEARCH_PROJECT, "SE", "KTH Stockholm", 5, 60),
+    (EXPERIENCE_RESEARCH_PROJECT, "GB", "Imperial College London", 6, 45),
+    ("Conférence internationale", "DE", "TU Munich", 10, 5),
+    (EXPERIENCE_INTERNSHIP_ABROAD, "SG", "National University of Singapore", 1, 90),
+    (EXPERIENCE_INTERNSHIP_ABROAD, "KR", "KAIST", 6, 90),
+    (EXPERIENCE_SHORT_EXCHANGE, "IE", "Trinity College Dublin", 2, 90),
+]
+
+# Motifs de rejet plausibles pour diversifier les états de ComplementaryMobility
+# (FSM pending/validated/rejected — cf. app.complementary.models).
+REJECTION_REASONS = [
+    "Justificatif manquant ou illisible",
+    "Durée insuffisante pour être éligible",
+    "Expérience hors du périmètre couvert (activité non académique)",
+    "Dossier déposé hors délai",
 ]
 
 COUNTRY_CACHE: dict = {}
-UNIVERSITY_CACHE: dict = {}
 
 
 class Command(BaseCommand):
-    help = "Seed étudiants entrants, stages et mobilités complémentaires sur 4 années"
+    help = "Seed étudiants entrants, stages et mobilités complémentaires sur 6 années"
 
     def handle(self, *args, **options):
         from app.academic.models import AcademicYear
 
         years = list(
             AcademicYear.objects.filter(
-                label__in=["2022-2023", "2023-2024", "2024-2025", "2025-2026"]
+                label__in=[
+                    "2020-2021",
+                    "2021-2022",
+                    "2022-2023",
+                    "2023-2024",
+                    "2024-2025",
+                    "2025-2026",
+                ]
             ).order_by("start_date")
         )
         if not years:
@@ -279,23 +365,6 @@ class Command(BaseCommand):
         if iso2 not in COUNTRY_CACHE:
             COUNTRY_CACHE[iso2] = Country.objects.filter(iso2=iso2).first()
         return COUNTRY_CACHE[iso2]
-
-    def _get_dept(self, code: str):
-        from app.reference.models import Department
-
-        return Department.objects.filter(code=code).first()
-
-    def _get_university(self, name: str, country_iso2: str):
-        from app.institutions.models import PartnerUniversity
-
-        if name not in UNIVERSITY_CACHE:
-            country = self._get_country(country_iso2)
-            univ, _ = PartnerUniversity.objects.get_or_create(
-                name=name,
-                defaults={"country": country, "short_name": name[:50]},
-            )
-            UNIVERSITY_CACHE[name] = univ
-        return UNIVERSITY_CACHE[name]
 
     def _get_student_for_year(self, year):
         """Retourne un étudiant inscrit cette année-là (pour stages / complémentaires)."""
@@ -323,44 +392,71 @@ class Command(BaseCommand):
 
     def _seed_incoming(self, years):
         from app.incoming.models import IncomingStudent
+        from app.institutions.models import PartnerUniversity
+        from app.reference.models import Department
 
-        per_year = [6, 7, 7, 8]
         cat = self._get_mobility_category()
-        pool = INCOMING_DATA[:]
-        random.shuffle(pool)  # NOSONAR (S2245) — donnée de démo
-        pool = pool * 4  # enough for all years
-        idx = 0
+        depts = list(Department.objects.all())
+        universities = list(PartnerUniversity.objects.select_related("country").all())
+        if not depts or not universities:
+            self.stderr.write(
+                self.style.WARNING(
+                    "Départements ou universités partenaires absents — entrants "
+                    "ignorés (charge d'abord les fixtures de référence)."
+                )
+            )
+            return
+
+        # Montée en charge sur 6 ans, de l'ordre de la centaine par an à partir
+        # de 2022-2023 (diversité de nationalités/universités portée par le
+        # tirage sur les 35 PartnerUniversity du référentiel).
+        per_year = [60, 80, 100, 110, 120, 130]
+        duration_weeks_choices = [16, 20, 24, 32]
 
         total = 0
         for year, count in zip(years, per_year, strict=False):
             created = 0
             for _ in range(count):
-                entry = pool[idx % len(INCOMING_DATA)]
-                idx += 1
-                civ, first, last, iso2, univ_name, dept_code, weeks = entry
-
-                country = self._get_country(iso2)
-                dept = self._get_dept(dept_code)
-                univ = self._get_university(univ_name, iso2)
+                is_female = random.random() < 0.48  # NOSONAR (S2245) — donnée de démo
+                first = random.choice(  # NOSONAR (S2245) — donnée de démo
+                    INCOMING_FIRST_NAMES_F if is_female else INCOMING_FIRST_NAMES_M
+                )
+                last = random.choice(INCOMING_LAST_NAMES)  # NOSONAR (S2245)
+                univ = random.choice(universities)  # NOSONAR (S2245) — donnée de démo
+                country = univ.country
+                dept = random.choice(depts)  # NOSONAR (S2245) — donnée de démo
+                weeks = random.choice(  # NOSONAR (S2245) — donnée de démo
+                    duration_weeks_choices
+                )
+                birth_year = year.start_date.year - random.randint(  # NOSONAR (S2245)
+                    20, 24
+                )
+                birth_date = date(
+                    birth_year,
+                    random.randint(1, 12),  # NOSONAR (S2245) — donnée de démo
+                    random.randint(1, 28),  # NOSONAR (S2245) — donnée de démo
+                )
 
                 if IncomingStudent.objects.filter(
                     academic_year=year,
                     last_name=last,
                     first_name=first,
+                    birth_date=birth_date,
                 ).exists():
                     continue
 
                 IncomingStudent.objects.create(
                     academic_year=year,
-                    civility=civ,
+                    civility="Mme" if is_female else "M.",
                     first_name=first,
                     last_name=last,
                     country=country,
                     origin_university=univ,
-                    origin_university_name=univ_name,
+                    origin_university_name=univ.name,
                     department=dept,
                     mobility_category=cat,
-                    duration=weeks,
+                    duration=str(weeks),
+                    birth_date=birth_date,
                 )
                 created += 1
 
@@ -376,11 +472,17 @@ class Command(BaseCommand):
     def _seed_internships(self, years):
         from app.internships.models import Internship
 
-        per_year = [5, 6, 7, 6]
+        per_year = [40, 42, 44, 46, 48, 50]
         pool = INTERNSHIP_DATA[:]
         random.shuffle(pool)  # NOSONAR (S2245) — donnée de démo
-        pool = pool * 4
+        pool = pool * 6
         idx = 0
+
+        # Type de stage suivant le niveau : PFA (1ING, stage ouvrier/technicien,
+        # court), Stage 3A (2ING, stage assistant-ingénieur), PFE (3ING/Master,
+        # stage de fin d'études, le plus long). Rotation pour diversifier les
+        # types plutôt que de tout marquer "stage_fin_etudes".
+        type_rotation = [("PFA", 8, 12), ("Stage 3A", 16, 20), ("PFE", 20, 24)]
 
         total = 0
         for year, count in zip(years, per_year, strict=False):
@@ -388,8 +490,10 @@ class Command(BaseCommand):
             created = 0
             for _ in range(count):
                 entry = pool[idx % len(INTERNSHIP_DATA)]
+                itype, week_min, week_max = type_rotation[idx % len(type_rotation)]
                 idx += 1
-                company, city, iso2, title, itype, weeks = entry
+                company, city, iso2, title, _default_type, _default_weeks = entry
+                weeks = random.randint(week_min, week_max)  # NOSONAR (S2245)
 
                 student = self._get_student_for_year(year)
                 if not student:
@@ -414,6 +518,11 @@ class Command(BaseCommand):
                     country=country,
                     title=title,
                     internship_type=itype,
+                    # "9 Justificatif reçu" est le seul statut Eudonet que le pipeline
+                    # de sync retient (cf. sync_eudonet.py) — les stages qui arrivent
+                    # jusqu'en base sont donc toujours dans cet état côté réel.
+                    status_code="9",
+                    status_label="Justificatif reçu",
                     start_date=start,
                     end_date=end,
                     weeks_in_company=weeks,
@@ -432,10 +541,10 @@ class Command(BaseCommand):
     def _seed_complementary(self, years):
         from app.complementary.models import ComplementaryMobility
 
-        per_year = [4, 4, 5, 4]
+        per_year = [9, 10, 10, 11, 10, 10]
         pool = COMPLEMENTARY_DATA[:]
         random.shuffle(pool)  # NOSONAR (S2245) — donnée de démo
-        pool = pool * 4
+        pool = pool * 6
         idx = 0
 
         total = 0
@@ -473,11 +582,28 @@ class Command(BaseCommand):
                 if not created_flag:
                     continue
 
-                # Valider les années passées, laisser "pending" 2025-2026
-                if year.label != "2025-2026":
-                    ComplementaryMobility.objects.filter(pk=mob.pk).update(
-                        status="validated"
-                    )
+                # Diversité des états : la campagne en cours reste majoritairement
+                # en attente ; les campagnes closes sont pour la plupart validées
+                # mais gardent une part de rejets et de dossiers jamais traités,
+                # comme dans un historique réel. Passe par les vraies transitions
+                # FSM (validate/reject) plutôt qu'un update direct du statut.
+                if year.label == "2025-2026":
+                    outcome = random.choices(  # NOSONAR (S2245) — donnée de démo
+                        ["pending", "validated", "rejected"], weights=[70, 20, 10]
+                    )[0]
+                else:
+                    outcome = random.choices(  # NOSONAR (S2245) — donnée de démo
+                        ["validated", "rejected", "pending"], weights=[75, 15, 10]
+                    )[0]
+
+                if outcome == "validated":
+                    mob.validate()
+                    mob.save(update_fields=["status", "updated_at"])
+                elif outcome == "rejected":
+                    reason = random.choice(REJECTION_REASONS)  # NOSONAR (S2245)
+                    mob.reject(reason)
+                    mob.save(update_fields=["status", "rejection_reason", "updated_at"])
+                # sinon : reste "pending", état par défaut à la création
 
                 created += 1
 

@@ -160,7 +160,7 @@ def import_wish_rows(
             continue
 
         enrollment = AnnualEnrollment.objects.filter(
-            student=student, academic_year=academic_year
+            student=student, academic_year=academic_year, deleted_at__isnull=True
         ).first()
         if enrollment is None:
             reason = (

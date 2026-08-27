@@ -2,7 +2,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import JsonResponse
-from django.urls import path
+from django.urls import include, path
 from django.views.decorators.http import require_GET
 
 from .api import api
@@ -17,6 +17,10 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", api.urls),
     path("health/", health_check, name="health-check"),
+    # Expose /metrics pour le scrape Prometheus (monitoring/prometheus.yml) —
+    # sans cette route, Prometheus interroge un endpoint inexistant (404) et
+    # les tableaux de bord Grafana restent vides malgré des conteneurs actifs.
+    path("", include("django_prometheus.urls")),
 ]
 
 if settings.DEBUG:

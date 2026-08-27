@@ -59,6 +59,7 @@ from .services.moveon_validator import validate_agreement
 from .services.quota_estimator import (
     ensure_dept_quotas_on_activation,
     estimate_n7_from_inp,
+    initialize_agreement_years,
     initialize_new_year_mobility,
     redistribute_department_quotas,
 )
@@ -77,6 +78,9 @@ PROTECTED_DELETE_MSG = (
 )
 AGREEMENT_YEAR_NOT_FOUND = "Instance annuelle introuvable."
 AGREEMENT_YEAR_LOCKED_MSG = "Une instance validée ne peut plus être modifiée."
+AGREEMENT_YEAR_CLOSED_MSG = (
+    "Cette année académique est clôturée : l'instance ne peut plus être modifiée."
+)
 
 
 def safe_delete(instance) -> None:
@@ -86,10 +90,28 @@ def safe_delete(instance) -> None:
         raise HttpError(409, PROTECTED_DELETE_MSG) from exc
 
 
+def _ensure_year_editable(instance: AgreementYear) -> None:
+    """Verrouille une instance annuelle dès qu'elle est validée OU que son
+    année académique est clôturée — même une instance jamais explicitement
+    validée doit devenir intouchable une fois l'année close, sans quoi son
+    historique (INP, N7, durée, quotas) resterait modifiable indéfiniment.
+    """
+    if instance.is_validated:
+        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
+    if instance.academic_year.status == AcademicYear.CampaignStatus.CLOSED:
+        raise HttpError(400, AGREEMENT_YEAR_CLOSED_MSG)
+
+
 def validate_year_consistency(agreement_year: AgreementYear) -> None:
-    if agreement_year.n7_places > agreement_year.agreement.inp_total_places:
+    # Le quota INP de référence est celui de CETTE année (ajustable via
+    # adjust_inp_places), pas celui du gabarit Agreement — même repli que
+    # AgreementYear.clean() si l'année n'a pas encore son propre INP renseigné.
+    effective_inp = (
+        agreement_year.inp_total_places or agreement_year.agreement.inp_total_places
+    )
+    if effective_inp > 0 and agreement_year.n7_places > effective_inp:
         raise HttpError(
-            400, "Le quota N7 ne peut pas être supérieur au quota INP de l'accord."
+            400, "Le quota N7 ne peut pas être supérieur au quota INP de l'année."
         )
 
     dept_quotas = [
@@ -122,7 +144,8 @@ def export_agreements_excel(
     import openpyxl
 
     qs = (
-        Agreement.objects.select_related(
+        Agreement.objects.filter(deleted_at__isnull=True)
+        .select_related(
             "partner_university",
             "partner_university__country",
             "category",
@@ -170,8 +193,9 @@ def export_agreements_excel(
         "Niveaux",
         "Valide de",
         "Valide jusqu'à",
+        "Durée (semaines)",
     ]
-    widths = [45, 40, 20, 22, 12, 12, 10, 22, 14, 14]
+    widths = [45, 40, 20, 22, 12, 12, 10, 22, 14, 14, 16]
     if year_label:
         headers += ["Actif", "Validé"]
         widths += [8, 8]
@@ -193,6 +217,12 @@ def export_agreements_excel(
             levels,
             agr.valid_from.isoformat() if agr.valid_from else "",
             agr.valid_until.isoformat() if agr.valid_until else "",
+            (
+                ay.duration_weeks
+                if ay and ay.duration_weeks is not None
+                else agr.duration_weeks
+            )
+            or "",
         ]
         if year_label:
             row += [
@@ -213,6 +243,7 @@ def list_agreements(
     country_id: int | None = None,
     is_active: bool | None = None,
     valid_only: bool = False,
+    include_deleted: bool = False,
     pagination: PaginationQuery = Query(),
 ):
     qs = (
@@ -222,6 +253,8 @@ def list_agreements(
         .prefetch_related("levels", "agreement_departments")
         .all()
     )
+    if not include_deleted:
+        qs = qs.filter(deleted_at__isnull=True)
     if search:
         qs = qs.filter(
             Q(name__icontains=search) | Q(partner_university__name__icontains=search)
@@ -282,16 +315,63 @@ def list_agreements_select(request):
     return options
 
 
+def _sync_agreement_departments(
+    agreement: Agreement, department_ids: list[int]
+) -> bool:
+    """Synchronise les AgreementDepartment (contraintes) d'un accord avec la
+    sélection reçue du formulaire. Retourne True si la sélection a changé.
+
+    Modifier un accord ne doit affecter que l'instance courante et les
+    instances futures, jamais l'historique déjà validé : on n'efface les
+    quotas annuels (AgreementYearDepartment) que pour les instances NON
+    validées. Un département encore référencé par une instance validée reste
+    protégé (FK PROTECT) et ne peut pas être retiré de l'accord — l'erreur
+    Django est alors traduite en message explicite plutôt que de planter.
+    """
+    existing = set(
+        AgreementDepartment.objects.filter(agreement=agreement).values_list(
+            "department_id", flat=True
+        )
+    )
+    wanted = set(department_ids)
+    if existing == wanted:
+        return False
+
+    AgreementYearDepartment.objects.filter(
+        agreement_year__agreement=agreement, agreement_year__is_validated=False
+    ).delete()
+    try:
+        AgreementDepartment.objects.filter(agreement=agreement).exclude(
+            department_id__in=wanted
+        ).delete()
+    except ProtectedError as exc:
+        raise HttpError(
+            400,
+            "Impossible de retirer un ou plusieurs départements : ils sont "
+            "utilisés par une instance annuelle déjà validée. Seuls les "
+            "départements sans historique validé peuvent être retirés.",
+        ) from exc
+    for dept_id in wanted - existing:
+        AgreementDepartment.objects.get_or_create(
+            agreement=agreement, department_id=dept_id
+        )
+
+    return True
+
+
 @router.post("/agreements/", response={201: AgreementOut}, summary="Créer un accord")
 def create_agreement(request, payload: AgreementIn):
     data = {
         k: v
         for k, v in payload.model_dump().items()
-        if k not in AGREEMENT_READONLY_FIELDS and k not in ("level_ids",)
+        if k not in AGREEMENT_READONLY_FIELDS
+        and k not in ("level_ids", "department_ids")
     }
     agreement = Agreement(**data)
     save_validated(agreement)
     agreement.levels.set(payload.level_ids)
+    _sync_agreement_departments(agreement, payload.department_ids)
+    initialize_agreement_years(agreement)
     return 201, Agreement.objects.prefetch_related(
         "levels", "agreement_departments"
     ).get(pk=agreement.pk)
@@ -302,29 +382,98 @@ def create_agreement(request, payload: AgreementIn):
 )
 def update_agreement(request, agreement_id: int, payload: AgreementIn):
     agreement = get_or_404(Agreement, agreement_id, "Accord introuvable.")
-    if agreement.year_instances.filter(is_validated=True).exists():
-        raise HttpError(
-            400,
-            "Cet accord ne peut plus être modifié : une ou plusieurs années ont été validées. "
-            "Modifiez uniquement les quotas de l'année en cours.",
-        )
+    # L'accord est partagé par toutes ses instances annuelles (passées et
+    # futures) : le modifier ne doit affecter que l'instance courante et les
+    # instances futures. L'historique déjà validé est protégé plus finement
+    # dans `_sync_agreement_departments` (quotas figés, contraintes PROTECT),
+    # pas par un verrou global qui bloquerait toute modification de l'accord.
     for field, value in payload.model_dump().items():
-        if field not in AGREEMENT_READONLY_FIELDS and field not in ("level_ids",):
+        if field not in AGREEMENT_READONLY_FIELDS and field not in (
+            "level_ids",
+            "department_ids",
+        ):
             setattr(agreement, field, value)
     save_validated(agreement)
     agreement.levels.set(payload.level_ids)
+    _sync_agreement_departments(agreement, payload.department_ids)
+    initialize_agreement_years(agreement)
     return Agreement.objects.prefetch_related("levels", "agreement_departments").get(
         pk=agreement.pk
     )
 
 
+def _discontinue_agreement(agreement: Agreement) -> None:
+    """Suppression douce : l'accord n'obtient plus de nouvelle instance à partir
+    de maintenant. Son instance sur une année non clôturée et non validée est
+    retirée ; l'historique des années closes ou déjà validées reste intact.
+    """
+    agreement.deleted_at = timezone.now()
+    agreement.save(update_fields=["deleted_at", "updated_at"])
+
+    removable_years = AgreementYear.objects.filter(
+        agreement=agreement, is_validated=False
+    ).exclude(academic_year__status=AcademicYear.CampaignStatus.CLOSED)
+    for instance in list(removable_years):
+        try:
+            AgreementYearDepartment.objects.filter(agreement_year=instance).delete()
+            instance.delete()
+        except ProtectedError:
+            # Des vœux/affectations existent déjà sur cette instance en cours :
+            # on ne peut pas l'effacer, on se contente de la désactiver.
+            instance.is_active = False
+            instance.save(update_fields=["is_active", "updated_at"])
+
+
 @router.delete(
-    "/agreements/{agreement_id}/", response={204: None}, summary="Supprimer un accord"
+    "/agreements/{agreement_id}/",
+    response={204: None, 200: AgreementOut},
+    summary="Supprimer un accord (suppression douce si un historique existe)",
 )
 def delete_agreement(request, agreement_id: int):
     agreement = get_or_404(Agreement, agreement_id, "Accord introuvable.")
-    safe_delete(agreement)
-    return 204, None
+
+    has_history = (
+        AgreementYear.objects.filter(agreement=agreement)
+        .filter(
+            Q(is_validated=True)
+            | Q(academic_year__status=AcademicYear.CampaignStatus.CLOSED)
+        )
+        .exists()
+    )
+    if not has_history:
+        # Rien de significatif à préserver (aucune année clôturée ni validée) :
+        # on nettoie les quotas de l'instance en cours puis on supprime pour de
+        # bon, plutôt que de laisser un accord "fantôme" dans l'historique.
+        AgreementYearDepartment.objects.filter(
+            agreement_year__agreement=agreement
+        ).delete()
+        try:
+            agreement.delete()
+            return 204, None
+        except ProtectedError:
+            pass
+
+    _discontinue_agreement(agreement)
+    return 200, Agreement.objects.prefetch_related(
+        "levels", "agreement_departments"
+    ).get(pk=agreement.pk)
+
+
+@router.post(
+    "/agreements/{agreement_id}/restore/",
+    response=AgreementOut,
+    summary="Restaurer un accord supprimé",
+)
+def restore_agreement(request, agreement_id: int):
+    agreement = get_or_404(Agreement, agreement_id, "Accord introuvable.")
+    if agreement.deleted_at is None:
+        raise HttpError(400, "Cet accord n'est pas supprimé.")
+    agreement.deleted_at = None
+    agreement.save(update_fields=["deleted_at", "updated_at"])
+    initialize_agreement_years(agreement)
+    return Agreement.objects.prefetch_related("levels", "agreement_departments").get(
+        pk=agreement.pk
+    )
 
 
 # ──────────────────────────────────────────────
@@ -428,8 +577,7 @@ def create_agreement_year(request, payload: AgreementYearIn):
 )
 def update_agreement_year(request, year_id: int, payload: AgreementYearIn):
     instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
-    if instance.is_validated:
-        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
+    _ensure_year_editable(instance)
     old_n7 = instance.n7_places
     for field, value in payload.model_dump().items():
         if field not in (
@@ -458,8 +606,7 @@ def update_agreement_year(request, year_id: int, payload: AgreementYearIn):
 )
 def adjust_inp_places(request, year_id: int, payload: AgreementYearAdjustInpIn):
     instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
-    if instance.is_validated:
-        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
+    _ensure_year_editable(instance)
     if payload.inp_total_places < 0:
         raise HttpError(400, "inp_total_places ne peut pas être négatif.")
     instance.inp_total_places = payload.inp_total_places
@@ -481,8 +628,7 @@ def adjust_inp_places(request, year_id: int, payload: AgreementYearAdjustInpIn):
 )
 def toggle_agreement_year_active(request, year_id: int):
     instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
-    if instance.is_validated:
-        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
+    _ensure_year_editable(instance)
     instance.is_active = not instance.is_active
     instance.save(update_fields=["is_active", "updated_at"])
     if instance.is_active:
@@ -514,8 +660,7 @@ def validate_agreement_year(request, year_id: int, payload: AgreementYearValidat
 )
 def redistribute_year_departments(request, year_id: int):
     instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
-    if instance.is_validated:
-        raise HttpError(400, "Une instance validée ne peut plus être redistribuée.")
+    _ensure_year_editable(instance)
     redistribute_department_quotas(instance)
     return AgreementYearDepartment.objects.filter(agreement_year=instance)
 
@@ -527,8 +672,7 @@ def redistribute_year_departments(request, year_id: int):
 )
 def delete_agreement_year(request, year_id: int):
     instance = get_or_404(AgreementYear, year_id, AGREEMENT_YEAR_NOT_FOUND)
-    if instance.is_validated:
-        raise HttpError(400, "Une instance validée ne peut pas être supprimée.")
+    _ensure_year_editable(instance)
     safe_delete(instance)
     return 204, None
 
@@ -573,8 +717,7 @@ def create_agreement_year_department(request, payload: AgreementYearDepartmentIn
     year_instance = get_or_404(
         AgreementYear, payload.agreement_year_id, AGREEMENT_YEAR_NOT_FOUND
     )
-    if year_instance.is_validated:
-        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
+    _ensure_year_editable(year_instance)
     try:
         agreement_dept = AgreementDepartment.objects.get(
             agreement=year_instance.agreement,
@@ -603,8 +746,7 @@ def update_agreement_year_department(
     dept = get_or_404(
         AgreementYearDepartment, dept_id, "Quota département introuvable."
     )
-    if dept.agreement_year.is_validated:
-        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
+    _ensure_year_editable(dept.agreement_year)
     dept.estimated_places = payload.estimated_places
     return save_validated(dept)
 
@@ -618,8 +760,7 @@ def delete_agreement_year_department(request, dept_id: int):
     dept = get_or_404(
         AgreementYearDepartment, dept_id, "Quota département introuvable."
     )
-    if dept.agreement_year.is_validated:
-        raise HttpError(400, AGREEMENT_YEAR_LOCKED_MSG)
+    _ensure_year_editable(dept.agreement_year)
     safe_delete(dept)
     return 204, None
 
@@ -705,7 +846,11 @@ def mobility_dashboard(request):
             "pending_validation": 0,
         }
 
-    year_instances = AgreementYear.objects.filter(academic_year=current_year)
+    # Un accord supprimé ne compte plus comme actif, même si son instance
+    # (validée avant suppression, donc jamais retouchée) l'indique encore.
+    year_instances = AgreementYear.objects.filter(
+        academic_year=current_year, agreement__deleted_at__isnull=True
+    )
     active = year_instances.filter(is_active=True)
 
     return {

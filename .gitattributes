@@ -1,0 +1,4 @@
+# Les scripts shell doivent garder des fins de ligne LF, y compris sur un
+# checkout Windows (core.autocrlf) — sinon le shebang "#!/bin/sh\r" fait
+# planter le conteneur au démarrage avec "no such file or directory".
+*.sh text eol=lf

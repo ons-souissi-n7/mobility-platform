@@ -19,11 +19,11 @@ const SOURCE_STYLES: Record<string, BadgeStyle> = {
   excel_overrides:    { label: "Excel – Corrections",    className: "bg-orange-50 text-orange-700"  },
 };
 
-function SourceBadge({ source, label }: { source: string; label: string }) {
+function SourceBadge({ source, label }: Readonly<{ source: string; label: string }>) {
   return <Badge value={source} map={SOURCE_STYLES} label={label} />;
 }
 
-function StatusBar({ report }: { report: ImportReportList }) {
+function StatusBar({ report }: Readonly<{ report: ImportReportList }>) {
   const { total, success_count, error_count, duplicate_count } = report;
   if (total === 0) return <span className="text-xs text-gray-400">—</span>;
 
@@ -41,7 +41,7 @@ function StatusBar({ report }: { report: ImportReportList }) {
   );
 }
 
-function ConflictRow({ err }: { err: ImportErrorItem }) {
+function ConflictRow({ err }: Readonly<{ err: ImportErrorItem }>) {
   const [forcing, setForcing] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
@@ -96,7 +96,7 @@ function ConflictRow({ err }: { err: ImportErrorItem }) {
   );
 }
 
-function ErrorsPanel({ errors }: { errors: ImportErrorItem[] }) {
+function ErrorsPanel({ errors }: Readonly<{ errors: ImportErrorItem[] }>) {
   if (errors.length === 0) {
     return (
       <p className="text-sm text-emerald-700 italic">Aucune erreur — import complet.</p>
@@ -159,7 +159,7 @@ function ErrorsPanel({ errors }: { errors: ImportErrorItem[] }) {
   );
 }
 
-function ReportRow({ report }: { report: ImportReportList }) {
+function ReportRow({ report }: Readonly<{ report: ImportReportList }>) {
   const [expanded, setExpanded] = useState(false);
   const [detail, setDetail] = useState<ImportReportDetail | null>(null);
   const [loading, setLoading] = useState(false);

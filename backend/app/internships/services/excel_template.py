@@ -31,7 +31,9 @@ def generate_internship_template(academic_year: AcademicYear) -> bytes:
 
     # Étudiants inscrits pour cette année
     enrollments = (
-        AnnualEnrollment.objects.filter(academic_year=academic_year)
+        AnnualEnrollment.objects.filter(
+            academic_year=academic_year, deleted_at__isnull=True
+        )
         .select_related("student")
         .order_by("student__last_name", "student__first_name")
     )
