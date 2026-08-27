@@ -49,9 +49,7 @@ class TestTrainModel:
         """Cible qui alterne sans lien avec les features : aucun signal
         apprenable linéairement, l'AUC en validation croisée doit être trop
         faible pour passer le seuil MIN_AUC."""
-        rows = [
-            [10.0 + (i % 8), "SN", 0.5, 0, 5] for i in range(MIN_OBSERVATIONS + 10)
-        ]
+        rows = [[10.0 + (i % 8), "SN", 0.5, 0, 5] for i in range(MIN_OBSERVATIONS + 10)]
         targets = [i % 2 for i in range(len(rows))]
         monkeypatch.setattr(
             "app.recommendation.services.model.build_training_dataset",
