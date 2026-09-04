@@ -49,3 +49,19 @@ CORS_EXPOSE_HEADERS = ["Content-Disposition"]
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 NINJA_PAGINATION_CLASS = "ninja.pagination.LimitOffsetPagination"
+
+# Sentry est normalement branché par production.py uniquement. On l'active aussi
+# en dev SI un DSN est fourni (sinon no-op total) — utile pour tester/illustrer
+# la remontée d'exceptions sans passer par un déploiement.
+SENTRY_DSN = config("SENTRY_DSN", default="")  # noqa: F405
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+        environment="development",
+    )

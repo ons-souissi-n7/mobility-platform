@@ -188,11 +188,18 @@ class TestScalability200Students:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 class TestConcurrentWrite:
     """
     Simule des écritures séquentielles rapides et vérifie l'intégrité des données.
-    (Test de robustesse, pas de vraie concurrence en SQLite — utiliser Postgres en staging.)
+    (Test de robustesse, pas de vraie concurrence — utiliser Postgres en staging.)
+
+    Volontairement NON transactionnel (`transaction=True` retiré) : c'était le
+    seul test de la suite à forcer un flush réel de la base de test, ce qui
+    l'exposait aux courses de cycle de vie de `test_mobility_dev` (connexions
+    persistantes CONN_MAX_AGE, base partagée avec les conteneurs backend/worker)
+    et provoquait des « database does not exist » intermittents. Le rollback
+    d'un `transaction.atomic()` interne fonctionne aussi bien via savepoint.
     """
 
     def test_bulk_student_create_integrity(self):

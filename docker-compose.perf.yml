@@ -43,3 +43,7 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.perf_test
       ALLOWED_HOSTS: backend,localhost,127.0.0.1
+      # Banc de charge jetable : on neutralise Sentry (sinon 10 % des requêtes
+      # déclenchent un envoi réseau vers sentry.io et faussent le p95, en plus
+      # de remplir le quota sous 50 VUs).
+      SENTRY_DSN: ""

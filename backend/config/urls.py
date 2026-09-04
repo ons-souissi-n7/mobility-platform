@@ -25,3 +25,13 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+    # Route de debug (dev uniquement) : lève une exception non gérée pour
+    # vérifier de bout en bout la remontée vers Sentry via une vraie requête
+    # HTTP (transaction, en-têtes et pile d'appel réels). Absente hors DEBUG.
+    def _sentry_debug(_request):
+        raise RuntimeError(
+            "Erreur volontaire /sentry-debug/ - test de la remontee Sentry"
+        )
+
+    urlpatterns += [path("sentry-debug/", _sentry_debug)]

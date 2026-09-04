@@ -1,0 +1,3 @@
+# Point de montage pour ./monitoring/grafana/dashboards (bind mount Grafana).
+# Doit exister sur l'hôte : le mount parent /etc/grafana/provisioning est en
+# lecture seule, donc Docker ne peut pas créer ce sous-dossier lui-même.

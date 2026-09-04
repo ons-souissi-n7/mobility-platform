@@ -47,6 +47,8 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-in-production}
       JWT_EXPIRY_MINUTES: "15"
       PGCRYPTO_KEY: ${PGCRYPTO_KEY:-dev-insecure-key-change-in-prod-32c}
+      # Vide par défaut : Sentry reste inactif tant qu'aucun DSN n'est fourni.
+      SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -111,6 +113,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio_secret_123}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-in-production}
       PGCRYPTO_KEY: ${PGCRYPTO_KEY:-dev-insecure-key-change-in-prod-32c}
+      SENTRY_DSN: ${SENTRY_DSN:-}
     depends_on:
       db:
         condition: service_healthy

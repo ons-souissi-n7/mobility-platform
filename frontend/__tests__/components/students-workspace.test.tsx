@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StudentsWorkspace } from "@/components/students/students-workspace";
 import type { AcademicYear, StudentWithEnrollment } from "@/lib/api/types";
@@ -103,6 +103,16 @@ function makeYear(
 const baseProps = { countries: [], departments: [], levels: [], parcourses: [] };
 
 describe("StudentsWorkspace", () => {
+  // Certains tests posent un `mockResolvedValue` persistant (voir historique /
+  // restore) : sans reset, ces implémentations fuient vers les tests suivants et
+  // les rendent flaky. On repart d'un défaut neutre avant chaque test.
+  beforeEach(() => {
+    vi.mocked(getStudentsByYear).mockReset();
+    vi.mocked(getStudentsByYear).mockResolvedValue({ count: 0, results: [], page: 1, page_size: 25 });
+    vi.mocked(getStudentImportErrors).mockReset();
+    vi.mocked(getStudentImportErrors).mockResolvedValue({ count: 0, results: [], page: 1, page_size: 25 });
+  });
+
   it("renders without crashing when there are no academic years", () => {
     render(<StudentsWorkspace academicYears={[]} {...baseProps} />);
     expect(document.body).toBeTruthy();
@@ -397,7 +407,7 @@ describe("StudentsWorkspace", () => {
       expect(screen.queryByRole("columnheader", { name: "Niveau" })).not.toBeInTheDocument();
       expect(screen.queryByRole("columnheader", { name: "Parcours" })).not.toBeInTheDocument();
 
-      const row = screen.getByText("GARNIER").closest("tr");
+      const row = (await screen.findByText("GARNIER")).closest("tr");
       expect(row).not.toBeNull();
       const filiereCell = within(row as HTMLElement);
       expect(filiereCell.getByText("3EA")).toBeInTheDocument();
@@ -427,9 +437,11 @@ describe("StudentsWorkspace", () => {
       await waitFor(() => {
         expect(screen.getByRole("columnheader", { name: "Boursier" })).toBeInTheDocument();
       });
-      const garnierRow = within(screen.getByText("GARNIER").closest("tr") as HTMLElement);
+      // Le header est du markup statique rendu dès l'état "chargement" ; on
+      // attend les lignes elles-mêmes, sinon on court après la promesse du mock.
+      const garnierRow = within((await screen.findByText("GARNIER")).closest("tr") as HTMLElement);
       expect(garnierRow.getByText("Oui")).toBeInTheDocument();
-      const dupontRow = within(screen.getByText("DUPONT").closest("tr") as HTMLElement);
+      const dupontRow = within((await screen.findByText("DUPONT")).closest("tr") as HTMLElement);
       expect(dupontRow.getByText("Non")).toBeInTheDocument();
     });
 
@@ -455,9 +467,11 @@ describe("StudentsWorkspace", () => {
       await waitFor(() => {
         expect(screen.getByRole("columnheader", { name: "FISE/FISA" })).toBeInTheDocument();
       });
-      const garnierRow = within(screen.getByText("GARNIER").closest("tr") as HTMLElement);
+      // Le header est du markup statique rendu dès l'état "chargement" ; on
+      // attend les lignes elles-mêmes, sinon on court après la promesse du mock.
+      const garnierRow = within((await screen.findByText("GARNIER")).closest("tr") as HTMLElement);
       expect(garnierRow.getByText("FISA")).toBeInTheDocument();
-      const dupontRow = within(screen.getByText("DUPONT").closest("tr") as HTMLElement);
+      const dupontRow = within((await screen.findByText("DUPONT")).closest("tr") as HTMLElement);
       expect(dupontRow.getByText("FISE")).toBeInTheDocument();
     });
   });

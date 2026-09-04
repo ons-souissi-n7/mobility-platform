@@ -1,0 +1,47 @@
+# Stack de monitoring (Prometheus + Grafana) à superposer sur le compose DEV.
+#
+# Le docker-compose.yml de prod définit déjà prometheus/grafana mais sans port
+# publié, et le backend y tourne en settings "production" (SECURE_SSL_REDIRECT
+# => le scrape /metrics est redirigé en https et échoue). En dev, pas de
+# redirection : les métriques remontent.
+#
+# Usage :
+#   docker compose -f docker-compose.dev.yml -f docker-compose.monitoring.yml up -d
+#
+# UIs :
+#   Prometheus -> http://localhost:9090   (Status > Targets : "django" doit être UP)
+#   Grafana    -> http://localhost:3001   (admin / ${GRAFANA_ADMIN_PASSWORD:-admin})
+#   Dashboard  -> "backend-overview" (provisionné automatiquement)
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards/json:ro
+    depends_on:
+      - prometheus
+    ports:
+      - "3001:3000"
+
+volumes:
+  prometheus_data:
+  grafana_data:
